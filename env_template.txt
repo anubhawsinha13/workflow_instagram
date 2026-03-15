@@ -1,0 +1,15 @@
+# Copy this file to .env and fill in your API keys
+
+# Perplexity API - For research and story generation
+PERPLEXITY_API_KEY=your_perplexity_api_key_here
+
+# OpenAI API - For script generation
+OPENAI_API_KEY=your_openai_api_key_here
+
+# ElevenLabs API - For voiceover generation (used via Creatomate)
+ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
+ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM
+
+# Creatomate API - For video generation
+CREATOMATE_API_KEY=your_creatomate_api_key_here
+CREATOMATE_TEMPLATE_ID=your_creatomate_template_id_here

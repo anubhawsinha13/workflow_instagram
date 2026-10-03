@@ -31,17 +31,38 @@ The workflow consists of 3 stages:
 
 ## Usage
 
-### Full Workflow (Recommended)
+### Agent (Recommended): trigger workflow + show topic/images
+
+```bash
+python3 execution/agent.py "The history of coffee" --dry-run
+```
+
+This runs research → script → visuals, then prints the topic and the images to be generated. It also writes:
+
+- `projects/<project>/preview/preview.md`
+- `projects/<project>/preview/preview.html`
+- `artifacts/<project>_agent_summary.json`
+
+Options:
+- `--rotate-topic`: cycle built-in topics when none is provided (good for automations)
+- `--render-video`: continue through Creatomate after the preview
+- `--json`: emit a machine-readable summary
+
+See `AGENTS.md` and `automations/instagram-topic-image-agent.md` for Cursor Automation setup.
+
+### Full Workflow
 
 Run all stages in sequence:
 
 ```bash
-python execution/generate_instagram_video.py "The history of coffee"
+python3 execution/generate_instagram_video.py "The history of coffee"
 ```
 
 Options:
 - `--project-name`: Specify project name (auto-generated from topic if not provided)
 - `--no-download`: Skip downloading the final video
+- `--skip-video`: Stop after topic/image preview
+- `--dry-run`: Use offline stubs when APIs are unavailable
 
 ### Individual Stages
 
@@ -65,15 +86,18 @@ python execution/generate_video.py projects/coffee_history/script/script_*.json
 ```
 workflow_instagram/
 ├── execution/
-│   ├── research_topic.py          # Stage 1: Research with Perplexity
-│   ├── generate_script.py          # Stage 2: Script generation with OpenAI
+│   ├── agent.py                    # Agent: trigger + show topic/images
+│   ├── research_topic.py           # Stage 1: Research with Perplexity
+│   ├── generate_script.py          # Stage 2: Script generation (OpenAI/Gemini)
+│   ├── generate_visuals.py         # Stage 2.5: Plan/generate scene images
 │   ├── generate_video.py           # Stage 3: Video generation with Creatomate
-│   └── generate_instagram_video.py # Main workflow script
-├── projects/
-│   └── {project_name}/
-│       ├── research/               # Research outputs
-│       ├── script/                 # Script outputs
-│       └── video/                  # Final videos
+│   ├── generate_instagram_video.py # Full workflow script
+│   └── preview_report.py           # Topic + image preview (md/html)
+├── automations/
+│   └── instagram-topic-image-agent.md
+├── projects/{project_name}/...
+├── artifacts/                      # Agent summaries + shared previews
+├── AGENTS.md
 ├── requirements.txt
 ├── .env.example
 └── README.md

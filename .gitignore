@@ -9,5 +9,9 @@ venv/
 dist/
 build/
 *.log
-execution/
-projects/
+
+# Generated project outputs (keep source in execution/)
+projects/*
+!projects/.gitkeep
+artifacts/*
+!artifacts/.gitkeep

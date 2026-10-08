@@ -70,6 +70,9 @@ def build_caption(research: dict, image_note: str) -> str:
             blocks.append(try_it)
     if research.get("limitations"):
         blocks.append(research["limitations"])
+    takeaway = (research.get("takeaway") or "").strip()
+    if takeaway and takeaway not in blocks:
+        blocks.append(takeaway)
     blocks.append("Save this for the next time you want to check an answer before you trust it.")
     blocks.append("Follow @_brewiq.")
     blocks.append(_source_line(research))

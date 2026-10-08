@@ -330,11 +330,12 @@ def paint_poster(
         MUTED,
     )
 
-    display = _fit_display(draw, [text for text, _color in lines], CONTENT_WIDTH)
-    line_h = int(display.size * 0.92)
-    block_h = line_h * len(lines)
     footer_font = _font(REGULAR, 22)
     footer_h = 30 * max(1, len(footers))
+    max_block = HEIGHT - MARGIN_Y - 780 - footer_h - 40
+    display = _fit_display(draw, [text for text, _color in lines], CONTENT_WIDTH, max_block)
+    line_h = int(display.size * 0.92)
+    block_h = line_h * len(lines)
     headline_top = HEIGHT - MARGIN_Y - footer_h - 24 - block_h
     cursor = max(headline_top, 780)
     for text, color in lines:
@@ -349,11 +350,19 @@ def paint_poster(
     return base.convert("RGB"), on_image, _within_margins(placed)
 
 
-def _fit_display(draw: ImageDraw.ImageDraw, lines: list[str], max_width: int) -> ImageFont.FreeTypeFont:
+def _fit_display(
+    draw: ImageDraw.ImageDraw,
+    lines: list[str],
+    max_width: int,
+    max_block: int | None = None,
+) -> ImageFont.FreeTypeFont:
     size = 118
     while size >= 68:
         font = _font(DISPLAY, size)
-        if all(draw.textlength(line, font=font) <= max_width for line in lines):
+        line_h = int(size * 0.92)
+        fits_width = all(draw.textlength(line, font=font) <= max_width for line in lines)
+        fits_height = max_block is None or line_h * len(lines) <= max_block
+        if fits_width and fits_height:
             return font
         size -= 2
     return _font(DISPLAY, 68)
@@ -556,17 +565,27 @@ def poster_lines(headline: str, accent: str) -> list[tuple[str, str]]:
     if len(words) <= 3:
         chunks = words
     else:
-        size = max(1, (len(words) + 2) // 3)
-        chunks = []
-        index = 0
-        while index < len(words) and len(chunks) < 2:
-            chunks.append(" ".join(words[index : index + size]))
-            index += size
-        tail = " ".join(words[index:])
-        if tail:
-            chunks.append(tail)
+        chunks = _wrap_poster_words(words)
     last = len(chunks) - 1
     return [(line, accent if i == last else WHITE) for i, line in enumerate(chunks)]
+
+
+def _wrap_poster_words(words: list[str]) -> list[str]:
+    """Break a long headline on word boundaries that fit the safe width at the smallest display size."""
+    draw = ImageDraw.Draw(Image.new("RGB", (WIDTH, HEIGHT)))
+    font = _font(DISPLAY, 68)
+    chunks: list[str] = []
+    current = ""
+    for word in words:
+        trial = word if not current else f"{current} {word}"
+        if not current or draw.textlength(trial, font=font) <= CONTENT_WIDTH:
+            current = trial
+            continue
+        chunks.append(current)
+        current = word
+    if current:
+        chunks.append(current)
+    return chunks
 
 
 def render_posters(

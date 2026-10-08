@@ -9,11 +9,14 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from art import _fail, _ok, _skip, generate_illustrations
+from brand import category_style
 from host import to_jpeg, upload_jpegs
+from image import CONTENT_WIDTH, DISPLAY, _font, paint_poster, poster_lines
 from instagram_publish import publish_carousel
+from slides import build_slides
 
 
 class ChainTests(unittest.TestCase):
@@ -86,6 +89,45 @@ class HostTests(unittest.TestCase):
                 result = upload_jpegs(folder, "2026-10-02")
         self.assertFalse(result["ok"])
         self.assertEqual(result["urls"], [])
+
+
+class PosterTests(unittest.TestCase):
+    TAKEAWAY = "Blooming mainly improves wetting; thirty seconds is a practical test, not a guarantee."
+
+    def test_long_headline_stays_inside_the_safe_width(self):
+        lines = [text for text, _color in poster_lines(self.TAKEAWAY, "#35D5F4")]
+        draw = ImageDraw.Draw(Image.new("RGB", (1080, 1350)))
+        font = _font(DISPLAY, 68)
+        self.assertGreater(len(lines), 1)
+        for line in lines:
+            self.assertLessEqual(draw.textlength(line, font=font), CONTENT_WIDTH)
+
+    def test_close_slide_uses_a_short_poster_line(self):
+        slides = build_slides(
+            {
+                "category": "ai_research",
+                "headline": "Why Coffee Blooms First",
+                "why_it_matters": "A bloom can improve wetting.",
+                "point": "Gas escapes before the main pour.",
+                "try_it": "Wait 30 seconds.",
+                "limitations": "The exact benefit is not proven.",
+                "takeaway": self.TAKEAWAY,
+                "timeliness": "evergreen",
+            }
+        )
+        close = slides[-1]
+        self.assertEqual(close["headline"], "Blooming mainly improves wetting")
+        self.assertIn("thirty seconds is a practical test, not a guarantee.", close["body"])
+        style = category_style("ai_research")
+        _image, _text, margins_ok = paint_poster(
+            Image.new("RGB", (64, 64), "black"),
+            number=6,
+            label=style["label"],
+            accent=style["accent"],
+            lines=poster_lines(close["headline"], style["accent"]),
+            footers=["AI-generated concept illustration", "Follow @_brewiq"],
+        )
+        self.assertTrue(margins_ok)
 
 
 class PublishTests(unittest.TestCase):

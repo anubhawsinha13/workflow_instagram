@@ -52,6 +52,22 @@ def _date_line(research: dict) -> str:
     return "Evergreen note, not a breaking story."
 
 
+def poster_phrase(text: str, fallback: str = "Keep the source nearby") -> tuple[str, str]:
+    """Keep the close card to a short poster line. The remainder stays with the slide."""
+    cleaned = " ".join((text or "").split())
+    if not cleaned:
+        return fallback, ""
+    clause, separator, rest = cleaned.partition(";")
+    clause = clause.strip()
+    rest = rest.strip()
+    if separator and 1 < len(clause.split()) <= 7:
+        return clause, rest
+    words = cleaned.split()
+    if len(words) <= 6:
+        return cleaned, ""
+    return " ".join(words[:5]), " ".join(words[5:])
+
+
 def build_slides(research: dict) -> list[dict]:
     label = category_style(research["category"])["label"]
     product = research.get("product") or "the product you use"
@@ -62,6 +78,9 @@ def build_slides(research: dict) -> list[dict]:
     point_lines = split_lines(research.get("point") or "", max_lines=2, max_chars=46)
     point_lines.append(split_lines(_date_line(research), max_lines=1, max_chars=52)[0] if _date_line(research) else "")
     point_lines = [line for line in point_lines if line][:3]
+
+    close, close_rest = poster_phrase(research.get("takeaway") or "")
+    close_body = [line for line in (close_rest, "Follow @_brewiq", "One idea worth saving.") if line]
 
     slides = [
         {
@@ -102,8 +121,8 @@ def build_slides(research: dict) -> list[dict]:
         {
             "number": 6,
             "role": "close",
-            "headline": research.get("takeaway") or "Keep the source nearby",
-            "body": ["Follow @_brewiq", "One idea worth saving."],
+            "headline": close,
+            "body": close_body,
             "next_cue": NEXT["close"],
         },
     ]

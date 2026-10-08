@@ -28,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 load_dotenv(ROOT / ".env")
 
 from art import generate_illustrations  # noqa: E402
+from rights import original_scene_clause  # noqa: E402
 from host import to_jpeg, upload_one_jpeg  # noqa: E402
 
 
@@ -42,8 +43,7 @@ def _secret(*names: str) -> str:
 def _image_prompt(topic: str) -> str:
     return (
         "Premium cinematic advertising still for Instagram. "
-        "No text, no letters, no numbers, no logos, no watermarks, "
-        "no interface, and no screenshots. "
+        f"{original_scene_clause()} "
         f"Topic: {topic}. "
         "Vertical 4:5 composition with a dark lower third and a clear focal subject."
     )
@@ -62,22 +62,26 @@ def _generate(topic: str):
     return images[0], label
 
 
-def _host_public(jpeg_path: Path) -> dict:
-    """Host a JPEG on a public URL Instagram can fetch, without Page posting permission."""
+def _host_file(path: Path, filename: str, mime: str) -> dict:
+    """Host a file on a public URL Instagram can fetch, without Page posting permission."""
     try:
-        with jpeg_path.open("rb") as handle:
+        with path.open("rb") as handle:
             response = requests.post(
                 "https://catbox.moe/user/api.php",
                 data={"reqtype": "fileupload"},
-                files={"fileToUpload": ("brewiq.jpg", handle, "image/jpeg")},
-                timeout=120,
+                files={"fileToUpload": (filename, handle, mime)},
+                timeout=180,
             )
     except requests.RequestException:
-        return {"ok": False, "url": "", "error": "The public image host could not be reached."}
+        return {"ok": False, "url": "", "error": "The public file host could not be reached."}
     url = (response.text or "").strip()
     if response.status_code >= 400 or not url.startswith("https://"):
-        return {"ok": False, "url": "", "error": "The public image host did not return a URL."}
+        return {"ok": False, "url": "", "error": "The public file host did not return a URL."}
     return {"ok": True, "url": url, "error": ""}
+
+
+def _host_public(jpeg_path: Path) -> dict:
+    return _host_file(jpeg_path, "brewiq.jpg", "image/jpeg")
 
 
 def _host_gcs(jpeg_path: Path) -> dict:

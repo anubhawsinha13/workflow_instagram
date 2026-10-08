@@ -12,10 +12,13 @@ from unittest import mock
 from PIL import Image, ImageDraw
 
 from art import _fail, _ok, _skip, generate_illustrations
+from character import character_reference, with_character
 from brand import category_style
 from host import to_jpeg, upload_jpegs
 from image import CONTENT_WIDTH, DISPLAY, _font, paint_poster, poster_lines
 from instagram_publish import publish_carousel
+from reel import render_reel
+from rights import copyright_problems
 from slides import build_slides
 
 
@@ -128,6 +131,76 @@ class PosterTests(unittest.TestCase):
             footers=["AI-generated concept illustration", "Follow @_brewiq"],
         )
         self.assertTrue(margins_ok)
+
+
+class RightsTests(unittest.TestCase):
+    def test_a_logo_or_screenshot_request_is_refused(self):
+        problems = copyright_problems({"visual_idea": "a screenshot of the Nike logo", "claims": []})
+        self.assertTrue(problems)
+
+    def test_saying_no_logos_is_not_a_request_for_a_logo(self):
+        problems = copyright_problems(
+            {
+                "visual_idea": (
+                    "A blank paper sheet on a table, warm natural light, "
+                    "no text, letters, logos, screens, or recognizable branding."
+                ),
+                "claims": [],
+            }
+        )
+        self.assertEqual(problems, [])
+
+    def test_an_original_scene_can_continue(self):
+        problems = copyright_problems(
+            {
+                "visual_idea": "coffee grounds blooming in a glass server",
+                "hook": "Thirty seconds lets the grounds wet evenly.",
+                "claims": [
+                    {
+                        "text": "A study measured mixing in a pour-over bed and did not isolate bloom time.",
+                    }
+                ],
+            }
+        )
+        self.assertEqual(problems, [])
+
+    def test_a_long_copied_passage_is_refused(self):
+        passage = "the water jet caused an avalanche of grounds during the pour and changed the measured extraction"
+        problems = copyright_problems(
+            {
+                "visual_idea": "water moving through dark coffee grounds",
+                "point": passage,
+                "claims": [{"text": passage}],
+            }
+        )
+        self.assertTrue(any("paraphrase" in item for item in problems))
+
+
+class CharacterTests(unittest.TestCase):
+    def test_reel_reference_is_the_face_crop(self):
+        reference = character_reference()
+        self.assertIsNotNone(reference)
+        with Image.open(reference) as image:
+            self.assertLess(image.width, 400)
+            self.assertLess(image.height, 400)
+
+    def test_reel_prompts_keep_the_same_face(self):
+        prompts = with_character(["A quiet coffee bar."])
+        self.assertIn("same face", prompts[0])
+        self.assertIn("no logo", prompts[0])
+
+
+class ReelTests(unittest.TestCase):
+    def test_slide_images_become_a_vertical_video(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            for name in ("slide-01.png", "slide-02.png"):
+                Image.new("RGB", (1080, 1350), "#10141C").save(folder / name)
+            result = render_reel(folder, seconds=0.4)
+            self.assertTrue(result["ok"], result.get("error"))
+            video = Path(result["path"])
+            self.assertEqual(video.suffix, ".mp4")
+            self.assertGreater(video.stat().st_size, 1000)
 
 
 class PublishTests(unittest.TestCase):

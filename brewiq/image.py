@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 from PIL import Image, ImageDraw, ImageFont
 
 from research_md import primary_urls
+from rights import original_scene_clause
 from brand import (
     BG,
     BRAND,
@@ -106,8 +107,8 @@ def _usable_key(name: str) -> str:
 def _illustration_prompt(visual_idea: str) -> str:
     idea = visual_idea or "a single charcoal abstract form with one cyan highlight"
     return (
-        "Premium cinematic advertising still, photoreal, sharp, dramatic light, no words, no letters, "
-        "no numbers, no logos, no watermarks, no user interface, no screenshots. "
+        "Premium cinematic advertising still, photoreal, sharp, dramatic light. "
+        f"{original_scene_clause()} "
         f"Scene: {idea}. Deep charcoal atmosphere, one cyan or warm highlight, dark empty space across the bottom third."
     )
 

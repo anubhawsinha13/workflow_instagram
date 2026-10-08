@@ -16,6 +16,9 @@ import requests
 from dotenv import load_dotenv
 from PIL import Image
 
+from character import character_reference
+from rights import original_scene_clause
+
 ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / ".env")
 
@@ -39,8 +42,8 @@ def scene_prompts(slides: list[dict], research: dict) -> list[str]:
     prompts = []
     for slide in slides:
         prompts.append(
-            "Premium cinematic advertising still. No text, no letters, no numbers, "
-            "no logos, no watermarks, no interface, and no screenshots. "
+            "Premium cinematic advertising still. "
+            f"{original_scene_clause()} "
             f"Slide {slide['number']} ({slide['role']}): {idea}. "
             "Keep the lower third dark and simple so words can be added later."
         )
@@ -118,6 +121,57 @@ def openai_image(prompt: str) -> dict:
                 continue
             return _fail("openai", model, last_error)
     return _fail("openai", SUNBURST_FALLBACK, last_error)
+
+
+def openai_edit_image(reference: Path, prompt: str) -> dict:
+    """Build a new frame from a reference image."""
+    if not reference.is_file():
+        return openai_image(prompt)
+    key = _secret("OPENAI_API_KEY")
+    if not key:
+        return _skip("openai", SUNBURST, "OPENAI_API_KEY is not set.")
+    from openai import OpenAI
+
+    client = OpenAI(api_key=key, timeout=TIMEOUT)
+    last_error = "OpenAI did not return an edited image."
+    for model in (SUNBURST, SUNBURST_FALLBACK):
+        try:
+            with reference.open("rb") as handle:
+                response = client.images.edit(
+                    model=model,
+                    image=handle,
+                    prompt=prompt,
+                    size="1024x1536",
+                    quality="medium",
+                    input_fidelity="high",
+                    n=1,
+                )
+            data = response.data[0]
+            if getattr(data, "b64_json", None):
+                raw = base64.b64decode(data.b64_json)
+            elif getattr(data, "url", None):
+                raw = requests.get(data.url, timeout=TIMEOUT).content
+            else:
+                last_error = f"{model} returned no edited image."
+                continue
+            return _ok("openai", model, _image_from_bytes(raw))
+        except Exception as exc:
+            last_error = str(exc)
+            if model == SUNBURST and _model_rejected(exc):
+                continue
+            break
+    fallback = openai_image(prompt)
+    if fallback.get("ok"):
+        return fallback
+    return _fail("openai", SUNBURST, last_error)
+
+
+def openai_character_image(prompt: str) -> dict:
+    """Edit the saved face reference so a reel uses the same person."""
+    reference = character_reference()
+    if reference is None:
+        return openai_image(prompt)
+    return openai_edit_image(reference, prompt)
 
 
 def midjourney_image(prompt: str) -> dict:

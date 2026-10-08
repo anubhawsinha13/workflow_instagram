@@ -52,8 +52,9 @@ Rules:
 - Do not invent sources, test results, or permissions.
 - If you cannot find a primary URL, return an empty claims array.
 - Write for a clear, practical voice. No jargon, no guaranteed outcomes, no engagement bait.
+- Paraphrase the source. Do not paste a sentence from the source, and do not put a quotation longer than a few words in any field.
 - Headline under 8 words. Hook under 25 words. Why it matters under 40 words. The point under 45 words. Try it under 70 words. Limitations under 40 words. Takeaway under 16 words.
-- visual_idea describes a picture with no words, letters, logos, or product screenshots.
+- visual_idea is an original picture. No words, letters, logos, screenshots, celebrities, copyrighted characters, or copies of an existing photo or artwork.
 
 Return only JSON:
 {{

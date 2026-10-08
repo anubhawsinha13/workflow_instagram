@@ -36,6 +36,7 @@ from history import (  # noqa: E402
 )
 from music import format_music, music_guidance  # noqa: E402
 from research import research_live  # noqa: E402
+from rights import copyright_problems  # noqa: E402
 from research_md import (  # noqa: E402
     load_research_file,
     primary_urls,
@@ -189,7 +190,8 @@ def write_package(
             "Primary sources:",
             "\n".join(f"- {url}" for url in primary_urls(research)),
             (
-                "Visual rights: original graphics composed for BrewIQ. "
+                "Copyright check: automated only. A logo, screenshot, copied artwork, or long quotation blocks the post. This note is not a legal clearance. "
+                "Visuals: original graphics composed for BrewIQ. "
                 + (
                     "Cover uses an AI-generated concept illustration, not a product interface or event photograph."
                     if image_status == "ai_generated"
@@ -358,6 +360,13 @@ def main() -> int:
         return 1
 
     research_text = resolved.get("text") or render_research_markdown(research)
+    blocked = copyright_problems(research)
+    if blocked:
+        write_not_ready(folder, " ".join(blocked), history_available, research_text)
+        print(f"Package: {folder}")
+        print("Ready: no")
+        print(" ".join(blocked))
+        return 1
     slides = build_slides(research)
     if args.art:
         try:
@@ -430,7 +439,7 @@ def main() -> int:
         return 1
 
     caption = build_caption(research, image_disclosure(rendered["image_status"]))
-    problems = caption_problems(caption)
+    problems = caption_problems(caption) + copyright_problems(research, [caption])
     if problems:
         write_not_ready(folder, " ".join(problems), history_available, research_text)
         print(f"Package: {folder}")

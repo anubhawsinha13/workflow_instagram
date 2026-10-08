@@ -62,9 +62,70 @@ def _generate(topic: str):
     return images[0], label
 
 
+def _host_public(jpeg_path: Path) -> dict:
+    """Host a JPEG on a public URL Instagram can fetch, without Page posting permission."""
+    try:
+        with jpeg_path.open("rb") as handle:
+            response = requests.post(
+                "https://catbox.moe/user/api.php",
+                data={"reqtype": "fileupload"},
+                files={"fileToUpload": ("brewiq.jpg", handle, "image/jpeg")},
+                timeout=120,
+            )
+    except requests.RequestException:
+        return {"ok": False, "url": "", "error": "The public image host could not be reached."}
+    url = (response.text or "").strip()
+    if response.status_code >= 400 or not url.startswith("https://"):
+        return {"ok": False, "url": "", "error": "The public image host did not return a URL."}
+    return {"ok": True, "url": url, "error": ""}
+
+
 def _host_gcs(jpeg_path: Path) -> dict:
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     return upload_one_jpeg(jpeg_path, stamp)
+
+
+def _page_token(page_id: str, user_token: str) -> str:
+    """A user token can expose the Page token even when /me/accounts is empty."""
+    try:
+        response = requests.get(
+            f"https://graph.facebook.com/v21.0/{page_id}",
+            params={"fields": "access_token", "access_token": user_token},
+            timeout=60,
+        )
+    except requests.RequestException:
+        return ""
+    body = response.json() if response.content else {}
+    if response.status_code >= 400 or body.get("error"):
+        return ""
+    return str(body.get("access_token") or "").strip()
+
+
+def _page_from_accounts(token: str, preferred: str) -> dict | None:
+    """Return a Page from a user token. A Page token has no /me/accounts list."""
+    try:
+        accounts = requests.get(
+            "https://graph.facebook.com/v21.0/me/accounts",
+            params={
+                "fields": "id,name,access_token,instagram_business_account",
+                "access_token": token,
+            },
+            timeout=60,
+        )
+    except requests.RequestException:
+        return None
+    payload = accounts.json() if accounts.content else {}
+    if accounts.status_code >= 400 or payload.get("error"):
+        return None
+    pages = payload.get("data") or []
+    for item in pages:
+        if preferred and str(item.get("id")) == preferred:
+            return item
+        if (item.get("name") or "").strip().lower() == "brew iq":
+            return item
+    if pages:
+        return pages[0]
+    return None
 
 
 def _host_facebook(jpeg_path: Path) -> dict:
@@ -76,35 +137,12 @@ def _host_facebook(jpeg_path: Path) -> dict:
             "error": "No Instagram/Facebook token available for Page hosting.",
         }
 
-    accounts = requests.get(
-        "https://graph.facebook.com/v21.0/me/accounts",
-        params={
-            "fields": "id,name,access_token,instagram_business_account",
-            "access_token": token,
-        },
-        timeout=60,
-    )
-    payload = accounts.json() if accounts.content else {}
-    if accounts.status_code >= 400 or payload.get("error"):
-        message = (
-            payload.get("error", {}).get("message")
-            if isinstance(payload.get("error"), dict)
-            else accounts.text
-        )
-        return {"ok": False, "url": "", "error": message or "Could not list Facebook Pages."}
-
-    pages = payload.get("data") or []
     preferred = (os.getenv("FACEBOOK_PAGE_ID") or "").strip()
-    page = None
-    for item in pages:
-        if preferred and str(item.get("id")) == preferred:
-            page = item
-            break
-        if (item.get("name") or "").strip().lower() == "brew iq":
-            page = item
-            break
-    if page is None and pages:
-        page = pages[0]
+    page = _page_from_accounts(token, preferred)
+    if not page and preferred:
+        page_token = _page_token(preferred, token)
+        if page_token:
+            page = {"id": preferred, "access_token": page_token}
     if not page or not page.get("id"):
         return {"ok": False, "url": "", "error": "No Facebook Page was available for hosting."}
 
@@ -118,11 +156,7 @@ def _host_facebook(jpeg_path: Path) -> dict:
         )
     body = uploaded.json() if uploaded.content else {}
     if uploaded.status_code >= 400 or body.get("error") or not body.get("id"):
-        message = (
-            body.get("error", {}).get("message")
-            if isinstance(body.get("error"), dict)
-            else uploaded.text
-        )
+        message = body.get("error", {}).get("message") if isinstance(body.get("error"), dict) else ""
         return {"ok": False, "url": "", "error": message or "Facebook did not accept the image."}
 
     photo_id = body["id"]
@@ -133,11 +167,7 @@ def _host_facebook(jpeg_path: Path) -> dict:
     )
     details = info.json() if info.content else {}
     if info.status_code >= 400 or details.get("error"):
-        message = (
-            details.get("error", {}).get("message")
-            if isinstance(details.get("error"), dict)
-            else info.text
-        )
+        message = details.get("error", {}).get("message") if isinstance(details.get("error"), dict) else ""
         return {"ok": False, "url": "", "error": message or "Could not read the hosted image URL."}
 
     url = (details.get("source") or "").strip()
@@ -183,6 +213,9 @@ def main() -> int:
 
         hosted = _host_gcs(jpeg_path)
         host = "gcs"
+        if not hosted.get("ok"):
+            hosted = _host_public(jpeg_path)
+            host = "public"
         if not hosted.get("ok"):
             hosted = _host_facebook(jpeg_path)
             host = "facebook_page"

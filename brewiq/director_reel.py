@@ -15,8 +15,18 @@ if str(ROOT) not in sys.path:
 
 from reel import ffmpeg_bin, motion_changes  # noqa: E402
 
-VEO_MODEL = "veo-3.1-generate-preview"
+VEO_MODEL = (os.getenv("VEO_MODEL") or "veo-3.1-lite-generate-preview").strip()
 MOTION_FLOOR = 1.5
+FRAME_SIZE = (720, 1280)
+
+START_FRAME = (
+    "Turn this photo into one premium stylized 3D animated film still of the same man, vertical 9:16. "
+    "Keep his face, short dark hair, light stubble, and medium-brown complexion recognizable. "
+    "He wears a plain black jacket with no logo. "
+    "Place him in a richly detailed room with warm practical light, soft bokeh, real materials, "
+    "and a color that contrasts with his black jacket. Shallow depth of field. "
+    "No text, no logos, no collage. The opening moment of this scene: "
+)
 
 CHARACTER = (
     "The host is the stylized 3D animated man in the supplied character image. "
@@ -28,7 +38,8 @@ CHARACTER = (
 )
 
 
-def render_director_reel(payload: dict, generate_clip=None) -> dict:
+def render_director_reel(payload: dict, generate_clip=None, make_start_frame=None, model: str | None = None) -> dict:
+    model = model or VEO_MODEL
     scenes = payload.get("scenes") if isinstance(payload.get("scenes"), list) else []
     if len(scenes) < 2:
         return {"ok": False, "error": "A reel needs at least two scenes."}
@@ -53,12 +64,19 @@ def render_director_reel(payload: dict, generate_clip=None) -> dict:
         prompts.append(f"{CHARACTER}{str(scene.get('prompt') or '').strip()}")
     if generate_clip is None and not _gemini_key():
         return {"ok": False, "error": "GEMINI_API_KEY is not set, so this reel was not created."}
-    create = generate_clip or _generate_veo_clip
+    create = generate_clip or (lambda start, prompt, dest: _generate_veo_clip(start, prompt, dest, model))
+    chained = not accepts_reference_images(model)
+    start = reference
+    if chained:
+        start = folder / "start-frame.png"
+        made = (make_start_frame or _start_frame)(reference, str(scenes[0].get("prompt") or ""), start)
+        if not made.get("ok") or not start.is_file():
+            return {"ok": False, "error": made.get("error") or "The opening character frame could not be created."}
     clips = []
-    provider = VEO_MODEL
+    provider = model
     for index, prompt in enumerate(prompts, start=1):
         dest = folder / f"clip-{index:02d}.mp4"
-        created = create(reference, prompt, dest)
+        created = create(start, prompt, dest)
         if not created.get("ok") or not dest.is_file():
             return {"ok": False, "error": _public(created.get("error") or "Veo did not create the clip.")}
         provider = str(created.get("provider") or provider)
@@ -68,6 +86,8 @@ def render_director_reel(payload: dict, generate_clip=None) -> dict:
                 "error": "The clip did not show continuous motion, so this reel was not created.",
             }
         clips.append(dest)
+        if chained:
+            start = _last_frame(dest, folder / f"clip-{index:02d}-last.png") or start
     joined = folder / "joined.mp4"
     assembled = _join(clips, joined)
     if not assembled.get("ok"):
@@ -75,7 +95,46 @@ def render_director_reel(payload: dict, generate_clip=None) -> dict:
     return {"ok": True, "path": str(joined), "provider": provider, "error": ""}
 
 
-def _generate_veo_clip(reference: Path, prompt: str, dest: Path) -> dict:
+def accepts_reference_images(model: str) -> bool:
+    return "lite" not in model.lower()
+
+
+def _start_frame(reference: Path, scene_prompt: str, dest: Path) -> dict:
+    from art import openai_edit_image
+
+    result = openai_edit_image(reference, f"{START_FRAME}{scene_prompt.strip()}", require_reference=True)
+    image = result.get("image")
+    if not result.get("ok") or image is None:
+        return {"ok": False, "error": result.get("error") or "The opening character frame could not be created."}
+    width, height = image.size
+    target = round(height * 9 / 16)
+    if target <= width:
+        left = (width - target) // 2
+        image = image.crop((left, 0, left + target, height))
+    else:
+        tall = round(width * 16 / 9)
+        top = (height - tall) // 2
+        image = image.crop((0, top, width, top + tall))
+    image.resize(FRAME_SIZE).save(dest)
+    return {"ok": True, "error": ""}
+
+
+def _last_frame(clip: Path, dest: Path) -> Path | None:
+    ffmpeg = ffmpeg_bin()
+    if not ffmpeg:
+        return None
+    completed = subprocess.run(
+        [ffmpeg, "-y", "-sseof", "-0.1", "-i", str(clip), "-frames:v", "1", "-update", "1", str(dest)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0 or not dest.is_file() or dest.stat().st_size == 0:
+        return None
+    return dest
+
+
+def _generate_veo_clip(start: Path, prompt: str, dest: Path, model: str = VEO_MODEL) -> dict:
     key = _gemini_key()
     if not key:
         return {"ok": False, "error": "GEMINI_API_KEY is not set, so this reel was not created."}
@@ -85,31 +144,28 @@ def _generate_veo_clip(reference: Path, prompt: str, dest: Path) -> dict:
     except ImportError:
         return {"ok": False, "error": "The Gemini video package is not installed, so this reel was not created."}
     client = genai.Client(api_key=key)
-    image = types.Image(image_bytes=reference.read_bytes(), mime_type="image/png")
-    reference_config = types.GenerateVideosConfig(
-        aspect_ratio="9:16",
-        duration_seconds=8,
-        reference_images=[types.VideoGenerationReferenceImage(image=image, reference_type="asset")],
-    )
+    mime = "image/jpeg" if start.suffix.lower() in (".jpg", ".jpeg") else "image/png"
+    image = types.Image(image_bytes=start.read_bytes(), mime_type=mime)
     frame_config = types.GenerateVideosConfig(aspect_ratio="9:16", duration_seconds=8)
     try:
-        operation = client.models.generate_videos(
-            model=VEO_MODEL,
-            prompt=prompt[:4000],
-            config=reference_config,
-        )
-    except Exception as exc:
-        if not _reference_rejected(exc):
-            return {"ok": False, "error": _public(exc)}
-        try:
-            operation = client.models.generate_videos(
-                model=VEO_MODEL,
-                prompt=prompt[:4000],
-                image=image,
-                config=frame_config,
+        if accepts_reference_images(model):
+            reference_config = types.GenerateVideosConfig(
+                aspect_ratio="9:16",
+                duration_seconds=8,
+                reference_images=[types.VideoGenerationReferenceImage(image=image, reference_type="asset")],
             )
-        except Exception as retry_error:
-            return {"ok": False, "error": _public(retry_error)}
+            try:
+                operation = client.models.generate_videos(model=model, prompt=prompt[:4000], config=reference_config)
+            except Exception as exc:
+                if not _reference_rejected(exc):
+                    raise
+                operation = client.models.generate_videos(
+                    model=model, prompt=prompt[:4000], image=image, config=frame_config
+                )
+        else:
+            operation = client.models.generate_videos(model=model, prompt=prompt[:4000], image=image, config=frame_config)
+    except Exception as exc:
+        return {"ok": False, "error": _public(exc)}
     deadline = time.monotonic() + 8 * 60
     while not operation.done:
         if time.monotonic() > deadline:
@@ -126,7 +182,7 @@ def _generate_veo_clip(reference: Path, prompt: str, dest: Path) -> dict:
     client.files.download(file=videos[0].video, destination=str(dest))
     if not dest.is_file() or dest.stat().st_size == 0:
         return {"ok": False, "error": "Veo did not save the clip, so this reel was not created."}
-    return {"ok": True, "provider": VEO_MODEL, "error": ""}
+    return {"ok": True, "provider": model, "error": ""}
 
 
 def _join(clips: list, dest: Path) -> dict:

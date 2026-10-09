@@ -22,4 +22,4 @@ Stop and say the package is not ready when research has no primary source, the i
 
 ## Words on the slides
 
-The image model must not draw words. The script draws the headline, the category pill, and the source line. Concept art is labeled as a concept illustration.
+The image model must not draw words. The script draws the category pill, BrewIQ mark, poster headline, optional cyan stat line, body copy on interior slides, `@_brewiq`, and the source line. Concept art is labeled as a concept illustration. Cover art should stay cinematic with a dark lower third so that type remains readable.

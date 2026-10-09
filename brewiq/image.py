@@ -28,7 +28,7 @@ from brand import (
 
 BOLD = "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
 REGULAR = "/System/Library/Fonts/Supplemental/Arial.ttf"
-DISPLAY = "/System/Library/Fonts/Supplemental/DIN Condensed Bold.ttf"
+DISPLAY = "/System/Library/Fonts/Supplemental/Impact.ttf"
 CONTENT_WIDTH = WIDTH - (MARGIN_X * 2)
 
 
@@ -266,22 +266,19 @@ def _cover_fill(photo: Image.Image) -> Image.Image:
 
 def _darken_for_type(base: Image.Image) -> None:
     charcoal = hex_rgb(BG)
-    fade = Image.new("RGBA", (WIDTH, 220))
-    pixels = fade.load()
-    for y in range(220):
-        alpha = int(255 * (y / 219) ** 1.2)
-        for x in range(WIDTH):
-            pixels[x, y] = (*charcoal, alpha)
-    base.alpha_composite(fade, (0, 640))
-    panel = Image.new("RGBA", (WIDTH, HEIGHT - 860), (*charcoal, 242))
-    base.alpha_composite(panel, (0, 860))
-    top = Image.new("RGBA", (WIDTH, 220))
-    top_pixels = top.load()
-    for y in range(220):
-        alpha = int(170 * (1 - y / 219))
-        for x in range(WIDTH):
-            top_pixels[x, y] = (*charcoal, alpha)
-    base.alpha_composite(top, (0, 0))
+    fade_top, fade_h = 600, 300
+    fade = Image.new("L", (1, fade_h))
+    fade.putdata([int(250 * (y / (fade_h - 1)) ** 1.4) for y in range(fade_h)])
+    layer = Image.new("RGBA", (WIDTH, fade_h), (*charcoal, 255))
+    layer.putalpha(fade.resize((WIDTH, fade_h)))
+    base.alpha_composite(layer, (0, fade_top))
+    base.alpha_composite(Image.new("RGBA", (WIDTH, HEIGHT - fade_top - fade_h), (*charcoal, 250)), (0, fade_top + fade_h))
+    top_h = 230
+    top = Image.new("L", (1, top_h))
+    top.putdata([int(150 * (1 - y / (top_h - 1)) ** 1.6) for y in range(top_h)])
+    top_layer = Image.new("RGBA", (WIDTH, top_h), (*charcoal, 255))
+    top_layer.putalpha(top.resize((WIDTH, top_h)))
+    base.alpha_composite(top_layer, (0, 0))
 
 
 def paint_poster(
@@ -292,60 +289,56 @@ def paint_poster(
     accent: str,
     lines: list[tuple[str, str]],
     footers: list[str],
+    body: list[str] | None = None,
+    handle: str = HANDLE,
 ) -> tuple[Image.Image, list[str], bool]:
     """Full-bleed illustration with a poster headline. Text is drawn, not invented by the image model."""
     base = _cover_fill(art)
     _darken_for_type(base)
     draw = ImageDraw.Draw(base)
     placed = _Placements()
-    accent_rgb = accent
+    body = [line for line in (body or []) if line][:3]
+    headline = [text for text, color in lines if color == WHITE]
+    accent_lines = [text for text, color in lines if color != WHITE]
+    right = WIDTH - MARGIN_X
 
-    pill_font = _font(BOLD, 22)
-    pill_text = label
-    pill_w = int(draw.textlength(pill_text, font=pill_font)) + 36
-    pill_h = 48
-    pill_box = (MARGIN_X, MARGIN_Y, MARGIN_X + pill_w, MARGIN_Y + pill_h)
-    draw.rounded_rectangle(pill_box, radius=24, outline=accent_rgb, width=3)
-    text_x = MARGIN_X + 18 - pill_font.getbbox(pill_text)[0]
-    text_y = MARGIN_Y + (pill_h - (pill_font.getbbox(pill_text)[3] - pill_font.getbbox(pill_text)[1])) // 2 - pill_font.getbbox(pill_text)[1]
-    placed.add(draw, pill_text, (text_x, text_y), pill_font, accent_rgb)
+    label_font = _font(BOLD, 30)
+    placed.add(draw, label, (_origin_x(label_font, label, MARGIN_X), MARGIN_Y + 2), label_font, accent)
+    brand_font = _font(BOLD, 40)
+    placed.add(draw, BRAND, (_right_origin(brand_font, BRAND, right), MARGIN_Y - 2), brand_font, WHITE)
 
-    brand_font = _font(BOLD, 36)
-    brew, iq = "Brew", "IQ"
-    iq_w = brand_font.getbbox(iq)[2] - brand_font.getbbox(iq)[0]
-    brew_w = brand_font.getbbox(brew)[2] - brand_font.getbbox(brew)[0]
-    brand_right = WIDTH - MARGIN_X
-    iq_x = _right_origin(brand_font, iq, brand_right)
-    brew_x = iq_x - brew_w - 1
-    brand_y = MARGIN_Y + 4
-    placed.add(draw, brew, (brew_x, brand_y), brand_font, WHITE)
-    placed.add(draw, iq, (iq_x, brand_y), brand_font, accent_rgb)
+    handle_font = _font(BOLD, 26)
+    footer_font = _font(REGULAR, 21)
+    body_font = _font(REGULAR, 32)
+    footer_h = 40 + 27 * len(footers)
+    body_h = 42 * len(body) + (36 if body else 0)
+    max_block = HEIGHT - MARGIN_Y - 760 - footer_h - body_h
+    display = _fit_display(draw, headline, CONTENT_WIDTH, max_block)
+    line_h = int(display.size * 0.98)
+    stat_font = _font(DISPLAY, max(44, int(display.size * 0.5)))
+    stat_h = int(stat_font.size * 1.1) * len(accent_lines) + (10 if accent_lines else 0)
 
-    counter_font = _font(REGULAR, 22)
-    counter = f"{number} / {SLIDE_COUNT}"
-    placed.add(
-        draw,
-        counter,
-        (_right_origin(counter_font, counter, brand_right), MARGIN_Y + 52),
-        counter_font,
-        MUTED,
-    )
-
-    footer_font = _font(REGULAR, 22)
-    footer_h = 30 * max(1, len(footers))
-    max_block = HEIGHT - MARGIN_Y - 780 - footer_h - 40
-    display = _fit_display(draw, [text for text, _color in lines], CONTENT_WIDTH, max_block)
-    line_h = int(display.size * 0.92)
-    block_h = line_h * len(lines)
-    headline_top = HEIGHT - MARGIN_Y - footer_h - 24 - block_h
-    cursor = max(headline_top, 780)
-    for text, color in lines:
-        placed.add(draw, text, (_origin_x(display, text, MARGIN_X), cursor), display, color)
+    footer_top = HEIGHT - MARGIN_Y - footer_h
+    cursor = footer_top - 34 - body_h - stat_h - line_h * len(headline)
+    for text in headline:
+        placed.add(draw, text, (_origin_x(display, text, MARGIN_X), cursor), display, WHITE)
         cursor += line_h
-    cursor += 16
+    if accent_lines:
+        cursor += 10
+        for text in accent_lines:
+            placed.add(draw, text, (_origin_x(stat_font, text, MARGIN_X), cursor), stat_font, accent)
+            cursor += int(stat_font.size * 1.1)
+    if body:
+        cursor += 36
+        for line in body:
+            placed.add(draw, line, (_origin_x(body_font, line, MARGIN_X), cursor), body_font, MUTED)
+            cursor += 42
+
+    placed.add(draw, handle, (_origin_x(handle_font, handle, MARGIN_X), footer_top + 4), handle_font, accent)
+    footer_y = footer_top + 44
     for footer in footers:
-        placed.add(draw, footer, (_origin_x(footer_font, footer, MARGIN_X), cursor), footer_font, MUTED)
-        cursor += 30
+        placed.add(draw, footer, (_origin_x(footer_font, footer, MARGIN_X), footer_y), footer_font, MUTED)
+        footer_y += 27
 
     on_image = [item["text"] for item in placed.items]
     return base.convert("RGB"), on_image, _within_margins(placed)
@@ -357,10 +350,10 @@ def _fit_display(
     max_width: int,
     max_block: int | None = None,
 ) -> ImageFont.FreeTypeFont:
-    size = 118
+    size = 150
     while size >= 68:
         font = _font(DISPLAY, size)
-        line_h = int(size * 0.92)
+        line_h = int(size * 0.98)
         fits_width = all(draw.textlength(line, font=font) <= max_width for line in lines)
         fits_height = max_block is None or line_h * len(lines) <= max_block
         if fits_width and fits_height:
@@ -559,22 +552,22 @@ def render_carousel(
     }
 
 
-def poster_lines(headline: str, accent: str) -> list[tuple[str, str]]:
-    words = [word for word in headline.upper().replace("—", " ").split() if word]
+def poster_lines(headline: str, accent: str, accent_line: str = "") -> list[tuple[str, str]]:
+    """White headline lines, plus an optional accent-colored stat line drawn smaller underneath."""
+    words = [word for word in headline.upper().replace("—", " ").rstrip(".").split() if word]
     if not words:
         words = ["BREWIQ"]
-    if len(words) <= 3:
-        chunks = words
-    else:
-        chunks = _wrap_poster_words(words)
-    last = len(chunks) - 1
-    return [(line, accent if i == last else WHITE) for i, line in enumerate(chunks)]
+    chunks = _wrap_poster_words(words)
+    lines = [(line, WHITE) for line in chunks]
+    if accent_line:
+        lines.append((accent_line.upper(), accent))
+    return lines
 
 
 def _wrap_poster_words(words: list[str]) -> list[str]:
     """Break a long headline on word boundaries that fit the safe width at the smallest display size."""
     draw = ImageDraw.Draw(Image.new("RGB", (WIDTH, HEIGHT)))
-    font = _font(DISPLAY, 68)
+    font = _font(DISPLAY, 112)
     chunks: list[str] = []
     current = ""
     for word in words:
@@ -595,17 +588,31 @@ def render_posters(
     destination: Path,
     arts: list[Image.Image],
     provider_label: str,
+    accent: str | None = None,
 ) -> dict:
     """Paint the poster layout on illustrations. The image model does not draw the words."""
     destination.mkdir(parents=True, exist_ok=True)
     if len(arts) < SLIDE_COUNT:
         return {"ok": False, "error": "Six illustrations are required.", "slides": [], "image_status": provider_label}
     style = category_style(research["category"])
+    accent = accent or style["accent"]
     source = ""
     urls = primary_urls(research)
     if urls:
         host = urlparse(urls[0]).netloc.removeprefix("www.")
-        source = f"Source: {host}" if host else "Source listed in the caption"
+        title = next(
+            (
+                (claim.get("source_title") or "").strip()
+                for claim in research.get("claims") or []
+                if (claim.get("source_url") or "").strip().rstrip(".,)") == urls[0]
+            ),
+            "",
+        )
+        name = title if title and len(title) <= 28 else host
+        date = (research.get("publication_date") or "").strip()
+        source = f"Source: {name}" if name else "Source listed in the caption"
+        if name and date and date.lower() != "not stated":
+            source = f"Source: {name} • {date}"
     note = "Supplied concept illustration" if provider_label == "uploaded" else "AI-generated concept illustration"
     written = []
     for slide, art in zip(slides, arts):
@@ -613,15 +620,14 @@ def render_posters(
         if slide["number"] == 1 and source:
             footers.append(source)
         footers.append(note)
-        if slide["number"] == SLIDE_COUNT:
-            footers.append(f"Follow {HANDLE}")
         image, on_image, margins_ok = paint_poster(
             art,
             number=slide["number"],
             label=style["label"],
-            accent=style["accent"],
-            lines=poster_lines(slide["headline"], style["accent"]),
+            accent=accent,
+            lines=poster_lines(slide["headline"], accent, slide.get("accent_line") or ""),
             footers=footers,
+            body=[] if slide["role"] == "cover" else slide.get("body") or [],
         )
         filename = f"slide-{slide['number']:02d}.png"
         path = destination / filename

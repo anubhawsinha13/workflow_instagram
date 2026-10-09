@@ -123,7 +123,7 @@ class PosterTests(unittest.TestCase):
         )
         close = slides[-1]
         self.assertEqual(close["headline"], "Blooming mainly improves wetting")
-        self.assertIn("thirty seconds is a practical test, not a guarantee.", close["body"])
+        self.assertEqual(" ".join(close["body"]), "thirty seconds is a practical test, not a guarantee.")
         style = category_style("ai_research")
         _image, _text, margins_ok = paint_poster(
             Image.new("RGB", (64, 64), "black"),
@@ -131,9 +131,134 @@ class PosterTests(unittest.TestCase):
             label=style["label"],
             accent=style["accent"],
             lines=poster_lines(close["headline"], style["accent"]),
-            footers=["AI-generated concept illustration", "Follow @_brewiq"],
+            footers=["AI-generated concept illustration"],
+            body=close["body"],
         )
         self.assertTrue(margins_ok)
+
+    def test_cover_puts_the_stat_in_cyan_under_the_headline(self):
+        slides = build_slides(
+            {
+                "category": "ai_news",
+                "headline": "10,000 engineers to deploy AI",
+                "stat": "$100M training commitment",
+                "why_title": "Scale meets training",
+                "why_it_matters": "Companies need people who can ship AI safely.",
+                "point_title": "Headcount plus budget",
+                "point": "A large hiring plan is paired with a training fund.",
+                "try_title": "Ask for the plan",
+                "try_it": "Ask how training is measured.",
+                "limit_title": "Plans can slip",
+                "limitations": "Announced numbers can change.",
+                "takeaway": "Check the source before you share.",
+                "timeliness": "timely",
+                "publication_date": "Oct 2, 2026",
+            }
+        )
+        cover, why = slides[0], slides[1]
+        self.assertEqual(cover["accent_line"], "$100M training commitment")
+        self.assertEqual(why["headline"], "Scale meets training")
+        style = category_style("ai_news")
+        lines = poster_lines(cover["headline"], style["accent"], cover["accent_line"])
+        self.assertEqual(lines[-1], ("$100M TRAINING COMMITMENT", style["accent"]))
+        self.assertTrue(all(color == "#FFFFFF" for _text, color in lines[:-1]))
+        image, on_image, margins_ok = paint_poster(
+            Image.new("RGB", (64, 64), "#152033"),
+            number=1,
+            label=style["label"],
+            accent=style["accent"],
+            lines=lines,
+            footers=["Source: Anthropic • Oct 2, 2026", "AI-generated concept illustration"],
+        )
+        self.assertTrue(margins_ok)
+        self.assertIn("@_brewiq", on_image)
+        self.assertIn("BrewIQ", on_image)
+        self.assertIn("$100M TRAINING COMMITMENT", on_image)
+        self.assertEqual(image.size, (1080, 1350))
+
+
+class ArtDirectorTests(unittest.TestCase):
+    RESEARCH = {
+        "category": "try_this",
+        "topic": "Turn meeting notes into actions",
+        "headline": "Turn meeting notes into clear actions",
+        "why_it_matters": "Action items get lost in long notes.",
+        "point": "Ask the assistant to list owners and due dates.",
+        "try_it": "Paste notes and ask for a checklist with owners.",
+        "limitations": "It can miss context that was only said aloud.",
+        "takeaway": "Review the list before you send it.",
+        "timeliness": "evergreen",
+        "claims": [],
+    }
+
+    def _answer(self, accent="gold", use_character=True):
+        return json.dumps({
+            "accent": accent,
+            "images": [
+                {
+                    "number": index + 1,
+                    "message": "Messy notes become one clear checklist",
+                    "scene": "Scattered paper pages stream into a single glowing checklist card on a dark table",
+                    "prompt": "Scattered torn paper pages fly from the left in a luminous stream into one clean "
+                              "checklist card standing on a dark reflective table",
+                    "exclusions": "readable text, logos",
+                    "use_character": use_character,
+                    "character_action": "pulling one clean page out of the stream",
+                }
+                for index in range(6)
+            ],
+        })
+
+    def test_direction_becomes_six_prompts_with_one_accent_and_at_most_two_character_slides(self):
+        from art_director import direct_slides
+
+        slides = build_slides(self.RESEARCH)
+        calls = []
+
+        def complete(system, user):
+            calls.append((system, user))
+            return self._answer()
+
+        result = direct_slides(slides, self.RESEARCH, character_available=True, complete=complete)
+        self.assertTrue(result["ok"], result["error"])
+        self.assertEqual(result["accent_hex"], "#FFC76A")
+        self.assertEqual(len(result["images"]), 6)
+        self.assertEqual(sum(item["use_character"] for item in result["images"]), 2)
+        self.assertIn("#FFC76A", result["images"][0]["prompt"])
+        self.assertIn("lower third stays dark", result["images"][0]["prompt"])
+        self.assertIn("BREWIQ IMAGE ART DIRECTION", calls[0][0])
+        self.assertIn("CHARACTER_AVAILABLE: yes", calls[0][1])
+
+    def test_a_broken_answer_falls_back_to_plain_scene_prompts(self):
+        from art_director import direct_slides
+
+        slides = build_slides(self.RESEARCH)
+        result = direct_slides(slides, self.RESEARCH, complete=lambda _system, _user: "{\"images\": []}")
+        self.assertFalse(result["ok"])
+        self.assertEqual(len(result["images"]), 6)
+        self.assertEqual(result["accent_hex"], "#FFC76A")
+        self.assertIn("art director was unavailable", result["error"])
+
+    def test_character_slides_use_the_reference_caller(self):
+        from art_director import directed_illustrations
+
+        slides = build_slides(self.RESEARCH)
+        seen = []
+
+        def caller(prompt):
+            seen.append(prompt.startswith("Use the same face"))
+            return {"image": Image.new("RGB", (8, 8)), "provider": "test", "model": "test", "ok": True,
+                    "skipped": False, "error": ""}
+
+        with tempfile.TemporaryDirectory() as tmp, mock.patch("art_director.character_reference",
+                                                               return_value=Path(tmp)):
+            generated, direction = directed_illustrations(
+                slides, self.RESEARCH, Path(tmp), complete=lambda _s, _u: self._answer(), callers=[caller]
+            )
+            self.assertTrue((Path(tmp) / "art-direction.json").is_file())
+        self.assertTrue(generated["ok"])
+        self.assertEqual(seen, [True, True, False, False, False, False])
+        self.assertEqual(direction["accent"], "gold")
 
 
 class RightsTests(unittest.TestCase):
@@ -263,7 +388,14 @@ class DirectorReelTests(unittest.TestCase):
         self.assertIn("two scenes", result["error"])
 
     def test_a_ready_storyboard_joins_moving_clips(self):
-        def generate(_reference, _prompt, dest):
+        starts = []
+
+        def start_frame(_reference, _prompt, dest):
+            Image.new("RGB", (72, 128), "#C08040").save(dest)
+            return {"ok": True, "error": ""}
+
+        def generate(start, _prompt, dest):
+            starts.append(Path(start).name)
             ffmpeg = shutil.which("ffmpeg") or "/opt/homebrew/bin/ffmpeg"
             completed = subprocess.run(
                 [
@@ -294,10 +426,39 @@ class DirectorReelTests(unittest.TestCase):
                     ],
                 },
                 generate_clip=generate,
+                make_start_frame=start_frame,
+                model="veo-3.1-lite-generate-preview",
             )
             self.assertTrue(result["ok"], result.get("error"))
             self.assertTrue((Path(tmp) / "joined.mp4").is_file())
             self.assertEqual(result["provider"], "veo-3.1-generate-preview")
+            self.assertEqual(starts, ["start-frame.png", "clip-01-last.png"])
+
+    def test_standard_veo_uses_the_character_reference_for_every_clip(self):
+        starts = []
+
+        def generate(start, _prompt, dest):
+            starts.append(Path(start).name)
+            return {"ok": False, "error": "stop after the first clip"}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            reference = Path(tmp) / "face.png"
+            Image.new("RGB", (64, 64), "#10141C").save(reference)
+            result = render_director_reel(
+                {
+                    "folder": tmp,
+                    "reference": str(reference),
+                    "scenes": [
+                        {"prompt": "The host pours coffee.", "use_character": True},
+                        {"prompt": "The host checks a calendar.", "use_character": True},
+                    ],
+                },
+                generate_clip=generate,
+                model="veo-3.1-generate-preview",
+            )
+            self.assertFalse(result["ok"])
+            self.assertEqual(starts, ["face.png"])
+            self.assertFalse((Path(tmp) / "start-frame.png").exists())
 
     def test_a_frozen_clip_is_not_posted(self):
         def generate(_reference, _prompt, dest):
@@ -321,6 +482,7 @@ class DirectorReelTests(unittest.TestCase):
                     ],
                 },
                 generate_clip=generate,
+                model="veo-3.1-generate-preview",
             )
             self.assertFalse(result["ok"])
             self.assertIn("continuous motion", result["error"])
@@ -375,6 +537,68 @@ class DirectorReelTests(unittest.TestCase):
             )
             self.assertFalse(result["ok"])
             self.assertIn("approved BrewIQ character", result["error"])
+
+
+class ExplainerRenderTests(unittest.TestCase):
+    def test_scene_data_becomes_a_vertical_video(self):
+        from explainer_render import render_explainer
+
+        element = {
+            "id": "s1-card", "type": "card", "label": "Agents pick tools",
+            "box": {"x": 120, "y": 640, "w": 760, "h": 360},
+            "enter_at": 0.1, "enter_duration": 0.3, "enter_motion": "slide_up",
+            "hold_until": 1.2, "exit_motion": "fade_out", "exit_duration": 0.2,
+        }
+        bar = dict(element, id="s2-bar", type="progress", label="", enter_motion="fill",
+                   box={"x": 120, "y": 900, "w": 760, "h": 40})
+        renderer = {
+            "canvas": {"width": 360, "height": 640, "fps": 10},
+            "scenes": [
+                {"start_seconds": 0, "duration_seconds": 1.5, "elements": [element]},
+                {"start_seconds": 1.5, "duration_seconds": 1.5, "elements": [bar]},
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "explainer.mp4"
+            result = render_explainer({"renderer": renderer, "output": str(out)})
+            self.assertTrue(result["ok"], result.get("error"))
+            self.assertTrue(out.is_file())
+            self.assertEqual(result["seconds"], 3.0)
+
+    def test_host_props_metaphors_and_camera_render(self):
+        from explainer_render import load_pose_library, render_explainer
+
+        library = load_pose_library()
+        self.assertIn("magnify", library)
+        self.assertIn("lens", library["magnify"][1], "the magnifier lens is located for the prop label")
+
+        def element(**extra):
+            base = {
+                "box": {"x": 120, "y": 300, "w": 760, "h": 360}, "label": "",
+                "enter_at": 0.1, "enter_duration": 0.3, "enter_motion": "snap",
+                "hold_until": 1.0, "exit_motion": "crack", "exit_duration": 0.4,
+            }
+            base.update(extra)
+            return base
+
+        scenes = [
+            {"start_seconds": 0, "duration_seconds": 1.5, "camera": "push_in", "elements": [
+                element(id="claim", type="bubble", label="Sounds sure", tone="warning"),
+                element(id="host", type="character", box={"x": 64, "y": 900, "w": 540, "h": 580},
+                        enter_motion="walk_in", exit_motion="hold", hold_until=1.5, pose="magnify",
+                        prop_label="Source?", beats=[{"at": 0.8, "pose": "pinch", "prop_label": "1899"}]),
+            ]},
+            {"start_seconds": 1.5, "duration_seconds": 1.5, "camera": "pull_out", "elements": [
+                element(id="reel", type="slots", label="a | b | c", exit_motion="fade_out"),
+                element(id="word", type="token", label="1899", box={"x": 400, "y": 700, "w": 260, "h": 110},
+                        exit_motion="toss"),
+            ]},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "explainer.mp4"
+            result = render_explainer({"renderer": {"canvas": {"fps": 6}, "scenes": scenes}, "output": str(out)})
+            self.assertTrue(result["ok"], result.get("error"))
+            self.assertEqual(result["seconds"], 3.0)
 
 
 class CharacterEditTests(unittest.TestCase):

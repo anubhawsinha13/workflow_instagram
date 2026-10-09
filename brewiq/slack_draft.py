@@ -16,6 +16,7 @@ if str(ROOT) not in sys.path:
 os.environ["BREWIQ_NONINTERACTIVE"] = "1"
 
 from art import generate_illustrations, openai_character_image, openai_edit_image, scene_prompts  # noqa: E402
+from art_director import directed_illustrations  # noqa: E402
 from character import character_reference, with_character, with_scene  # noqa: E402
 from caption import build_caption, caption_problems  # noqa: E402
 from host import to_jpeg, upload_jpegs, write_review  # noqa: E402
@@ -103,23 +104,28 @@ def build_slack_draft(topic: str, post_format: str = "slides", reference_path: s
         write_not_ready(folder, reason, history_available, research_text)
         return {"ok": False, "error": reason}
     slides = build_slides(research)
-    prompts = scene_prompts(slides, research)
-    callers = None
     attached = Path(reference_path).expanduser() if reference_path else None
-    if post_format == "reel" and attached is not None and attached.is_file():
-        prompts = with_scene(prompts)
-        callers = [lambda prompt, image=attached: openai_edit_image(image, prompt)]
-    elif post_format == "reel" and character_reference() is not None:
-        prompts = with_character(prompts)
-        callers = [openai_character_image]
-    generated = generate_illustrations(prompts, callers=callers)
+    accent = None
+    if post_format == "reel":
+        prompts = scene_prompts(slides, research)
+        callers = None
+        if attached is not None and attached.is_file():
+            prompts = with_scene(prompts)
+            callers = [lambda prompt, image=attached: openai_edit_image(image, prompt)]
+        elif character_reference() is not None:
+            prompts = with_character(prompts)
+            callers = [openai_character_image]
+        generated = generate_illustrations(prompts, callers=callers)
+    else:
+        generated, direction = directed_illustrations(slides, research, folder)
+        accent = direction["accent_hex"]
     if not generated.get("ok"):
         reason = generated.get("error") or "Illustration was not generated."
         write_not_ready(folder, reason, history_available, research_text)
         return {"ok": False, "error": reason}
 
     provider = generated.get("model") or generated.get("provider") or "ai_generated"
-    rendered = render_posters(slides, research, folder, generated["images"], provider)
+    rendered = render_posters(slides, research, folder, generated["images"], provider, accent=accent)
     if not rendered.get("ok"):
         reason = rendered.get("error") or "Image not generated."
         write_not_ready(folder, reason, history_available, research_text)

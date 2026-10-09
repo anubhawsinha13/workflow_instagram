@@ -49,12 +49,15 @@ Rules:
 - Distinguish the publication date from the event date. Do not call an older story breaking or just released.
 - Verify availability, rollout limits, and free versus paid access before mentioning them. If you cannot verify a detail, omit it.
 - For research claims, note authorship, date, and a limitation. Do not turn correlation into causation.
-- Do not invent sources, test results, or permissions.
+- Do not invent sources, test results, or permissions. Do not invent numbers.
 - If you cannot find a primary URL, return an empty claims array.
 - Write for a clear, practical voice. No jargon, no guaranteed outcomes, no engagement bait.
 - Paraphrase the source. Do not paste a sentence from the source, and do not put a quotation longer than a few words in any field.
-- Headline under 8 words. Hook under 25 words. Why it matters under 40 words. The point under 45 words. Try it under 70 words. Limitations under 40 words. Takeaway under 16 words.
-- visual_idea is an original picture. No words, letters, logos, screenshots, celebrities, copyrighted characters, or copies of an existing photo or artwork.
+- Headline under 8 words. Prefer a punchy data-led cover line when a verified number, dollar amount, percent, headcount, or date is central, for example "10,000 engineers to deploy AI". Otherwise a clear plain-language claim.
+- stat is an optional cyan accent line under the cover headline, under 6 words, only when a second verified figure or commitment appears in the source, for example "$100M training commitment". Leave it empty if there is no second verified figure.
+- why_title, point_title, try_title, and limit_title are short poster titles under 5 words each. Make them specific to this story, not generic labels like "Why it matters".
+- Hook under 25 words. Why it matters under 40 words. The point under 45 words. Try it under 70 words. Limitations under 40 words. Takeaway under 16 words.
+- visual_idea is one original cinematic scene for the carousel: dark premium setting, dramatic cyan or cool light, a clear subject or metaphor the viewer can read in one glance, and a dark empty lower third for type. No words, letters, numbers, logos, screenshots, celebrities, copyrighted characters, or copies of an existing photo or artwork. Prefer people from behind or in silhouette when people appear. Invent abstract tech metaphors such as glowing networks, glass tables, floating modules, or light paths, never branded products.
 
 Return only JSON:
 {{
@@ -62,9 +65,13 @@ Return only JSON:
   "category": "{category}",
   "timeliness": "timely or evergreen",
   "headline": "",
+  "stat": "",
   "hook": "",
+  "why_title": "",
   "why_it_matters": "",
+  "point_title": "",
   "point": "",
+  "try_title": "",
   "event_date": "",
   "publication_date": "",
   "claims": [
@@ -78,6 +85,7 @@ Return only JSON:
   ],
   "availability": "",
   "limitations": "",
+  "limit_title": "",
   "try_it": "",
   "product": "",
   "takeaway": "",

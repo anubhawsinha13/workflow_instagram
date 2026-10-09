@@ -21,7 +21,8 @@ if str(ROOT) not in sys.path:
 load_dotenv(REPO / ".env")
 load_dotenv()
 
-from art import generate_illustrations, load_uploaded, scene_prompts  # noqa: E402
+from art import load_uploaded  # noqa: E402
+from art_director import directed_illustrations  # noqa: E402
 from brand import HANDLE, category_style  # noqa: E402
 from caption import build_caption, caption_problems  # noqa: E402
 from host import load_review, mark_published, upload_jpegs, write_review  # noqa: E402
@@ -381,7 +382,7 @@ def main() -> int:
         provider_label = "uploaded"
         rendered = render_posters(slides, research, folder, arts, provider_label)
     else:
-        generated = generate_illustrations(scene_prompts(slides, research))
+        generated, direction = directed_illustrations(slides, research, folder)
         (folder / "image_attempts.txt").write_text(
             "\n".join(
                 f"{item['provider']} {item['model']}: {'skipped' if item['skipped'] else 'called'} {item['error']}".strip()
@@ -396,7 +397,8 @@ def main() -> int:
             print(generated.get("error"))
             return 1
         provider_label = generated.get("model") or generated.get("provider") or "ai_generated"
-        rendered = render_posters(slides, research, folder, generated["images"], provider_label)
+        rendered = render_posters(slides, research, folder, generated["images"], provider_label,
+                                  accent=direction["accent_hex"])
     if not rendered.get("ok"):
         note = rendered.get("error") or "Image not generated"
         package = (folder / "package.md").read_text(encoding="utf-8") if (folder / "package.md").exists() else ""

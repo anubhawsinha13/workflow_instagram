@@ -37,15 +37,51 @@ def _secret(name: str) -> str:
     return value
 
 
+_ROLE_BEATS = {
+    "cover": (
+        "Wide establishing shot. People or silhouettes gather around a glowing abstract interface or metaphor "
+        "in a dark premium room with cool cyan light and a soft city glow in the distance. The subject fills "
+        "the upper two thirds."
+    ),
+    "why": (
+        "Tighter shot on the same world. Emphasize the stakes with stronger light on the central object and "
+        "softer figures at the edge of frame."
+    ),
+    "point": (
+        "Clearer close view of the mechanism inside the metaphor: modules, light paths, or interlocking pieces "
+        "that show how the idea works."
+    ),
+    "try": (
+        "Hands-on practical beat in the same visual world: a person reaches toward or arranges the glowing object, "
+        "as if taking a simple next step."
+    ),
+    "limit": (
+        "The same scene under more tension: one connection flickers, a panel dims, or a gap appears in the "
+        "network, without becoming scary or gory."
+    ),
+    "close": (
+        "Resolved, calmer reprise of the opening motif. Soft cyan light, balanced composition, a sense of "
+        "clarity after the check."
+    ),
+}
+
+
 def scene_prompts(slides: list[dict], research: dict) -> list[str]:
-    idea = (research.get("visual_idea") or "one dark object in a charcoal room").strip()
+    idea = (
+        research.get("visual_idea")
+        or "a glowing glass table of abstract cyan modules in a dark high-rise room at night"
+    ).strip()
     prompts = []
     for slide in slides:
+        beat = _ROLE_BEATS.get(slide["role"], _ROLE_BEATS["cover"])
         prompts.append(
-            "Premium cinematic advertising still. "
+            "Premium cinematic advertising still for Instagram, 4:5 portrait, photoreal concept art. "
             f"{original_scene_clause()} "
-            f"Slide {slide['number']} ({slide['role']}): {idea}. "
-            "Keep the lower third dark and simple so words can be added later."
+            f"Core scene: {idea}. "
+            f"Beat for slide {slide['number']} ({slide['role']}): {beat} "
+            "Dark charcoal and deep navy palette with cyan highlights. High contrast, shallow depth of field, "
+            "editorial lighting. Keep the lower third dark, empty, and simple so typography can be added later. "
+            "No interface screens with readable UI, no charts with numbers, and no brand marks."
         )
     return prompts
 

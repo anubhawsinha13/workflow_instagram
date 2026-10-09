@@ -13,12 +13,25 @@ ai_news, try_this, or ai_research
 timely or evergreen
 
 ## Headline
+Punchy cover line under 8 words. Prefer a verified number when the story has one.
+
+## Stat
+Optional cyan accent under the cover, under 6 words, only with a second verified figure.
 
 ## Hook
 
+## Why title
+Short poster title under 5 words.
+
 ## Why it matters
 
+## Point title
+Short poster title under 5 words.
+
 ## The point
+
+## Try title
+Short poster title under 5 words.
 
 ## Event date
 
@@ -29,6 +42,9 @@ timely or evergreen
 
 ## Availability
 
+## Limit title
+Short poster title under 5 words.
+
 ## Limitations
 
 ## Try it
@@ -38,7 +54,7 @@ timely or evergreen
 ## Takeaway
 
 ## Visual idea
-Describe a picture with no words, letters, or logos.
+One cinematic original scene: dark premium setting, dramatic cyan light, clear metaphor, empty dark lower third. No words, letters, numbers, logos, celebrities, or copies of existing photos.
 
 ## Keywords
 keyword, keyword, keyword

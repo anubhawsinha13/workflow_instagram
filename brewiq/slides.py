@@ -44,14 +44,6 @@ def split_lines(text: str, max_lines: int = 3, max_chars: int = 46) -> list[str]
     return lines
 
 
-def _date_line(research: dict) -> str:
-    if research.get("timeliness") == "timely":
-        event = research.get("event_date") or "not stated"
-        published = research.get("publication_date") or "not stated"
-        return f"Event date: {event}. Source published: {published}."
-    return "Evergreen note, not a breaking story."
-
-
 def poster_phrase(text: str, fallback: str = "Keep the source nearby") -> tuple[str, str]:
     """Keep the close card to a short poster line. The remainder stays with the slide."""
     cleaned = " ".join((text or "").split())
@@ -68,53 +60,67 @@ def poster_phrase(text: str, fallback: str = "Keep the source nearby") -> tuple[
     return " ".join(words[:5]), " ".join(words[5:])
 
 
+def _title(value: str, fallback: str, max_words: int = 5) -> str:
+    words = _words(value)
+    if not words:
+        return fallback
+    return " ".join(words[:max_words])
+
+
 def build_slides(research: dict) -> list[dict]:
     label = category_style(research["category"])["label"]
-    product = research.get("product") or "the product you use"
-    try_lines = split_lines(research.get("try_it") or "", max_lines=2, max_chars=42)
-    if research["category"] == "try_this":
-        try_lines = (try_lines + ["", ""])[:2]
-        try_lines.append(f"Not tested in {product}."[:46])
-    point_lines = split_lines(research.get("point") or "", max_lines=2, max_chars=46)
-    point_lines.append(split_lines(_date_line(research), max_lines=1, max_chars=52)[0] if _date_line(research) else "")
-    point_lines = [line for line in point_lines if line][:3]
+    try_lines = split_lines(research.get("try_it") or "", max_lines=3, max_chars=46)
+    point_lines = split_lines(research.get("point") or "", max_lines=3, max_chars=46)
 
-    close, close_rest = poster_phrase(research.get("takeaway") or "")
-    close_body = [line for line in (close_rest, "Follow @_brewiq", "One idea worth saving.") if line]
+    takeaway = " ".join((research.get("takeaway") or "").split())
+    if takeaway and len(takeaway.split()) <= 8:
+        close, close_rest = takeaway.rstrip("."), ""
+    else:
+        close, close_rest = poster_phrase(takeaway)
+    close_body = split_lines(close_rest, max_lines=2, max_chars=46) if close_rest else []
+    stat = " ".join(_words(research.get("stat") or "")[:6])
 
     slides = [
         {
             "number": 1,
             "role": "cover",
             "headline": research.get("headline") or research.get("topic") or label,
+            "accent_line": stat,
             "body": [],
             "next_cue": NEXT["cover"],
         },
         {
             "number": 2,
             "role": "why",
-            "headline": "Why it matters",
+            "headline": _title(research.get("why_title") or "", "Why it lands"),
+            "accent_line": "",
             "body": split_lines(research.get("why_it_matters") or research.get("hook") or ""),
             "next_cue": NEXT["why"],
         },
         {
             "number": 3,
             "role": "point",
-            "headline": "The point",
+            "headline": _title(research.get("point_title") or "", "The real shift"),
+            "accent_line": "",
             "body": point_lines,
             "next_cue": NEXT["point"],
         },
         {
             "number": 4,
             "role": "try",
-            "headline": "Try this" if research["category"] == "try_this" else "Use it",
-            "body": try_lines if research["category"] == "try_this" else split_lines(research.get("try_it") or ""),
+            "headline": _title(
+                research.get("try_title") or "",
+                "Try this tonight" if research["category"] == "try_this" else "Put it to work",
+            ),
+            "accent_line": "",
+            "body": try_lines,
             "next_cue": NEXT["try"],
         },
         {
             "number": 5,
             "role": "limit",
-            "headline": "The limit",
+            "headline": _title(research.get("limit_title") or "", "Where it breaks"),
+            "accent_line": "",
             "body": split_lines(research.get("limitations") or "Details can change. Check the source."),
             "next_cue": NEXT["limit"],
         },
@@ -122,6 +128,7 @@ def build_slides(research: dict) -> list[dict]:
             "number": 6,
             "role": "close",
             "headline": close,
+            "accent_line": "",
             "body": close_body,
             "next_cue": NEXT["close"],
         },

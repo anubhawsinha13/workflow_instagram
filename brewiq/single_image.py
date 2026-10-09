@@ -64,20 +64,41 @@ def _generate(topic: str):
 
 def _host_file(path: Path, filename: str, mime: str) -> dict:
     """Host a file on a public URL Instagram can fetch, without Page posting permission."""
+    hosted = _post_host(
+        "https://catbox.moe/user/api.php",
+        path,
+        filename,
+        mime,
+        {"reqtype": "fileupload"},
+        timeout=20,
+    )
+    if hosted.get("ok"):
+        return hosted
+    return _post_host(
+        "https://litterbox.catbox.moe/resources/internals/api.php",
+        path,
+        filename,
+        mime,
+        {"reqtype": "fileupload", "time": "72h"},
+        timeout=60,
+    )
+
+
+def _post_host(url: str, path: Path, filename: str, mime: str, data: dict, timeout: int) -> dict:
     try:
         with path.open("rb") as handle:
             response = requests.post(
-                "https://catbox.moe/user/api.php",
-                data={"reqtype": "fileupload"},
+                url,
+                data=data,
                 files={"fileToUpload": (filename, handle, mime)},
-                timeout=180,
+                timeout=timeout,
             )
     except requests.RequestException:
         return {"ok": False, "url": "", "error": "The public file host could not be reached."}
-    url = (response.text or "").strip()
-    if response.status_code >= 400 or not url.startswith("https://"):
+    hosted = (response.text or "").strip()
+    if response.status_code >= 400 or not hosted.startswith("https://"):
         return {"ok": False, "url": "", "error": "The public file host did not return a URL."}
-    return {"ok": True, "url": url, "error": ""}
+    return {"ok": True, "url": hosted, "error": ""}
 
 
 def _host_public(jpeg_path: Path) -> dict:

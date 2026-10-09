@@ -46,6 +46,44 @@ _EXCLUSION = re.compile(
 )
 
 
+_PROSE_FIELDS = (
+    "headline",
+    "hook",
+    "why_it_matters",
+    "point",
+    "try_it",
+    "limitations",
+    "takeaway",
+    "availability",
+)
+
+
+def prepare_post_copy(research: dict) -> dict:
+    """Remove long quotations and shorten source passages so the reel can continue."""
+    return paraphrase_repeated_notes(omit_long_quotations(research))
+
+
+def paraphrase_repeated_notes(research: dict) -> dict:
+    """Drop any 10-word stretch that copies a source note. The source URL stays attached."""
+    cleaned = dict(research)
+    claims = [claim for claim in (cleaned.get("claims") or []) if isinstance(claim, dict)]
+    for field in _PROSE_FIELDS:
+        value = cleaned.get(field)
+        if isinstance(value, str) and value.strip():
+            cleaned[field] = _drop_overlapping_spans(value, claims)
+    return cleaned
+
+
+def omit_long_quotations(research: dict) -> dict:
+    """Drop quoted passages of 12 or more words so a source sentence is not posted."""
+    cleaned = dict(research)
+    for field in _PROSE_FIELDS:
+        value = cleaned.get(field)
+        if isinstance(value, str):
+            cleaned[field] = _LONG_QUOTE.sub(_drop_long_quote, value).strip()
+    return cleaned
+
+
 def copyright_problems(research: dict, extra_texts: list[str] | None = None) -> list[str]:
     """Return reasons to refuse hosting. An empty list means the automated checks passed."""
     problems = visual_problems(str(research.get("visual_idea") or ""))
@@ -76,6 +114,46 @@ def _long_quotation(text: str) -> bool:
         if len(_words(match.group(1))) >= 12:
             return True
     return False
+
+
+def _drop_long_quote(match: re.Match) -> str:
+    if len(_words(match.group(1))) >= 12:
+        return ""
+    return match.group(0)
+
+
+def _drop_overlapping_spans(text: str, claims: list[dict]) -> str:
+    spans = []
+    for claim in claims:
+        words = _words(str(claim.get("text") or ""))
+        if len(words) < SPAN:
+            continue
+        for index in range(len(words) - SPAN + 1):
+            spans.append(words[index : index + SPAN])
+    current = text
+    for _ in range(12):
+        tokens = list(_WORDS.finditer(current))
+        lowered = [token.group(0).lower() for token in tokens]
+        start = _matching_window(lowered, spans)
+        if start is None:
+            break
+        cut_from = tokens[start].start()
+        cut_to = tokens[start + SPAN - 1].end()
+        current = f"{current[:cut_from]} {current[cut_to:]}".strip()
+        current = re.sub(r"\s{2,}", " ", current)
+    if len(_words(current)) < 4:
+        return "The source notes support this in shorter form."
+    return current
+
+
+def _matching_window(words: list[str], spans: list[list[str]]) -> int | None:
+    if len(words) < SPAN:
+        return None
+    for span in spans:
+        for index in range(len(words) - SPAN + 1):
+            if words[index : index + SPAN] == span:
+                return index
+    return None
 
 
 def _repeats_source_note(text: str, claims: list[dict]) -> bool:

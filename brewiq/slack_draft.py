@@ -32,7 +32,7 @@ from run import (  # noqa: E402
     write_package,
 )
 from reel import render_reel  # noqa: E402
-from rights import copyright_problems  # noqa: E402
+from rights import copyright_problems, prepare_post_copy  # noqa: E402
 from single_image import _host_file, _host_public  # noqa: E402
 from slides import build_slides  # noqa: E402
 
@@ -95,6 +95,7 @@ def build_slack_draft(topic: str, post_format: str = "slides", reference_path: s
         write_not_ready(folder, reason, history_available, resolved.get("text") or "")
         return {"ok": False, "error": reason}
 
+    research = prepare_post_copy(research)
     research_text = resolved.get("text") or render_research_markdown(research)
     blocked = copyright_problems(research)
     if blocked:

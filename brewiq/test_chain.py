@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,14 +13,15 @@ from unittest import mock
 
 from PIL import Image, ImageDraw
 
-from art import _fail, _ok, _skip, generate_illustrations
+from art import _fail, _ok, _skip, generate_illustrations, openai_edit_image
+from director_reel import render_director_reel
 from character import character_reference, with_character
 from brand import category_style
 from host import to_jpeg, upload_jpegs
 from image import CONTENT_WIDTH, DISPLAY, _font, paint_poster, poster_lines
 from instagram_publish import publish_carousel
-from reel import render_reel
-from rights import copyright_problems
+from reel import motion_changes, render_reel
+from rights import copyright_problems, omit_long_quotations, prepare_post_copy
 from slides import build_slides
 
 
@@ -164,6 +167,26 @@ class RightsTests(unittest.TestCase):
         )
         self.assertEqual(problems, [])
 
+    def test_a_long_quotation_is_removed_before_the_facts_are_used(self):
+        quoted = (
+            '"Gemini study notebooks use a diagnostic quiz to establish a baseline and identify knowledge gaps."'
+        )
+        cleaned = omit_long_quotations({"point": f"Google describes the feature. {quoted}", "claims": []})
+        self.assertNotIn('"', cleaned["point"])
+        self.assertEqual(copyright_problems(cleaned), [])
+
+    def test_a_repeated_source_passage_is_shortened_so_the_post_can_continue(self):
+        passage = "the water jet caused an avalanche of grounds during the pour and changed the measured extraction"
+        cleaned = prepare_post_copy(
+            {
+                "visual_idea": "water moving through dark coffee grounds",
+                "point": passage,
+                "claims": [{"text": passage, "source_url": "https://example.com/study"}],
+            }
+        )
+        self.assertEqual(copyright_problems(cleaned), [])
+        self.assertLess(len(cleaned["point"].split()), 10)
+
     def test_a_long_copied_passage_is_refused(self):
         passage = "the water jet caused an avalanche of grounds during the pour and changed the measured extraction"
         problems = copyright_problems(
@@ -201,6 +224,197 @@ class ReelTests(unittest.TestCase):
             video = Path(result["path"])
             self.assertEqual(video.suffix, ".mp4")
             self.assertGreater(video.stat().st_size, 1000)
+
+    def test_a_moving_shot_changes_more_than_a_zoomed_still(self):
+        ffmpeg = shutil.which("ffmpeg") or "/opt/homebrew/bin/ffmpeg"
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            still = folder / "still.png"
+            Image.new("RGB", (320, 180), "#10141C").save(still)
+            zoomed = folder / "zoom.mp4"
+            moving = folder / "move.mp4"
+            zoom = subprocess.run(
+                [
+                    ffmpeg, "-y", "-loop", "1", "-i", str(still),
+                    "-vf", "zoompan=z='min(zoom+0.0015,1.10)':d=24:s=320x180:fps=12",
+                    "-frames:v", "24", "-pix_fmt", "yuv420p", str(zoomed),
+                ],
+                capture_output=True, text=True, check=False,
+            )
+            moved = subprocess.run(
+                [
+                    ffmpeg, "-y",
+                    "-f", "lavfi", "-i", "color=c=black:s=320x180:d=2",
+                    "-f", "lavfi", "-i", "color=c=white:s=40x40:d=2",
+                    "-filter_complex", "[0][1]overlay=x='10+120*t':y=60",
+                    "-pix_fmt", "yuv420p", str(moving),
+                ],
+                capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(zoom.returncode, 0, zoom.stderr[-200:])
+            self.assertEqual(moved.returncode, 0, moved.stderr[-200:])
+            self.assertGreater(motion_changes(moving), motion_changes(zoomed) + 5)
+
+
+class DirectorReelTests(unittest.TestCase):
+    def test_two_scenes_are_required(self):
+        result = render_director_reel({"folder": ".", "scenes": [{"prompt": "One scene."}]})
+        self.assertFalse(result["ok"])
+        self.assertIn("two scenes", result["error"])
+
+    def test_a_ready_storyboard_joins_moving_clips(self):
+        def generate(_reference, _prompt, dest):
+            ffmpeg = shutil.which("ffmpeg") or "/opt/homebrew/bin/ffmpeg"
+            completed = subprocess.run(
+                [
+                    ffmpeg, "-y",
+                    "-f", "lavfi", "-i", "color=c=black:s=320x180:d=1",
+                    "-f", "lavfi", "-i", "color=c=white:s=40x40:d=1",
+                    "-filter_complex", "[0][1]overlay=x='10+80*t':y=40",
+                    "-pix_fmt", "yuv420p", str(dest),
+                ],
+                capture_output=True, text=True, check=False,
+            )
+            return {
+                "ok": completed.returncode == 0 and dest.is_file(),
+                "provider": "veo-3.1-generate-preview",
+                "error": completed.stderr[-120:],
+            }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            reference = Path(tmp) / "face.png"
+            Image.new("RGB", (64, 64), "#10141C").save(reference)
+            result = render_director_reel(
+                {
+                    "folder": tmp,
+                    "reference": str(reference),
+                    "scenes": [
+                        {"prompt": "The host pours coffee in a quiet kitchen.", "use_character": True},
+                        {"prompt": "The same host checks a calendar.", "use_character": True},
+                    ],
+                },
+                generate_clip=generate,
+            )
+            self.assertTrue(result["ok"], result.get("error"))
+            self.assertTrue((Path(tmp) / "joined.mp4").is_file())
+            self.assertEqual(result["provider"], "veo-3.1-generate-preview")
+
+    def test_a_frozen_clip_is_not_posted(self):
+        def generate(_reference, _prompt, dest):
+            ffmpeg = shutil.which("ffmpeg") or "/opt/homebrew/bin/ffmpeg"
+            completed = subprocess.run(
+                [ffmpeg, "-y", "-f", "lavfi", "-i", "color=c=black:s=320x180:d=1", "-pix_fmt", "yuv420p", str(dest)],
+                capture_output=True, text=True, check=False,
+            )
+            return {"ok": completed.returncode == 0, "provider": "veo-3.1-generate-preview", "error": ""}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            reference = Path(tmp) / "face.png"
+            Image.new("RGB", (64, 64), "#10141C").save(reference)
+            result = render_director_reel(
+                {
+                    "folder": tmp,
+                    "reference": str(reference),
+                    "scenes": [
+                        {"prompt": "The host pours coffee.", "use_character": True},
+                        {"prompt": "The host checks a calendar.", "use_character": True},
+                    ],
+                },
+                generate_clip=generate,
+            )
+            self.assertFalse(result["ok"])
+            self.assertIn("continuous motion", result["error"])
+            self.assertFalse((Path(tmp) / "joined.mp4").exists())
+
+    def test_missing_gemini_key_creates_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            reference = Path(tmp) / "face.png"
+            Image.new("RGB", (32, 32), "#10141C").save(reference)
+            with mock.patch.dict(os.environ, {"GEMINI_API_KEY": "", "GOOGLE_API_KEY": ""}, clear=False):
+                result = render_director_reel(
+                    {
+                        "folder": tmp,
+                        "reference": str(reference),
+                        "scenes": [
+                            {"prompt": "The host pours coffee.", "use_character": True},
+                            {"prompt": "The host checks a calendar.", "use_character": True},
+                        ],
+                    }
+                )
+            self.assertFalse(result["ok"])
+            self.assertIn("GEMINI_API_KEY", result["error"])
+
+    def test_missing_reference_does_not_invent_a_character(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = render_director_reel(
+                {
+                    "folder": tmp,
+                    "reference": str(Path(tmp) / "missing.png"),
+                    "scenes": [
+                        {"prompt": "A person pours coffee.", "use_character": True},
+                        {"prompt": "The same person checks a calendar.", "use_character": True},
+                    ],
+                }
+            )
+            self.assertFalse(result["ok"])
+            self.assertIn("character reference", result["error"])
+
+    def test_a_scene_without_the_character_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            reference = Path(tmp) / "face.png"
+            Image.new("RGB", (32, 32), "#10141C").save(reference)
+            result = render_director_reel(
+                {
+                    "folder": tmp,
+                    "reference": str(reference),
+                    "scenes": [
+                        {"prompt": "The host pours coffee.", "use_character": True},
+                        {"prompt": "A calendar opens.", "use_character": False},
+                    ],
+                }
+            )
+            self.assertFalse(result["ok"])
+            self.assertIn("approved BrewIQ character", result["error"])
+
+
+class CharacterEditTests(unittest.TestCase):
+    def test_edit_retries_when_the_model_rejects_input_fidelity(self):
+        import base64
+        import io
+
+        buffer = io.BytesIO()
+        Image.new("RGB", (8, 8), "#10141C").save(buffer, format="PNG")
+        encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+        calls = []
+
+        class Images:
+            def edit(self, **kwargs):
+                calls.append(kwargs.get("input_fidelity", ""))
+                if kwargs.get("input_fidelity"):
+                    raise RuntimeError("The model does not support the 'input_fidelity' parameter.")
+
+                class Data:
+                    b64_json = encoded
+
+                class Response:
+                    data = [Data()]
+
+                return Response()
+
+        class Client:
+            def __init__(self, *_args, **_kwargs):
+                self.images = Images()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            reference = Path(tmp) / "face.png"
+            Image.new("RGB", (8, 8), "#10141C").save(reference)
+            with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}, clear=False), mock.patch(
+                "openai.OpenAI", Client
+            ):
+                result = openai_edit_image(reference, "Pour coffee.", require_reference=True)
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertEqual(calls, ["high", ""])
+        self.assertEqual(result["model"], "gpt-image-2.5-sunburst")
 
 
 class PublishTests(unittest.TestCase):

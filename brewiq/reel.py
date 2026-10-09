@@ -6,6 +6,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from PIL import Image
+
 REEL_WIDTH = 1080
 REEL_HEIGHT = 1920
 SLIDE_SECONDS = 3
@@ -118,3 +120,43 @@ def render_reel(folder: Path, seconds: float = SLIDE_SECONDS) -> dict:
         reason = detail[-1] if detail else "ffmpeg did not write a reel."
         return {"ok": False, "path": "", "error": reason[:240]}
     return {"ok": True, "path": str(output), "error": ""}
+
+
+def motion_changes(video: Path) -> float:
+    """Peak change between sampled frames. A frozen pose or slow zoom stays near zero."""
+    ffmpeg = ffmpeg_bin()
+    if not ffmpeg or not video.is_file():
+        return 0.0
+    folder = video.parent / f"{video.stem}-motion"
+    folder.mkdir(exist_ok=True)
+    pattern = folder / "frame-%02d.png"
+    completed = subprocess.run(
+        [ffmpeg, "-y", "-i", str(video), "-vf", "fps=4,scale=48:48", str(pattern)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    frames = sorted(folder.glob("frame-*.png"))
+    if completed.returncode != 0 or len(frames) < 2:
+        return 0.0
+    peak = 0.0
+    previous = Image.open(frames[0]).convert("L")
+    for path in frames[1:]:
+        current = Image.open(path).convert("L")
+        peak = max(peak, _mean_difference(previous, current))
+        previous.close()
+        previous = current
+    previous.close()
+    return peak
+
+
+def _mean_difference(left: Image.Image, right: Image.Image) -> float:
+    left_bytes = left.tobytes()
+    right_bytes = right.tobytes()
+    count = min(len(left_bytes), len(right_bytes))
+    if count == 0:
+        return 0.0
+    total = 0
+    for index in range(count):
+        total += abs(left_bytes[index] - right_bytes[index])
+    return total / count

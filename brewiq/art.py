@@ -85,6 +85,32 @@ def _model_rejected(exc: Exception) -> bool:
     return "model" in text and any(word in text for word in ("not found", "does not exist", "invalid", "unknown"))
 
 
+def _unsupported_fidelity(exc: Exception) -> bool:
+    return "input_fidelity" in str(exc).lower()
+
+
+def _reference_error(detail: str) -> str:
+    text = " ".join(str(detail).split())
+    lowered = text.lower()
+    if not text or len(text) > 240 or any(word in lowered for word in ("api_key", "sk-", "secret", "bearer")):
+        return "The character reference could not be applied, so a different character was not generated."
+    return text
+
+
+def _edit_request(client, reference: Path, prompt: str, model: str, fidelity: bool):
+    kwargs = {
+        "model": model,
+        "prompt": prompt,
+        "size": "1024x1536",
+        "quality": "medium",
+        "n": 1,
+    }
+    if fidelity:
+        kwargs["input_fidelity"] = "high"
+    with reference.open("rb") as handle:
+        return client.images.edit(image=handle, **kwargs)
+
+
 def _image_from_bytes(raw: bytes) -> Image.Image:
     return Image.open(io.BytesIO(raw)).convert("RGB")
 
@@ -123,9 +149,15 @@ def openai_image(prompt: str) -> dict:
     return _fail("openai", SUNBURST_FALLBACK, last_error)
 
 
-def openai_edit_image(reference: Path, prompt: str) -> dict:
+def openai_edit_image(reference: Path, prompt: str, *, require_reference: bool = False) -> dict:
     """Build a new frame from a reference image."""
     if not reference.is_file():
+        if require_reference:
+            return _fail(
+                "openai",
+                SUNBURST,
+                "The approved BrewIQ character reference is missing, so this scene was not generated.",
+            )
         return openai_image(prompt)
     key = _secret("OPENAI_API_KEY")
     if not key:
@@ -135,31 +167,30 @@ def openai_edit_image(reference: Path, prompt: str) -> dict:
     client = OpenAI(api_key=key, timeout=TIMEOUT)
     last_error = "OpenAI did not return an edited image."
     for model in (SUNBURST, SUNBURST_FALLBACK):
-        try:
-            with reference.open("rb") as handle:
-                response = client.images.edit(
-                    model=model,
-                    image=handle,
-                    prompt=prompt,
-                    size="1024x1536",
-                    quality="medium",
-                    input_fidelity="high",
-                    n=1,
-                )
-            data = response.data[0]
-            if getattr(data, "b64_json", None):
-                raw = base64.b64decode(data.b64_json)
-            elif getattr(data, "url", None):
-                raw = requests.get(data.url, timeout=TIMEOUT).content
-            else:
-                last_error = f"{model} returned no edited image."
-                continue
-            return _ok("openai", model, _image_from_bytes(raw))
-        except Exception as exc:
-            last_error = str(exc)
-            if model == SUNBURST and _model_rejected(exc):
-                continue
-            break
+        for fidelity in (True, False):
+            try:
+                response = _edit_request(client, reference, prompt, model, fidelity)
+                data = response.data[0]
+                if getattr(data, "b64_json", None):
+                    raw = base64.b64decode(data.b64_json)
+                elif getattr(data, "url", None):
+                    raw = requests.get(data.url, timeout=TIMEOUT).content
+                else:
+                    last_error = f"{model} returned no edited image."
+                    if fidelity:
+                        continue
+                    break
+                return _ok("openai", model, _image_from_bytes(raw))
+            except Exception as exc:
+                last_error = str(exc)
+                if fidelity and _unsupported_fidelity(exc):
+                    continue
+                break
+        if model == SUNBURST and _model_rejected(Exception(last_error)):
+            continue
+        break
+    if require_reference:
+        return _fail("openai", SUNBURST, _reference_error(last_error))
     fallback = openai_image(prompt)
     if fallback.get("ok"):
         return fallback

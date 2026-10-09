@@ -36,7 +36,7 @@ from history import (  # noqa: E402
 )
 from music import format_music, music_guidance  # noqa: E402
 from research import research_live  # noqa: E402
-from rights import copyright_problems  # noqa: E402
+from rights import copyright_problems, prepare_post_copy  # noqa: E402
 from research_md import (  # noqa: E402
     load_research_file,
     primary_urls,
@@ -359,6 +359,7 @@ def main() -> int:
         print("Ready: no")
         return 1
 
+    research = prepare_post_copy(research)
     research_text = resolved.get("text") or render_research_markdown(research)
     blocked = copyright_problems(research)
     if blocked:

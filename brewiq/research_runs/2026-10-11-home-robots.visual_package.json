@@ -1,0 +1,1371 @@
+{
+  "topic": "Would you trust a robot home alone? What home humanoids have actually shown",
+  "duration_seconds": 24.0,
+  "label": "Illustrative animation",
+  "profile": "cinematic",
+  "master_direction": {
+    "logline": "The BrewIQ host walks in on a robot doing his chores, follows it room to room, sees it miss and recover, then discovers there can be a human behind the controls.",
+    "style": "Premium 3D animated short film in the BrewIQ brand look (midnight navy, electric cyan, vibrant blue, warm amber, clean white). Feature-animation characters in one consistent, detailed apartment; cinematic lighting and depth of field; real camera grammar; no presenter-on-a-slide, no flat backgrounds, no floating text cards.",
+    "arc": "Wonder (0–10s) → doubt: the miss (10–13.5s) → respect: the retry (13.5–16.5s) → twist: the human in the loop (16.5–20s) → question to the viewer (20–24s).",
+    "story_rule": "A new meaningful visual event every 2–4s (see each scene's events); no shot holds without a change.",
+    "host_rule": "The host is a participant, not a pointer: he walks in, watches, crouches, winces, nods, and speaks to camera once at the end. No pointing poses.",
+    "palette": {
+      "brand": {
+        "midnight_navy": "#0B1020",
+        "electric_cyan": "#13D8E8",
+        "vibrant_blue": "#4169FF",
+        "warm_amber": "#FFB547",
+        "clean_white": "#F6F8FC"
+      },
+      "robot_eyes": "#13D8E8",
+      "waiting_eyes": "#FFB547",
+      "remote_room": [
+        "#0B1020",
+        "#4169FF",
+        "#FFB547"
+      ]
+    },
+    "accuracy": "Illustrative animation of a generic robot, not Figure's or 1X's design. Chores shown are the ones Figure tested (towels, toys; beds are named in the voiceover). The miss and retry dramatise Figure's 56% full-task rate and its reported self-correction. The remote operator dramatises 1X's scheduled Expert for chores NEO doesn't know, labelled 'Different robot: 1X NEO'."
+  },
+  "character": {
+    "name": "BrewIQ host",
+    "lock_prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement.",
+    "reference_assets": [
+      "brand/character-reference.png"
+    ],
+    "source_sheet": "brand/character-reference.png",
+    "rules": [
+      "Matches the sheet: black wavy hair, no glasses, black hooded quilted jacket (his 'black hoodie'), black tee, black joggers, white sneakers.",
+      "Not in the first 1.8s; the robot's action is the hook. He enters through the door at 2.4s.",
+      "Every scene gives him a different action: enter, set keys down, crouch and lean in, wince, nod, lean on the island and turn to camera. No repeated gestures and no pointing.",
+      "Speaks to camera once (Scene 7). Mouth movement only in the clip; the line comes from the voiceover track.",
+      "Absent from Scene 6 (remote workroom). The lock stays in that prompt for pipeline consistency, with an explicit 'does not appear' line.",
+      "If a clip drifts (face, hair, jacket), regenerate it; do not fix it in the grade."
+    ]
+  },
+  "robot": {
+    "lock_prompt": "ROBOT LOCK — one generic humanoid home robot, adult height, slim build, soft matte warm-grey fabric-covered body, rounded head with a dark glossy face visor and two soft cyan eye lights, slim five-fingered hands, quiet careful movements; no logos, letters or markings; not any real company's robot.",
+    "rules": [
+      "Same robot in every apartment scene; eye lights cyan, amber only while waiting for help (end of Scene 5 to the start of Scene 7).",
+      "No logos or real-robot likeness."
+    ]
+  },
+  "environment": {
+    "lock_prompt": "SET LOCK — the same premium modern open-plan apartment in every shot, early morning: deep midnight-navy walls, dark walnut floor with soft glossy reflections, graphite-grey sofa, low walnut coffee table, dark woven laundry basket, a tall window on the left with sheer curtains and low warm-amber sunrise light raking across the room, electric-cyan under-shelf strip lights, vibrant-blue city glow outside, fiddle-leaf fig, walnut bookshelf with books and ceramics, a charcoal play mat with scattered wooden toys, kitchen island with cyan under-cabinet light and an open dishwasher at the back right, entry door at the back left.",
+    "rules": [
+      "Same apartment, furniture layout and amber-sunrise-on-navy light in Scenes 1–5 and 7.",
+      "Brand look: no beige, cream or flat backgrounds.",
+      "Export Scene 1 at 2.0s as assets/env/apartment_plate.png and attach it as an extra reference for Scenes 2–5 and 7 where the model allows."
+    ]
+  },
+  "typography": {
+    "frame_rule": "FRAME RULE — compose with clean, uncluttered negative space in the top 30% of the frame and keep every head and face below it; keep the bottom 28% (subtitle band) free of faces and key action.",
+    "subtitle_zone": "lower_safe",
+    "hook_zone": "top_safe: headline box x 90, y 300, 690×280px on 1080×1920 (see composition.zones)",
+    "rules": [
+      "One headline at a time, never stacked; 2–6 words, max 2 lines, 84/76/68px bold rounded sans, clean white on a 85% midnight-navy plate with a cyan accent.",
+      "Headlines sit in the top safe band and never enter the presenter zone (y 620–1360); every prompt keeps faces and heads below the top 30%, so text never sits behind a character. Composite text as the top layer.",
+      "Subtitles: max 6 words, 50px, in the subtitle band (y 1380–1500), clear of Instagram's caption UI and the right-edge buttons; never shown with a matching headline.",
+      "Small persistent 'Illustrative animation' tag top-left (x 90, y 250) for the full runtime; BrewIQ end card in the last 0.8s."
+    ]
+  },
+  "scenes": [
+    {
+      "role": "Hook",
+      "start": 0.0,
+      "end": 3.0,
+      "voiceover": "Would you leave this robot home alone?",
+      "location": "Living room, coffee table in the foreground, entry door soft in the background.",
+      "character_actions": "No host for the first 1.8s; the robot is the subject. The door swings open at 1.8s and the host steps in at 2.4s, keys in hand, and stops mid-stride.",
+      "moving_objects": "Towel snapping open and folding; sheer curtains drifting; door swinging open; sunlight flaring through the doorway.",
+      "camera": "Low tracking dolly from frame one, gliding past the coffee table toward the robot's hands, rising slightly to reveal the door opening behind.",
+      "lighting": "Low warm-amber sunrise key from the left window against midnight-navy shadows, cyan shelf practicals as rim light; a wedge of brighter daylight spills in when the door opens.",
+      "on_screen_text": [
+        {
+          "start": 0.2,
+          "end": 3.0,
+          "text": "Leave THIS robot home alone?",
+          "placement": "top_safe",
+          "layer": "above_all"
+        }
+      ],
+      "events": [
+        {
+          "t": 0.0,
+          "event": "Towel already snapping open in the robot's hands"
+        },
+        {
+          "t": 1.0,
+          "event": "Robot folds it in half and lays it on a stack"
+        },
+        {
+          "t": 1.8,
+          "event": "Front door swings open behind"
+        },
+        {
+          "t": 2.4,
+          "event": "Host steps in and stops mid-stride"
+        }
+      ],
+      "fact_basis": [
+        0
+      ],
+      "transition": "Motivated: the camera keeps travelling past the robot's shoulder into Scene 2's over-the-shoulder angle (match move).",
+      "prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. ROBOT LOCK — one generic humanoid home robot, adult height, slim build, soft matte warm-grey fabric-covered body, rounded head with a dark glossy face visor and two soft cyan eye lights, slim five-fingered hands, quiet careful movements; no logos, letters or markings; not any real company's robot. SET LOCK — the same premium modern open-plan apartment in every shot, early morning: deep midnight-navy walls, dark walnut floor with soft glossy reflections, graphite-grey sofa, low walnut coffee table, dark woven laundry basket, a tall window on the left with sheer curtains and low warm-amber sunrise light raking across the room, electric-cyan under-shelf strip lights, vibrant-blue city glow outside, fiddle-leaf fig, walnut bookshelf with books and ceramics, a charcoal play mat with scattered wooden toys, kitchen island with cyan under-cabinet light and an open dishwasher at the back right, entry door at the back left. BRAND LOOK — rich, detailed 3D environment with cinematic lighting: midnight-navy (#0B1020) shadows, electric-cyan (#13D8E8) and vibrant-blue (#4169FF) rim and practical lights, warm-amber (#FFB547) accents, clean-white (#F6F8FC) highlights, subtle depth of field. Animated holographic 3D elements may glow and move but never contain text, letters or symbols. No beige or flat backgrounds, no slides, no floating text cards. SHOT — Frame one is already in motion: the robot's hands snap a white towel open over the coffee table, fold it in half and lay it on a neat stack by 1.0s. The camera dollies low past the table toward its hands and rises slightly. At 1.8s the entry door behind swings open with daylight spilling in; at 2.4s the host steps through holding keys and stops mid-stride, surprised. FRAME RULE — compose with clean, uncluttered negative space in the top 30% of the frame and keep every head and face below it; keep the bottom 28% (subtitle band) free of faces and key action. Vertical 9:16, 24fps cinematic, shallow depth of field, motivated camera move, continuous motion. No readable text, letters, numbers or logos anywhere. No pointing, thumbs-up or waving. No dialogue, no music.",
+      "generation": {
+        "model": "veo-3.1",
+        "clip_seconds": 4,
+        "use_seconds": "0.0–3",
+        "aspect_ratio": "9:16",
+        "reference_assets": [
+          "brand/character-reference.png"
+        ]
+      }
+    },
+    {
+      "role": "Setup",
+      "start": 3.0,
+      "end": 6.5,
+      "voiceover": "Figure sent its humanoid into thirty homes it had never seen.",
+      "location": "Same living room, from the entryway.",
+      "character_actions": "The host closes the door with his heel, sets his keys on a side table without looking away, and walks slowly around the sofa, observing. No pointing.",
+      "moving_objects": "Robot places the folded towel in the basket and turns its head toward the host; keys swing as they're set down.",
+      "camera": "Over-the-shoulder from just behind the host's right shoulder, travelling with him as he walks, then a slow push-in past his shoulder onto the robot.",
+      "lighting": "Same amber sunrise key; the host's jacket catches a cyan rim light from the shelf strips.",
+      "on_screen_text": [
+        {
+          "start": 3.3,
+          "end": 5.2,
+          "text": "30 homes it had never seen",
+          "placement": "top_safe",
+          "layer": "above_all"
+        },
+        {
+          "start": 5.2,
+          "end": 6.5,
+          "text": "Chores trained elsewhere",
+          "placement": "top_safe",
+          "layer": "above_all"
+        }
+      ],
+      "events": [
+        {
+          "t": 3.0,
+          "event": "Host closes the door behind him"
+        },
+        {
+          "t": 4.2,
+          "event": "Sets keys down without looking away"
+        },
+        {
+          "t": 5.4,
+          "event": "Robot drops the towel in the basket and turns its head to him"
+        }
+      ],
+      "fact_basis": [
+        0,
+        2
+      ],
+      "transition": "Cut on action: the robot's hand reaching for the next towel carries into the Scene 3 close-up.",
+      "prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. ROBOT LOCK — one generic humanoid home robot, adult height, slim build, soft matte warm-grey fabric-covered body, rounded head with a dark glossy face visor and two soft cyan eye lights, slim five-fingered hands, quiet careful movements; no logos, letters or markings; not any real company's robot. SET LOCK — the same premium modern open-plan apartment in every shot, early morning: deep midnight-navy walls, dark walnut floor with soft glossy reflections, graphite-grey sofa, low walnut coffee table, dark woven laundry basket, a tall window on the left with sheer curtains and low warm-amber sunrise light raking across the room, electric-cyan under-shelf strip lights, vibrant-blue city glow outside, fiddle-leaf fig, walnut bookshelf with books and ceramics, a charcoal play mat with scattered wooden toys, kitchen island with cyan under-cabinet light and an open dishwasher at the back right, entry door at the back left. BRAND LOOK — rich, detailed 3D environment with cinematic lighting: midnight-navy (#0B1020) shadows, electric-cyan (#13D8E8) and vibrant-blue (#4169FF) rim and practical lights, warm-amber (#FFB547) accents, clean-white (#F6F8FC) highlights, subtle depth of field. Animated holographic 3D elements may glow and move but never contain text, letters or symbols. No beige or flat backgrounds, no slides, no floating text cards. SHOT — Over the host's right shoulder: he closes the door with his heel, sets his keys on a side table without taking his eyes off the robot, and walks slowly around the sofa. The robot places the folded towel in the woven basket and turns its head toward him. The camera travels with the host, then pushes in past his shoulder toward the robot. FRAME RULE — compose with clean, uncluttered negative space in the top 30% of the frame and keep every head and face below it; keep the bottom 28% (subtitle band) free of faces and key action. Vertical 9:16, 24fps cinematic, shallow depth of field, motivated camera move, continuous motion. No readable text, letters, numbers or logos anywhere. No pointing, thumbs-up or waving. No dialogue, no music.",
+      "generation": {
+        "model": "veo-3.1",
+        "clip_seconds": 4,
+        "use_seconds": "0.0–3.5",
+        "aspect_ratio": "9:16",
+        "reference_assets": [
+          "brand/character-reference.png"
+        ]
+      }
+    },
+    {
+      "role": "Reveal — chores",
+      "start": 6.5,
+      "end": 10.0,
+      "voiceover": "Towels, beds, toys.",
+      "location": "Coffee table, tight.",
+      "character_actions": "The host crouches beside the table and leans in, eyebrows rising, watching the fold closely.",
+      "moving_objects": "Robot fingers pinch two towel corners together and smooth the fold; the folded towel lands in the basket.",
+      "camera": "Macro close-up of the robot's fingers with a motivated push-in as the corners meet, then a rack focus to the host's face behind.",
+      "lighting": "Sun backlights the towel fibres; soft shadow under the fingers.",
+      "on_screen_text": [
+        {
+          "start": 6.6,
+          "end": 10.0,
+          "text": "Towels · beds · toys",
+          "placement": "top_safe",
+          "layer": "above_all"
+        }
+      ],
+      "events": [
+        {
+          "t": 6.5,
+          "event": "Fingers pinch two corners together"
+        },
+        {
+          "t": 7.8,
+          "event": "Fold smoothed flat"
+        },
+        {
+          "t": 9.0,
+          "event": "Rack focus: host leans in, eyebrows up"
+        }
+      ],
+      "fact_basis": [
+        0
+      ],
+      "transition": "Whip-pan right following the robot as it stands and turns toward the play mat.",
+      "prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. ROBOT LOCK — one generic humanoid home robot, adult height, slim build, soft matte warm-grey fabric-covered body, rounded head with a dark glossy face visor and two soft cyan eye lights, slim five-fingered hands, quiet careful movements; no logos, letters or markings; not any real company's robot. SET LOCK — the same premium modern open-plan apartment in every shot, early morning: deep midnight-navy walls, dark walnut floor with soft glossy reflections, graphite-grey sofa, low walnut coffee table, dark woven laundry basket, a tall window on the left with sheer curtains and low warm-amber sunrise light raking across the room, electric-cyan under-shelf strip lights, vibrant-blue city glow outside, fiddle-leaf fig, walnut bookshelf with books and ceramics, a charcoal play mat with scattered wooden toys, kitchen island with cyan under-cabinet light and an open dishwasher at the back right, entry door at the back left. BRAND LOOK — rich, detailed 3D environment with cinematic lighting: midnight-navy (#0B1020) shadows, electric-cyan (#13D8E8) and vibrant-blue (#4169FF) rim and practical lights, warm-amber (#FFB547) accents, clean-white (#F6F8FC) highlights, subtle depth of field. Animated holographic 3D elements may glow and move but never contain text, letters or symbols. No beige or flat backgrounds, no slides, no floating text cards. SHOT — Macro close-up: the robot's slim fingers pinch two towel corners together and smooth the fold flat. The camera pushes in as the corners meet, then racks focus to the host crouched just behind the table, leaning in with his eyebrows rising. FRAME RULE — compose with clean, uncluttered negative space in the top 30% of the frame and keep every head and face below it; keep the bottom 28% (subtitle band) free of faces and key action. Vertical 9:16, 24fps cinematic, shallow depth of field, motivated camera move, continuous motion. No readable text, letters, numbers or logos anywhere. No pointing, thumbs-up or waving. No dialogue, no music.",
+      "generation": {
+        "model": "veo-3.1",
+        "clip_seconds": 4,
+        "use_seconds": "0.0–3.5",
+        "aspect_ratio": "9:16",
+        "reference_assets": [
+          "brand/character-reference.png"
+        ]
+      }
+    },
+    {
+      "role": "Reveal — the miss",
+      "start": 10.0,
+      "end": 13.5,
+      "voiceover": "It finished the whole job fifty-six percent of the time.",
+      "location": "Play mat by the window.",
+      "character_actions": "The host walks alongside in the background, then winces and half-steps forward as the toy rolls away.",
+      "moving_objects": "Wooden toys dropped into a basket; one block clips the rim, bounces and rolls across the floor; the robot steps back.",
+      "camera": "Side tracking shot at waist height following the robot across the room, foreground sofa arm sliding past for parallax.",
+      "lighting": "Window light brighter here; long soft shadows of the toys.",
+      "on_screen_text": [
+        {
+          "start": 10.2,
+          "end": 13.5,
+          "text": "Whole job done: 56% of tries",
+          "placement": "top_safe",
+          "layer": "above_all"
+        }
+      ],
+      "events": [
+        {
+          "t": 10.0,
+          "event": "Robot walks to the play mat"
+        },
+        {
+          "t": 11.2,
+          "event": "Drops two toys into the basket"
+        },
+        {
+          "t": 12.2,
+          "event": "A block bounces off the rim and rolls away"
+        },
+        {
+          "t": 13.0,
+          "event": "Robot steps back; host winces"
+        }
+      ],
+      "fact_basis": [
+        1
+      ],
+      "transition": "Camera continues its arc into Scene 4's orbit (continuous move).",
+      "prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. ROBOT LOCK — one generic humanoid home robot, adult height, slim build, soft matte warm-grey fabric-covered body, rounded head with a dark glossy face visor and two soft cyan eye lights, slim five-fingered hands, quiet careful movements; no logos, letters or markings; not any real company's robot. SET LOCK — the same premium modern open-plan apartment in every shot, early morning: deep midnight-navy walls, dark walnut floor with soft glossy reflections, graphite-grey sofa, low walnut coffee table, dark woven laundry basket, a tall window on the left with sheer curtains and low warm-amber sunrise light raking across the room, electric-cyan under-shelf strip lights, vibrant-blue city glow outside, fiddle-leaf fig, walnut bookshelf with books and ceramics, a charcoal play mat with scattered wooden toys, kitchen island with cyan under-cabinet light and an open dishwasher at the back right, entry door at the back left. BRAND LOOK — rich, detailed 3D environment with cinematic lighting: midnight-navy (#0B1020) shadows, electric-cyan (#13D8E8) and vibrant-blue (#4169FF) rim and practical lights, warm-amber (#FFB547) accents, clean-white (#F6F8FC) highlights, subtle depth of field. Animated holographic 3D elements may glow and move but never contain text, letters or symbols. No beige or flat backgrounds, no slides, no floating text cards. SHOT — Side tracking shot at waist height: the robot walks to a soft play mat and drops two wooden toys into a basket. The third, a wooden block, clips the rim, bounces and rolls across the walnut floor. The robot steps back. In the background the host, walking alongside, winces and half-steps forward. FRAME RULE — compose with clean, uncluttered negative space in the top 30% of the frame and keep every head and face below it; keep the bottom 28% (subtitle band) free of faces and key action. Vertical 9:16, 24fps cinematic, shallow depth of field, motivated camera move, continuous motion. No readable text, letters, numbers or logos anywhere. No pointing, thumbs-up or waving. No dialogue, no music.",
+      "generation": {
+        "model": "veo-3.1",
+        "clip_seconds": 4,
+        "use_seconds": "0.0–3.5",
+        "aspect_ratio": "9:16",
+        "reference_assets": [
+          "brand/character-reference.png"
+        ]
+      }
+    },
+    {
+      "role": "Reveal — the retry",
+      "start": 13.5,
+      "end": 16.5,
+      "voiceover": "When it missed, it stepped back and tried again.",
+      "location": "Play mat, then the kitchen edge.",
+      "character_actions": "The host straightens up with an impressed slow nod, hands sliding into his jacket pockets.",
+      "moving_objects": "Robot changes stance, re-grips the block, drops it in; turns and walks to the open dishwasher and pauses; its eye lights shift from cyan to amber.",
+      "camera": "Half-orbit around the robot as it repositions, ending on a push-in toward its visor as the eye lights turn amber.",
+      "lighting": "Warm sun; the amber eye light briefly warms the visor.",
+      "on_screen_text": [
+        {
+          "start": 13.6,
+          "end": 16.5,
+          "text": "Missed? Step back. Retry.",
+          "placement": "top_safe",
+          "layer": "above_all"
+        }
+      ],
+      "events": [
+        {
+          "t": 13.5,
+          "event": "Robot shifts its stance and crouches"
+        },
+        {
+          "t": 14.4,
+          "event": "Re-grips the block and drops it in"
+        },
+        {
+          "t": 15.0,
+          "event": "Host nods, impressed"
+        },
+        {
+          "t": 15.6,
+          "event": "Robot stops at the dishwasher; eye lights turn amber"
+        }
+      ],
+      "fact_basis": [
+        3
+      ],
+      "transition": "Match cut: the robot's amber eye light becomes the amber status light on a VR headset.",
+      "prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. ROBOT LOCK — one generic humanoid home robot, adult height, slim build, soft matte warm-grey fabric-covered body, rounded head with a dark glossy face visor and two soft cyan eye lights, slim five-fingered hands, quiet careful movements; no logos, letters or markings; not any real company's robot. SET LOCK — the same premium modern open-plan apartment in every shot, early morning: deep midnight-navy walls, dark walnut floor with soft glossy reflections, graphite-grey sofa, low walnut coffee table, dark woven laundry basket, a tall window on the left with sheer curtains and low warm-amber sunrise light raking across the room, electric-cyan under-shelf strip lights, vibrant-blue city glow outside, fiddle-leaf fig, walnut bookshelf with books and ceramics, a charcoal play mat with scattered wooden toys, kitchen island with cyan under-cabinet light and an open dishwasher at the back right, entry door at the back left. BRAND LOOK — rich, detailed 3D environment with cinematic lighting: midnight-navy (#0B1020) shadows, electric-cyan (#13D8E8) and vibrant-blue (#4169FF) rim and practical lights, warm-amber (#FFB547) accents, clean-white (#F6F8FC) highlights, subtle depth of field. Animated holographic 3D elements may glow and move but never contain text, letters or symbols. No beige or flat backgrounds, no slides, no floating text cards. SHOT — The camera half-orbits the robot as it shifts its stance, crouches, re-grips the wooden block and drops it into the basket. The host straightens up behind with an impressed slow nod, hands sliding into his jacket pockets. The robot turns, walks to the open dishwasher and pauses; the camera pushes in on its visor as the two eye lights shift from cyan to amber. FRAME RULE — compose with clean, uncluttered negative space in the top 30% of the frame and keep every head and face below it; keep the bottom 28% (subtitle band) free of faces and key action. Vertical 9:16, 24fps cinematic, shallow depth of field, motivated camera move, continuous motion. No readable text, letters, numbers or logos anywhere. No pointing, thumbs-up or waving. No dialogue, no music.",
+      "generation": {
+        "model": "veo-3.1",
+        "clip_seconds": 4,
+        "use_seconds": "0.0–3",
+        "aspect_ratio": "9:16",
+        "reference_assets": [
+          "brand/character-reference.png"
+        ]
+      }
+    },
+    {
+      "role": "Payoff — the human in the loop",
+      "start": 16.5,
+      "end": 20.0,
+      "voiceover": "Another robot, 1X's NEO, lets owners book a remote human for new chores.",
+      "location": "Illustrative remote workroom: a calm, dim room with one desk, far from the apartment.",
+      "character_actions": "The host is not in this shot. A remote operator (generic adult, face mostly hidden by a VR headset) slowly reaches forward with hand controllers and mimes lifting a plate.",
+      "moving_objects": "Headset status light glowing amber; hand controllers moving; desk lamp light shifting as the operator leans.",
+      "camera": "Tracking dolly along the desk toward the operator, ending in a push-in on the headset's front lens.",
+      "lighting": "Cool dim room, one warm desk lamp; amber headset light echoes the robot's eyes.",
+      "on_screen_text": [
+        {
+          "start": 16.6,
+          "end": 20.0,
+          "text": "Different robot: 1X NEO",
+          "placement": "top_safe",
+          "layer": "above_all"
+        }
+      ],
+      "events": [
+        {
+          "t": 16.5,
+          "event": "Amber headset light (match cut from the robot's eyes)"
+        },
+        {
+          "t": 17.6,
+          "event": "Operator's hands reach forward with controllers"
+        },
+        {
+          "t": 19.0,
+          "event": "Push-in to the headset lens, which reflects a soft blur of a warm living room"
+        }
+      ],
+      "fact_basis": "illustrative: dramatises 1X's scheduled remote Expert (verified_facts[4]); the operator, room and gestures are invented.",
+      "transition": "Push-through: the camera travels into the headset lens reflection and emerges in the living room (Scene 7).",
+      "prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. ROBOT LOCK — one generic humanoid home robot, adult height, slim build, soft matte warm-grey fabric-covered body, rounded head with a dark glossy face visor and two soft cyan eye lights, slim five-fingered hands, quiet careful movements; no logos, letters or markings; not any real company's robot. SET LOCK — the same premium modern open-plan apartment in every shot, early morning: deep midnight-navy walls, dark walnut floor with soft glossy reflections, graphite-grey sofa, low walnut coffee table, dark woven laundry basket, a tall window on the left with sheer curtains and low warm-amber sunrise light raking across the room, electric-cyan under-shelf strip lights, vibrant-blue city glow outside, fiddle-leaf fig, walnut bookshelf with books and ceramics, a charcoal play mat with scattered wooden toys, kitchen island with cyan under-cabinet light and an open dishwasher at the back right, entry door at the back left. BRAND LOOK — rich, detailed 3D environment with cinematic lighting: midnight-navy (#0B1020) shadows, electric-cyan (#13D8E8) and vibrant-blue (#4169FF) rim and practical lights, warm-amber (#FFB547) accents, clean-white (#F6F8FC) highlights, subtle depth of field. Animated holographic 3D elements may glow and move but never contain text, letters or symbols. No beige or flat backgrounds, no slides, no floating text cards. SHOT — The BrewIQ host does not appear in this shot. A calm, dim remote workroom: a generic adult operator wearing a VR headset with an amber status light sits at a single desk under a warm lamp. They slowly reach forward with hand controllers and mime lifting a plate. The camera tracks along the desk toward them, then pushes in on the headset's front lens, which reflects a soft blur of a warm, sunlit living room. FRAME RULE — compose with clean, uncluttered negative space in the top 30% of the frame and keep every head and face below it; keep the bottom 28% (subtitle band) free of faces and key action. Vertical 9:16, 24fps cinematic, shallow depth of field, motivated camera move, continuous motion. No readable text, letters, numbers or logos anywhere. No pointing, thumbs-up or waving. No dialogue, no music.",
+      "generation": {
+        "model": "veo-3.1",
+        "clip_seconds": 4,
+        "use_seconds": "0.0–3.5",
+        "aspect_ratio": "9:16",
+        "reference_assets": [
+          "brand/character-reference.png"
+        ]
+      }
+    },
+    {
+      "role": "Ending — question to camera",
+      "start": 20.0,
+      "end": 24.0,
+      "voiceover": "So who's really home?",
+      "location": "Kitchen island, living room behind.",
+      "character_actions": "The host leans on the kitchen island watching the robot, then turns to camera, takes one step toward the lens and speaks one short line with a raised eyebrow.",
+      "moving_objects": "Robot lifts a plate from the counter and sets it in the dishwasher rack with careful, almost human motion; its eye lights fade from amber back to cyan; at the end it turns its head toward the lens too.",
+      "camera": "Push-out from the lens reflection into the room, then a slow push-in to a medium close-up of the host as he turns to camera; robot soft in the background.",
+      "lighting": "Warm late-morning light; soft key on the host's face from the window.",
+      "on_screen_text": [],
+      "events": [
+        {
+          "t": 20.0,
+          "event": "Emerges from the lens into the living room"
+        },
+        {
+          "t": 20.8,
+          "event": "Robot sets a plate in the rack, eye lights back to cyan"
+        },
+        {
+          "t": 21.6,
+          "event": "Host turns to camera and steps toward the lens"
+        },
+        {
+          "t": 23.2,
+          "event": "Robot turns its head toward the lens too"
+        }
+      ],
+      "fact_basis": [
+        4
+      ],
+      "transition": "End on the robot's head turn; 0.3s hold, then cut to black with the end card.",
+      "prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. ROBOT LOCK — one generic humanoid home robot, adult height, slim build, soft matte warm-grey fabric-covered body, rounded head with a dark glossy face visor and two soft cyan eye lights, slim five-fingered hands, quiet careful movements; no logos, letters or markings; not any real company's robot. SET LOCK — the same premium modern open-plan apartment in every shot, early morning: deep midnight-navy walls, dark walnut floor with soft glossy reflections, graphite-grey sofa, low walnut coffee table, dark woven laundry basket, a tall window on the left with sheer curtains and low warm-amber sunrise light raking across the room, electric-cyan under-shelf strip lights, vibrant-blue city glow outside, fiddle-leaf fig, walnut bookshelf with books and ceramics, a charcoal play mat with scattered wooden toys, kitchen island with cyan under-cabinet light and an open dishwasher at the back right, entry door at the back left. BRAND LOOK — rich, detailed 3D environment with cinematic lighting: midnight-navy (#0B1020) shadows, electric-cyan (#13D8E8) and vibrant-blue (#4169FF) rim and practical lights, warm-amber (#FFB547) accents, clean-white (#F6F8FC) highlights, subtle depth of field. Animated holographic 3D elements may glow and move but never contain text, letters or symbols. No beige or flat backgrounds, no slides, no floating text cards. SHOT — The camera emerges from a soft blur into the living room. The robot lifts a plate from the counter and sets it into the open dishwasher rack with careful, almost human motion; its eye lights fade from amber back to cyan. The host, leaning on the kitchen island, turns from the robot to camera, takes one step toward the lens and speaks one short line with a raised eyebrow (mouth movement only; audio is replaced in the edit). At the very end the robot turns its head toward the lens too. Slow push-in to a medium close-up of the host, robot soft in the background. FRAME RULE — compose with clean, uncluttered negative space in the top 30% of the frame and keep every head and face below it; keep the bottom 28% (subtitle band) free of faces and key action. Vertical 9:16, 24fps cinematic, shallow depth of field, motivated camera move, continuous motion. No readable text, letters, numbers or logos anywhere. No pointing, thumbs-up or waving. No dialogue, no music.",
+      "generation": {
+        "model": "veo-3.1",
+        "clip_seconds": 4,
+        "use_seconds": "0.0–4",
+        "aspect_ratio": "9:16",
+        "reference_assets": [
+          "brand/character-reference.png"
+        ]
+      }
+    }
+  ],
+  "voiceover_instructions": {
+    "script": "Approved script, unchanged (see 2026-10-11-home-robots.script.json).",
+    "voice": "Warm, conversational natural American English; curious on the hook, lightly amused, never alarmist.",
+    "pace_wpm": [
+      145,
+      160
+    ],
+    "tone": "Curious on the hook; confident and clear on explanations; expressive but not theatrical.",
+    "pauses": "Natural 0.3–0.5s pause before each reveal (the catch and the payoff).",
+    "avoid": [
+      "monotone delivery",
+      "synthetic-sounding emphasis",
+      "rushing",
+      "announcer voice"
+    ],
+    "track": "Record narration as its own audio track; mute all model-generated audio.",
+    "loudness": "Voice integrated -14 LUFS; true peak below -1 dBTP.",
+    "pace": "145–160 WPM (about 2.5 words per second). 'THIS robot' stressed; a 0.4s pause before 'When it missed' and before 'Another robot'; 'So who's really home?' slower, direct, matched to the host's mouth in Scene 7.",
+    "pronunciation": {
+      "1X": "one-ex",
+      "NEO": "NEE-oh",
+      "Figure": "FIG-yer"
+    }
+  },
+  "subtitles": [
+    {
+      "start": 0.0,
+      "end": 1.2,
+      "text": "Would you leave"
+    },
+    {
+      "start": 1.2,
+      "end": 2.5,
+      "text": "this robot home alone?"
+    },
+    {
+      "start": 2.5,
+      "end": 4.0,
+      "text": "Figure sent its humanoid"
+    },
+    {
+      "start": 4.0,
+      "end": 5.2,
+      "text": "into thirty homes"
+    },
+    {
+      "start": 5.2,
+      "end": 6.5,
+      "text": "it had never seen."
+    },
+    {
+      "start": 6.5,
+      "end": 8.1,
+      "text": "Towels, beds, toys."
+    },
+    {
+      "start": 8.1,
+      "end": 9.6,
+      "text": "It finished the whole job"
+    },
+    {
+      "start": 9.6,
+      "end": 11.4,
+      "text": "fifty-six percent of the time."
+    },
+    {
+      "start": 11.4,
+      "end": 12.6,
+      "text": "When it missed,"
+    },
+    {
+      "start": 12.6,
+      "end": 15.4,
+      "text": "it stepped back and tried again."
+    },
+    {
+      "start": 15.4,
+      "end": 16.9,
+      "text": "Another robot, 1X's NEO,"
+    },
+    {
+      "start": 16.9,
+      "end": 18.4,
+      "text": "lets owners book a"
+    },
+    {
+      "start": 18.4,
+      "end": 20.0,
+      "text": "remote human for new chores."
+    },
+    {
+      "start": 20.5,
+      "end": 23.5,
+      "text": "So who's really home?"
+    }
+  ],
+  "subtitle_instructions": "Phrase captions, max 6 words, lower safe band. White with soft shadow; '56%' wording stays as spoken ('fifty-six percent').",
+  "sound": {
+    "sfx": [
+      {
+        "t": 0.0,
+        "sfx": "Crisp towel snap, fabric whoosh"
+      },
+      {
+        "t": 1.8,
+        "sfx": "Door latch click, street air"
+      },
+      {
+        "t": 4.2,
+        "sfx": "Keys set on wood"
+      },
+      {
+        "t": 5.4,
+        "sfx": "Soft servo whir as the robot turns its head"
+      },
+      {
+        "t": 7.8,
+        "sfx": "Fabric smoothing, close and tactile"
+      },
+      {
+        "t": 11.2,
+        "sfx": "Two wooden toys clack into the basket"
+      },
+      {
+        "t": 12.2,
+        "sfx": "Block clips the rim, bounces, rolls (music dips)"
+      },
+      {
+        "t": 14.4,
+        "sfx": "Block drops in: satisfying clack"
+      },
+      {
+        "t": 15.6,
+        "sfx": "Soft two-tone 'waiting' chime as the eyes turn amber"
+      },
+      {
+        "t": 16.5,
+        "sfx": "Room tone flips to a quiet hum; controller clicks"
+      },
+      {
+        "t": 20.0,
+        "sfx": "Whoosh through the lens; kitchen room tone"
+      },
+      {
+        "t": 20.8,
+        "sfx": "Plate settles in the rack"
+      },
+      {
+        "t": 23.2,
+        "sfx": "Tiny servo whir on the robot's head turn"
+      }
+    ],
+    "music": "Light plucked-string and soft-piano motif (~96 BPM) from 0s; drops to a single held note at 12.2s for the miss, resolves warmly at 14.4s; cooler, sparser pad 16.5–20s; returns warm and ends on an unresolved chord under the final line.",
+    "veo_audio": "Mute all Veo-generated audio; build sound in the edit."
+  },
+  "assembly": [
+    "Generate each scene as its own 4s Veo clip at 9:16 with the three character references; trim to the scene window (3.0–4.0s each).",
+    "Generate Scene 1 first; export its 2.0s frame as the apartment plate and attach it to Scenes 2–5 and 7 for set continuity.",
+    "Cut on the listed motivated transitions: match move, cut on action, whip-pan, continuous arc, amber-light match cut, lens push-through. No dissolves or slide wipes.",
+    "Grade: BrewIQ brand look (navy shadows, cyan/blue practicals, amber key) everywhere; Scene 6 cooler and darker with the amber headset accent. Match the host's skin tone and jacket sheen across scenes.",
+    "Render the graphics layer programmatically from `composition` (Remotion or FFmpeg): headlines, subtitles, the robotics icon, the 'Illustrative animation' tag and the BrewIQ end card, never in the model.",
+    "Lay the voiceover and align it to the subtitle timeline; sync 'So who's really home?' to the host's mouth in Scene 7.",
+    "Add SFX and music per the cue list; mix voice to -14 LUFS; music at -26 LUFS (at least 10 dB under the voice), ducked under speech.",
+    "Cover: generate the dedicated 1080×1920 cover from `cover.image_prompt` and composite its headline and BrewIQ mark in post; never use a frame from the reel. No logo or intro at the start; BrewIQ end card 23.2–24.0s.",
+    "Export H.264, 1080×1920, 30fps, AAC 48kHz. Post with the approved caption, which carries the sources and the qualifications."
+  ],
+  "qc_checklist": [
+    "Visible motion by 0.5s (towel snap); no title slide, logo or presenter pose at the start.",
+    "A new story event at least every 4s (check against each scene's event list).",
+    "The host matches the sheet in every scene he appears in; no pointing; he speaks to camera once.",
+    "The same robot (no logos, not a real company's design) and the same apartment in Scenes 1–5 and 7.",
+    "Camera: tracking, over-the-shoulder, close-up and push-in all used; no zooms or static holds.",
+    "One headline on screen at a time, in the top safe band, never behind a head; subtitles in the lower safe band, clear of Instagram's UI.",
+    "The toy miss stays in the cut; '56%' is described as the share of tries; 'Different robot: 1X NEO' is visible through Scene 6.",
+    "No model-rendered text; 'Illustrative animation' tag visible throughout.",
+    "Voiceover matches the approved script word for word; runtime 24.0s ±0.2s; 9:16; about -14 LUFS.",
+    "Run the post-render gate (composition.render_gate) on the automated check report; any failure rejects the render and names the scenes to regenerate or fix in post."
+  ],
+  "sources": [
+    "https://www.figure.ai/news/helix-2-5-zero-shot-30-home-generalization",
+    "https://www.1x.tech/neo",
+    "https://www.1x.tech/discover/neo-home-robot"
+  ],
+  "hook_selection": {
+    "winner": "Would you leave THIS robot home alone?",
+    "ranking": [
+      {
+        "approach": "curiosity_gap",
+        "text": "Would you leave THIS robot home alone?",
+        "score": 9.0,
+        "eligible": true
+      },
+      {
+        "approach": "contrarian",
+        "text": "The impressive part isn't the folding. It's the retry.",
+        "score": 6.75,
+        "eligible": true
+      },
+      {
+        "approach": "everyday_problem",
+        "text": "Hate folding laundry? A robot just did it in strangers' homes.",
+        "score": 8.0,
+        "eligible": false
+      },
+      {
+        "approach": "surprising_fact",
+        "text": "This robot finished the job in 56% of homes.",
+        "score": 7.75,
+        "eligible": false
+      },
+      {
+        "approach": "future_implication",
+        "text": "Home robots are coming. Who's watching through their eyes?",
+        "score": 7.0,
+        "eligible": false
+      }
+    ],
+    "opening_visual": {
+      "first_frame": "A humanoid robot's hands snap a white towel open over a low walnut coffee table in a sunlit living room; the towel is already in motion in frame one.",
+      "action": "The robot folds the towel in half by 1.0s and lays it on a stack; the front door behind it swings open at 1.8s and the host steps in at 2.4s.",
+      "camera": "Low tracking dolly gliding past the coffee table toward the robot's hands from frame one, rising slightly as the door opens.",
+      "on_screen_text": "Leave THIS robot home alone?",
+      "narration": "Would you leave this robot home alone?",
+      "character_in_first_frame": false,
+      "why": "The robot doing a chore is the hook; the host arrives as the viewer's stand-in, walking in on it."
+    }
+  },
+  "composition": {
+    "canvas": [
+      1080,
+      1920
+    ],
+    "fps": 30,
+    "renderer": "programmatic (Remotion or FFmpeg drawtext/overlay); coordinates in px on 1080×1920",
+    "zones": {
+      "safe_area": [
+        60,
+        250,
+        900,
+        1250
+      ],
+      "presenter": [
+        0,
+        620,
+        1080,
+        740
+      ],
+      "headline": [
+        90,
+        300,
+        690,
+        280
+      ],
+      "icon": [
+        810,
+        300,
+        150,
+        150
+      ],
+      "subtitle": [
+        90,
+        1380,
+        870,
+        120
+      ]
+    },
+    "layers": [
+      {
+        "type": "footage",
+        "box": [
+          0,
+          0,
+          1080,
+          1920
+        ],
+        "start": 0.0,
+        "end": 3.0,
+        "z": 0,
+        "scene": 1,
+        "src": "scene_01.mp4"
+      },
+      {
+        "type": "footage",
+        "box": [
+          0,
+          0,
+          1080,
+          1920
+        ],
+        "start": 3.0,
+        "end": 6.5,
+        "z": 0,
+        "scene": 2,
+        "src": "scene_02.mp4"
+      },
+      {
+        "type": "footage",
+        "box": [
+          0,
+          0,
+          1080,
+          1920
+        ],
+        "start": 6.5,
+        "end": 10.0,
+        "z": 0,
+        "scene": 3,
+        "src": "scene_03.mp4"
+      },
+      {
+        "type": "footage",
+        "box": [
+          0,
+          0,
+          1080,
+          1920
+        ],
+        "start": 10.0,
+        "end": 13.5,
+        "z": 0,
+        "scene": 4,
+        "src": "scene_04.mp4"
+      },
+      {
+        "type": "footage",
+        "box": [
+          0,
+          0,
+          1080,
+          1920
+        ],
+        "start": 13.5,
+        "end": 16.5,
+        "z": 0,
+        "scene": 5,
+        "src": "scene_05.mp4"
+      },
+      {
+        "type": "footage",
+        "box": [
+          0,
+          0,
+          1080,
+          1920
+        ],
+        "start": 16.5,
+        "end": 20.0,
+        "z": 0,
+        "scene": 6,
+        "src": "scene_06.mp4"
+      },
+      {
+        "type": "footage",
+        "box": [
+          0,
+          0,
+          1080,
+          1920
+        ],
+        "start": 20.0,
+        "end": 24.0,
+        "z": 0,
+        "scene": 7,
+        "src": "scene_07.mp4"
+      },
+      {
+        "type": "label",
+        "box": [
+          90,
+          250,
+          420,
+          40
+        ],
+        "start": 0.0,
+        "end": 24.0,
+        "z": 3,
+        "text": "Illustrative animation",
+        "size": 28,
+        "color": "#F6F8FC",
+        "plate": "#0B1020",
+        "plate_opacity": 0.7
+      },
+      {
+        "type": "headline",
+        "box": [
+          90,
+          300,
+          690,
+          204
+        ],
+        "start": 0.2,
+        "end": 3.0,
+        "z": 3,
+        "text": "Leave THIS robot home alone?",
+        "lines": [
+          "Leave THIS robot",
+          "home alone?"
+        ],
+        "size": 68,
+        "weight": "800 (bold, rounded sans)",
+        "color": "#F6F8FC",
+        "accent": "#13D8E8",
+        "plate": "#0B1020",
+        "plate_opacity": 0.85,
+        "entrance": "slide up 24px + fade, 0.25s",
+        "exit": "fade 0.2s"
+      },
+      {
+        "type": "headline",
+        "box": [
+          90,
+          300,
+          690,
+          223
+        ],
+        "start": 3.3,
+        "end": 5.2,
+        "z": 3,
+        "text": "30 homes it had never seen",
+        "lines": [
+          "30 homes it",
+          "had never seen"
+        ],
+        "size": 76,
+        "weight": "800 (bold, rounded sans)",
+        "color": "#F6F8FC",
+        "accent": "#13D8E8",
+        "plate": "#0B1020",
+        "plate_opacity": 0.85,
+        "entrance": "slide up 24px + fade, 0.25s",
+        "exit": "fade 0.2s"
+      },
+      {
+        "type": "headline",
+        "box": [
+          90,
+          300,
+          690,
+          223
+        ],
+        "start": 5.2,
+        "end": 6.5,
+        "z": 3,
+        "text": "Chores trained elsewhere",
+        "lines": [
+          "Chores trained",
+          "elsewhere"
+        ],
+        "size": 76,
+        "weight": "800 (bold, rounded sans)",
+        "color": "#F6F8FC",
+        "accent": "#13D8E8",
+        "plate": "#0B1020",
+        "plate_opacity": 0.85,
+        "entrance": "slide up 24px + fade, 0.25s",
+        "exit": "fade 0.2s"
+      },
+      {
+        "type": "headline",
+        "box": [
+          90,
+          300,
+          690,
+          241
+        ],
+        "start": 6.6,
+        "end": 10.0,
+        "z": 3,
+        "text": "Towels · beds · toys",
+        "lines": [
+          "Towels",
+          "beds · toys"
+        ],
+        "size": 84,
+        "weight": "800 (bold, rounded sans)",
+        "color": "#F6F8FC",
+        "accent": "#13D8E8",
+        "plate": "#0B1020",
+        "plate_opacity": 0.85,
+        "entrance": "slide up 24px + fade, 0.25s",
+        "exit": "fade 0.2s"
+      },
+      {
+        "type": "headline",
+        "box": [
+          90,
+          300,
+          690,
+          204
+        ],
+        "start": 10.2,
+        "end": 13.5,
+        "z": 3,
+        "text": "Whole job done: 56% of tries",
+        "lines": [
+          "Whole job done:",
+          "56% of tries"
+        ],
+        "size": 68,
+        "weight": "800 (bold, rounded sans)",
+        "color": "#F6F8FC",
+        "accent": "#13D8E8",
+        "plate": "#0B1020",
+        "plate_opacity": 0.85,
+        "entrance": "slide up 24px + fade, 0.25s",
+        "exit": "fade 0.2s"
+      },
+      {
+        "type": "headline",
+        "box": [
+          90,
+          300,
+          690,
+          241
+        ],
+        "start": 13.6,
+        "end": 16.5,
+        "z": 3,
+        "text": "Missed? Step back. Retry.",
+        "lines": [
+          "Missed? Step",
+          "back. Retry."
+        ],
+        "size": 84,
+        "weight": "800 (bold, rounded sans)",
+        "color": "#F6F8FC",
+        "accent": "#13D8E8",
+        "plate": "#0B1020",
+        "plate_opacity": 0.85,
+        "entrance": "slide up 24px + fade, 0.25s",
+        "exit": "fade 0.2s"
+      },
+      {
+        "type": "headline",
+        "box": [
+          90,
+          300,
+          690,
+          241
+        ],
+        "start": 16.6,
+        "end": 20.0,
+        "z": 3,
+        "text": "Different robot: 1X NEO",
+        "lines": [
+          "Different",
+          "robot: 1X NEO"
+        ],
+        "size": 84,
+        "weight": "800 (bold, rounded sans)",
+        "color": "#F6F8FC",
+        "accent": "#13D8E8",
+        "plate": "#0B1020",
+        "plate_opacity": 0.85,
+        "entrance": "slide up 24px + fade, 0.25s",
+        "exit": "fade 0.2s"
+      },
+      {
+        "type": "subtitle",
+        "box": [
+          90,
+          1380,
+          870,
+          120
+        ],
+        "start": 0.0,
+        "end": 1.2,
+        "z": 4,
+        "text": "Would you leave",
+        "size": 50,
+        "color": "#F6F8FC",
+        "plate": "#0B1020",
+        "plate_opacity": 0.7
+      },
+      {
+        "type": "subtitle",
+        "box": [
+          90,
+          1380,
+          870,
+          120
+        ],
+        "start": 1.2,
+        "end": 2.5,
+        "z": 4,
+        "text": "this robot home alone?",
+        "size": 50,
+        "color": "#F6F8FC",
+        "plate": "#0B1020",
+        "plate_opacity": 0.7
+      },
+      {
+        "type": "subtitle",
+        "box": [
+          90,
+          1380,
+          870,
+          120
+        ],
+        "start": 2.5,
+        "end": 4.0,
+        "z": 4,
+        "text": "Figure sent its humanoid",
+        "size": 50,
+        "color": "#F6F8FC",
+        "plate": "#0B1020",
+        "plate_opacity": 0.7
+      },
+      {
+        "type": "subtitle",
+        "box": [
+          90,
+          1380,
+          870,
+          120
+        ],
+        "start": 4.0,
+        "end": 5.2,
+        "z": 4,
+        "text": "into thirty homes",
+        "size": 50,
+        "color": "#F6F8FC",
+        "plate": "#0B1020",
+        "plate_opacity": 0.7
+      },
+      {
+        "type": "subtitle",
+        "box": [
+          90,
+          1380,
+          870,
+          120
+        ],
+        "start": 5.2,
+        "end": 6.5,
+        "z": 4,
+        "text": "it had never seen.",
+        "size": 50,
+        "color": "#F6F8FC",
+        "plate": "#0B1020",
+        "plate_opacity": 0.7
+      },
+      {
+        "type": "subtitle",
+        "box": [
+          90,
+          1380,
+          870,
+          120
+        ],
+        "start": 6.5,
+        "end": 8.1,
+        "z": 4,
+        "text": "Towels, beds, toys.",
+        "size": 50,
+        "color": "#F6F8FC",
+        "plate": "#0B1020",
+        "plate_opacity": 0.7
+      },
+      {
+        "type": "subtitle",
+        "box": [
+          90,
+          1380,
+          870,
+          120
+        ],
+        "start": 8.1,
+        "end": 9.6,
+        "z": 4,
+        "text": "It finished the whole job",
+        "size": 50,
+        "color": "#F6F8FC",
+        "plate": "#0B1020",
+        "plate_opacity": 0.7
+      },
+      {
+        "type": "subtitle",
+        "box": [
+          90,
+          1380,
+          870,
+          120
+        ],
+        "start": 9.6,
+        "end": 11.4,
+        "z": 4,
+        "text": "fifty-six percent of the time.",
+        "size": 50,
+        "color": "#F6F8FC",
+        "plate": "#0B1020",
+        "plate_opacity": 0.7
+      },
+      {
+        "type": "subtitle",
+        "box": [
+          90,
+          1380,
+          870,
+          120
+        ],
+        "start": 11.4,
+        "end": 12.6,
+        "z": 4,
+        "text": "When it missed,",
+        "size": 50,
+        "color": "#F6F8FC",
+        "plate": "#0B1020",
+        "plate_opacity": 0.7
+      },
+      {
+        "type": "subtitle",
+        "box": [
+          90,
+          1380,
+          870,
+          120
+        ],
+        "start": 12.6,
+        "end": 15.4,
+        "z": 4,
+        "text": "it stepped back and tried again.",
+        "size": 50,
+        "color": "#F6F8FC",
+        "plate": "#0B1020",
+        "plate_opacity": 0.7
+      },
+      {
+        "type": "subtitle",
+        "box": [
+          90,
+          1380,
+          870,
+          120
+        ],
+        "start": 15.4,
+        "end": 16.9,
+        "z": 4,
+        "text": "Another robot, 1X's NEO,",
+        "size": 50,
+        "color": "#F6F8FC",
+        "plate": "#0B1020",
+        "plate_opacity": 0.7
+      },
+      {
+        "type": "subtitle",
+        "box": [
+          90,
+          1380,
+          870,
+          120
+        ],
+        "start": 16.9,
+        "end": 18.4,
+        "z": 4,
+        "text": "lets owners book a",
+        "size": 50,
+        "color": "#F6F8FC",
+        "plate": "#0B1020",
+        "plate_opacity": 0.7
+      },
+      {
+        "type": "subtitle",
+        "box": [
+          90,
+          1380,
+          870,
+          120
+        ],
+        "start": 18.4,
+        "end": 20.0,
+        "z": 4,
+        "text": "remote human for new chores.",
+        "size": 50,
+        "color": "#F6F8FC",
+        "plate": "#0B1020",
+        "plate_opacity": 0.7
+      },
+      {
+        "type": "subtitle",
+        "box": [
+          90,
+          1380,
+          870,
+          120
+        ],
+        "start": 20.5,
+        "end": 23.5,
+        "z": 4,
+        "text": "So who's really home?",
+        "size": 50,
+        "color": "#F6F8FC",
+        "plate": "#0B1020",
+        "plate_opacity": 0.7
+      },
+      {
+        "type": "icon",
+        "box": [
+          810,
+          300,
+          150,
+          150
+        ],
+        "start": 6.8,
+        "end": 9.2,
+        "z": 2,
+        "category": "robotics",
+        "icon": "expressive 3D robotic hand",
+        "scene": 3,
+        "entrance": "scale 0.8→1.0 with soft cyan glow, 0.3s",
+        "glow": "#13D8E8"
+      },
+      {
+        "type": "brand",
+        "box": [
+          90,
+          300,
+          420,
+          90
+        ],
+        "start": 23.2,
+        "end": 24.0,
+        "z": 3,
+        "text": "BrewIQ",
+        "size": 56,
+        "color": "#F6F8FC",
+        "accent": "#13D8E8",
+        "plate": "#0B1020"
+      }
+    ],
+    "audio": [
+      {
+        "type": "narration",
+        "src": "narration.wav",
+        "lufs": -14.0
+      },
+      {
+        "type": "music",
+        "src": "music.wav",
+        "lufs": -26.0,
+        "duck_under_voice_db": 4
+      },
+      {
+        "type": "sfx",
+        "src": "sfx/*.wav",
+        "lufs": -20.0
+      }
+    ]
+  },
+  "cover": {
+    "size": [
+      1080,
+      1920
+    ],
+    "source": "generated",
+    "visual": "The humanoid robot mid-towel-snap in the navy apartment, cyan eye lights glowing, as the host stops in the doorway behind it, surprised",
+    "image_prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. SET LOCK — the same premium modern open-plan apartment in every shot, early morning: deep midnight-navy walls, dark walnut floor with soft glossy reflections, graphite-grey sofa, low walnut coffee table, dark woven laundry basket, a tall window on the left with sheer curtains and low warm-amber sunrise light raking across the room, electric-cyan under-shelf strip lights, vibrant-blue city glow outside, fiddle-leaf fig, walnut bookshelf with books and ceramics, a charcoal play mat with scattered wooden toys, kitchen island with cyan under-cabinet light and an open dishwasher at the back right, entry door at the back left. BRAND LOOK — rich, detailed 3D environment with cinematic lighting: midnight-navy (#0B1020) shadows, electric-cyan (#13D8E8) and vibrant-blue (#4169FF) rim and practical lights, warm-amber (#FFB547) accents, clean-white (#F6F8FC) highlights, subtle depth of field. Animated holographic 3D elements may glow and move but never contain text, letters or symbols. No beige or flat backgrounds, no slides, no floating text cards. COVER — The humanoid robot mid-towel-snap in the navy apartment, cyan eye lights glowing, as the host stops in the doorway behind it, surprised. Dramatic, high-contrast key art, the subject large and sharp in the middle band, clean negative space in the top 30%. Vertical 1080×1920. No readable text, letters, numbers or logos anywhere.",
+    "headline": {
+      "text": "Leave THIS robot home alone?",
+      "lines": [
+        "Leave THIS robot",
+        "home alone?"
+      ],
+      "size": 68,
+      "box": [
+        90,
+        300,
+        690,
+        280
+      ],
+      "color": "#F6F8FC",
+      "accent": "#13D8E8",
+      "plate": "#0B1020"
+    },
+    "brand": {
+      "text": "BrewIQ",
+      "box": [
+        90,
+        1260,
+        300,
+        80
+      ],
+      "color": "#F6F8FC",
+      "accent": "#13D8E8"
+    },
+    "grid_crop": "Headline and subject stay inside the centre 1080×1440 (3:4) profile-grid crop, y 240–1680."
+  },
+  "voice_pacing": {
+    "words": 57,
+    "speaking_seconds": 23.0,
+    "wpm": 148.7,
+    "target": [
+      145,
+      160
+    ],
+    "note": ""
+  },
+  "render_checks": {
+    "text_overlap": {
+      "on_fail": "fix_in_post",
+      "how": "OCR + layer boxes on sampled frames: no two text/graphic layers intersect."
+    },
+    "text_clipped": {
+      "on_fail": "fix_in_post",
+      "how": "OCR text matches the layer text exactly; nothing cut at box or frame edges."
+    },
+    "text_hidden": {
+      "on_fail": "fix_in_post",
+      "how": "Person segmentation: no text pixels covered by the presenter."
+    },
+    "duplicate_captions": {
+      "on_fail": "fix_in_post",
+      "how": "No subtitle shown twice in a row or duplicating the on-screen headline."
+    },
+    "blank_frame": {
+      "on_fail": "regenerate_scene",
+      "how": "No black/empty frames; frame 0 and the cover show the story subject."
+    },
+    "icon": {
+      "on_fail": "fix_in_post",
+      "how": "The topic icon is present, matches the topic and animates in."
+    },
+    "character_motion": {
+      "on_fail": "regenerate_scene",
+      "how": "Pose tracking: no limb jitter, sliding feet or face/outfit drift."
+    },
+    "voice_transition": {
+      "on_fail": "fix_in_post",
+      "how": "Narration: no gaps over 0.6s mid-sentence and no level jumps over 3 dB."
+    },
+    "subtitle_sync": {
+      "on_fail": "fix_in_post",
+      "how": "Forced alignment: each subtitle starts within 0.15s of its words."
+    },
+    "music_level": {
+      "on_fail": "fix_in_post",
+      "how": "Music at least 10 dB under the voice and ducked under speech."
+    },
+    "legibility": {
+      "on_fail": "fix_in_post",
+      "how": "At phone size (390pt wide) every headline and subtitle passes the contrast test."
+    },
+    "unsupported_claim": {
+      "on_fail": "block",
+      "how": "Every spoken or shown claim maps to a cited fact; otherwise the reel is blocked."
+    }
+  }
+}

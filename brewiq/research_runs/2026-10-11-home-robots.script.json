@@ -1,0 +1,133 @@
+{
+  "title": "Would you leave this robot home alone?",
+  "winning_hook": "Would you leave THIS robot home alone?",
+  "voiceover": "Would you leave this robot home alone? Figure sent its humanoid into thirty homes it had never seen. Towels, beds, toys. It finished the whole job fifty-six percent of the time. When it missed, it stepped back and tried again. Another robot, 1X's NEO, lets owners book a remote human for new chores. So who's really home?",
+  "beats": [
+    {
+      "beat": "hook",
+      "start": 0.0,
+      "end": 2.5,
+      "narration": "Would you leave this robot home alone?"
+    },
+    {
+      "beat": "setup",
+      "start": 2.5,
+      "end": 6.5,
+      "narration": "Figure sent its humanoid into thirty homes it had never seen."
+    },
+    {
+      "beat": "reveal",
+      "start": 6.5,
+      "end": 15.4,
+      "narration": "Towels, beds, toys. It finished the whole job fifty-six percent of the time. When it missed, it stepped back and tried again."
+    },
+    {
+      "beat": "payoff",
+      "start": 15.4,
+      "end": 20.0,
+      "narration": "Another robot, 1X's NEO, lets owners book a remote human for new chores."
+    },
+    {
+      "beat": "ending",
+      "start": 20.0,
+      "end": 24.0,
+      "narration": "So who's really home?"
+    }
+  ],
+  "shots": [
+    {
+      "start": 0.0,
+      "end": 3.0,
+      "kind": "illustration",
+      "visual": "Robot mid-fold snaps a towel open in a sunlit living room; front door opens behind it; host steps in.",
+      "on_screen_text": "Leave THIS robot home alone?"
+    },
+    {
+      "start": 3.0,
+      "end": 6.5,
+      "kind": "illustration",
+      "visual": "Over the host's shoulder: he sets his keys down and watches the robot stack the towel and turn its head to him.",
+      "on_screen_text": "30 homes it had never seen"
+    },
+    {
+      "start": 6.5,
+      "end": 10.0,
+      "kind": "illustration",
+      "visual": "Close-up of robot fingers pinching towel corners together; rack focus to the host leaning in.",
+      "on_screen_text": "Towels · beds · toys"
+    },
+    {
+      "start": 10.0,
+      "end": 13.5,
+      "kind": "illustration",
+      "visual": "Tracking: the robot drops toys into a basket; one bounces off the rim and rolls away; the robot steps back.",
+      "on_screen_text": "Whole job done: 56% of tries"
+    },
+    {
+      "start": 13.5,
+      "end": 16.5,
+      "kind": "illustration",
+      "visual": "Orbit: the robot shifts its stance, re-grips the toy and drops it in; walks to the open dishwasher and pauses, eye lights turning amber.",
+      "on_screen_text": "Missed? Step back. Retry."
+    },
+    {
+      "start": 16.5,
+      "end": 20.0,
+      "kind": "illustration",
+      "visual": "Match cut on the amber light: a person in a VR headset in a quiet remote workroom slowly reaches forward with hand controllers.",
+      "on_screen_text": "Different robot: 1X NEO"
+    },
+    {
+      "start": 20.0,
+      "end": 24.0,
+      "kind": "illustration",
+      "visual": "Push out of the headset lens into the living room: the robot sets a plate in the rack; the host turns to camera and asks the question.",
+      "on_screen_text": ""
+    }
+  ],
+  "persistent_label": "Illustrative animation",
+  "facts_used": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "qualifications": [
+    {
+      "limitation": "Figure's 56% comes from Figure's own evaluation, not an independent test.",
+      "where": "caption"
+    },
+    {
+      "limitation": "'Never seen' applies to the homes and objects; the three chores were trained on data collected elsewhere.",
+      "where": "on_screen",
+      "text": "Chores trained elsewhere (3.0–6.5s)"
+    },
+    {
+      "limitation": "1X says NEO works autonomously by default; the remote 1X Expert is scheduled for chores NEO doesn't know.",
+      "where": "voiceover",
+      "text": "'for new chores' plus the caption"
+    },
+    {
+      "limitation": "Figure's robot and 1X's NEO are different robots from different companies; the robot in this reel is an illustration of neither.",
+      "where": "on_screen",
+      "text": "'Different robot: 1X NEO' (16.5–20s) and the caption"
+    }
+  ],
+  "do_not_depict": [
+    "Figure, Figure 03, 1X or NEO logos, names on the robot, or either company's exact robot design",
+    "The robot doing chores the sources don't describe (cooking, childcare, caring for a person)",
+    "The remote operator as a spy or watching the family; no screens showing camera feeds of people",
+    "A flawless run implied as typical: the toy miss stays in the cut",
+    "The host pointing at the robot or at text"
+  ],
+  "caption": "Would you trust a robot home alone? In Figure's own test (Sept 17, 2026), its Helix 2.5 humanoid tidied, folded towels and made beds in 30 Bay Area homes it had never seen. It finished the whole task in 56% of tries. The homes and objects were new; the chores were trained elsewhere, and this isn't an independent test. 1X's NEO, a different robot, works autonomously by default; for chores it doesn't know, owners can schedule a remote 1X Expert to guide it. The robot in this video is an illustration, not either company's design. Sources: figure.ai/news (Sept 17, 2026), 1x.tech/neo. Illustrative animation.",
+  "emotional_tone": "Warm and curious, a little impressed, a little uneasy at the twist; never alarmist.",
+  "final_takeaway": "Home robots are getting real, but they finish the job about half the time in Figure's test, and some bring a remote human for chores they can't do yet.",
+  "visual_concept": "A miniature movie: the host walks in on a robot doing his chores, follows it room to room, sees it miss and recover, then discovers the human behind the controls.",
+  "sources": [
+    "https://www.figure.ai/news/helix-2-5-zero-shot-30-home-generalization",
+    "https://www.1x.tech/neo",
+    "https://www.1x.tech/discover/neo-home-robot"
+  ]
+}

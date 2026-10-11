@@ -1,0 +1,69 @@
+{
+  "selection": {
+    "ok": true,
+    "winner": {
+      "approach": "curiosity_gap",
+      "text": "Would you leave THIS robot home alone?",
+      "score": 9.0,
+      "accuracy": "supported",
+      "eligible": true,
+      "rejected": [],
+      "why": "A personal question the reel actually answers; pairs with a robot already mid-chore in frame one."
+    },
+    "ranked": [
+      {
+        "approach": "curiosity_gap",
+        "text": "Would you leave THIS robot home alone?",
+        "score": 9.0,
+        "accuracy": "supported",
+        "eligible": true,
+        "rejected": [],
+        "why": "A personal question the reel actually answers; pairs with a robot already mid-chore in frame one."
+      },
+      {
+        "approach": "contrarian",
+        "text": "The impressive part isn't the folding. It's the retry.",
+        "score": 6.75,
+        "accuracy": "supported",
+        "eligible": true,
+        "rejected": [],
+        "why": "Accurate and visual, but needs context the viewer doesn't have at 0s."
+      },
+      {
+        "approach": "everyday_problem",
+        "text": "Hate folding laundry? A robot just did it in strangers' homes.",
+        "score": 8.0,
+        "accuracy": "partial",
+        "eligible": false,
+        "rejected": [
+          "Accuracy is partial: Figure tested towels, not general laundry, and finished the whole task in only 56% of trials."
+        ],
+        "why": "Relatable, but overstates both the chore and the success."
+      },
+      {
+        "approach": "surprising_fact",
+        "text": "This robot finished the job in 56% of homes.",
+        "score": 7.75,
+        "accuracy": "partial",
+        "eligible": false,
+        "rejected": [
+          "Accuracy is partial: 56% is the share of trials, not of homes, and it is Figure's own evaluation."
+        ],
+        "why": "Strong number, but misstates what the 56% measures."
+      },
+      {
+        "approach": "future_implication",
+        "text": "Home robots are coming. Who's watching through their eyes?",
+        "score": 7.0,
+        "accuracy": "partial",
+        "eligible": false,
+        "rejected": [
+          "Accuracy is partial: Implies constant remote watching; 1X's Expert is scheduled for chores NEO doesn't know, and NEO is autonomous by default."
+        ],
+        "why": "Provocative, but it frames an opt-in feature as surveillance."
+      }
+    ],
+    "error": ""
+  },
+  "opening_visual_problems": []
+}

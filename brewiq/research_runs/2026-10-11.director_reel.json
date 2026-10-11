@@ -1,0 +1,82 @@
+{
+  "aspect_ratio": "9:16",
+  "scenes": [
+    {
+      "prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. SET — the BrewIQ test lab at night: a dim modern room, one desk with a single large monitor on an articulated arm in front of a curved wall of about thirty monitors; cool blue palette (#0E1A2B shadows, #2D7FF9 screen glow), polished dark floor reflections. SHOT — Frame one is an extreme close-up with no person in shot: keyboard keys press down by themselves with no hands while a cursor glides across an on-screen form. At about 1.0s the host strides in from the right holding a tablet, stops abruptly, leans toward the monitor in disbelief, then flinches as the screen pulses deep red. Camera dollies fast over the host's shoulder toward the monitor, then racks focus to the host's startled face. Vertical 9:16, 24fps cinematic, shallow depth of field. No readable text, letters, numbers or logos anywhere; screens show abstract blurred interface blocks only. No real people, no police uniforms, badges or vehicles, no weapons, no gore. The host never touches a keyboard or mouse. No dialogue, no music.",
+      "use_character": true,
+      "timing": "0–3s",
+      "role": "Hook",
+      "duration_seconds": 4,
+      "trim_to_seconds": 3.0,
+      "reference_assets": [
+        "brand/character-reference.png"
+      ]
+    },
+    {
+      "prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. SET — the BrewIQ test lab at night: a dim modern room, one desk with a single large monitor on an articulated arm in front of a curved wall of about thirty monitors; cool blue palette (#0E1A2B shadows, #2D7FF9 screen glow), polished dark floor reflections. SHOT — The host turns and steps back, looking up as a curved wall of about thirty monitors flicks on one by one in random order, abstract web windows popping open and closing, a light bar sweeping across. Camera cranes up and pulls back to reveal the full wall, then drifts down toward the desk monitor as it brightens. Vertical 9:16, 24fps cinematic, shallow depth of field. No readable text, letters, numbers or logos anywhere; screens show abstract blurred interface blocks only. No real people, no police uniforms, badges or vehicles, no weapons, no gore. The host never touches a keyboard or mouse. No dialogue, no music.",
+      "use_character": true,
+      "timing": "3–7s",
+      "role": "Setup",
+      "duration_seconds": 4,
+      "trim_to_seconds": 4.0,
+      "reference_assets": [
+        "brand/character-reference.png"
+      ]
+    },
+    {
+      "prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. SET — the BrewIQ test lab at night: a dim modern room, one desk with a single large monitor on an articulated arm in front of a curved wall of about thirty monitors; cool blue palette (#0E1A2B shadows, #2D7FF9 screen glow), polished dark floor reflections. SHOT — The desk monitor rises smoothly on its articulated arm to eye level. The host walks alongside it, stops and peers in: a plain web form whose large box fills line by line with blurred grey bars, as if typed by itself, while two small boxes stay empty and blink. The host rests his hand on his chin, then points at the empty boxes and frowns, glancing toward camera. Camera tracks sideways with the host, then pushes slowly toward the form. Vertical 9:16, 24fps cinematic, shallow depth of field. No readable text, letters, numbers or logos anywhere; screens show abstract blurred interface blocks only. No real people, no police uniforms, badges or vehicles, no weapons, no gore. The host never touches a keyboard or mouse. No dialogue, no music.",
+      "use_character": true,
+      "timing": "7–13.5s",
+      "role": "Reveal",
+      "duration_seconds": 8,
+      "trim_to_seconds": 6.5,
+      "reference_assets": [
+        "brand/character-reference.png"
+      ]
+    },
+    {
+      "prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. SET — the BrewIQ test lab at night: a dim modern room, one desk with a single large monitor on an articulated arm in front of a curved wall of about thirty monitors; cool blue palette (#0E1A2B shadows, #2D7FF9 screen glow), polished dark floor reflections. SHOT — Extreme close-up of a monitor: a cursor arrow glides toward a glowing red-orange rounded button with no label. The host's hand reaches in from the edge to stop it but freezes short, fingers curling back, never touching anything. The button presses down by itself and a ring of light ripples outward across the screen. Slow push-in, slow-motion on the press, small camera jolt on the ripple. Vertical 9:16, 24fps cinematic, shallow depth of field. No readable text, letters, numbers or logos anywhere; screens show abstract blurred interface blocks only. No real people, no police uniforms, badges or vehicles, no weapons, no gore. The host never touches a keyboard or mouse. No dialogue, no music.",
+      "use_character": true,
+      "timing": "13.5–17.5s",
+      "role": "Reveal",
+      "duration_seconds": 4,
+      "trim_to_seconds": 4.0,
+      "reference_assets": [
+        "brand/character-reference.png"
+      ]
+    },
+    {
+      "prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. SET — the BrewIQ test lab at night: a dim modern room, one desk with a single large monitor on an articulated arm in front of a curved wall of about thirty monitors; cool blue palette (#0E1A2B shadows, #2D7FF9 screen glow), polished dark floor reflections. Back corner: a tall grey metal filing cabinet and a blank wall calendar under one overhead lamp. SHOT — A glowing paper envelope pops out of a monitor and flutters across a dim lab. The host spins and jogs after it into a dusty back corner where it drops into a tall grey metal filing drawer that slams shut, puffing dust; The host waves the dust away, then looks up as blank wall-calendar pages tear off and swirl past in a gust. Steadicam follow, then a quick tilt up to the calendar. Vertical 9:16, 24fps cinematic, shallow depth of field. No readable text, letters, numbers or logos anywhere; screens show abstract blurred interface blocks only. No real people, no police uniforms, badges or vehicles, no weapons, no gore. The host never touches a keyboard or mouse. No dialogue, no music.",
+      "use_character": true,
+      "timing": "17.5–22s",
+      "role": "Payoff",
+      "duration_seconds": 6,
+      "trim_to_seconds": 4.5,
+      "reference_assets": [
+        "brand/character-reference.png"
+      ]
+    },
+    {
+      "prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. SET — the BrewIQ test lab at night: a dim modern room, one desk with a single large monitor on an articulated arm in front of a curved wall of about thirty monitors; cool blue palette (#0E1A2B shadows, #2D7FF9 screen glow), polished dark floor reflections. SHOT — A large industrial breaker lever beside the monitor wall throws itself down with a heavy jolt. The wall of monitors goes dark row by row in a cascade until only a soft amber safety light remains. The host turns toward the sound, watches, then exhales and laces his hands behind his head in relief. Low-angle push toward the lever, then a fast pull-back revealing the blackout. Vertical 9:16, 24fps cinematic, shallow depth of field. No readable text, letters, numbers or logos anywhere; screens show abstract blurred interface blocks only. No real people, no police uniforms, badges or vehicles, no weapons, no gore. The host never touches a keyboard or mouse. No dialogue, no music.",
+      "use_character": true,
+      "timing": "22–25s",
+      "role": "Payoff",
+      "duration_seconds": 4,
+      "trim_to_seconds": 3.0,
+      "reference_assets": [
+        "brand/character-reference.png"
+      ]
+    },
+    {
+      "prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. SET — a bright modern kitchen in warm morning sun, wooden counter, kettle, light curtains; warm amber palette. SHOT — Morning in a bright kitchen. The host leans on the counter holding a white coffee cup in one hand and a phone in the other, the phone screen a plain bright blank card, thumb hovering over it; he pauses, turns the phone toward the camera, lifts one palm and raises an eyebrow with a small knowing smile. Steam drifts from a kettle, a curtain moves in the breeze. Slow push-in from medium to medium close-up. Vertical 9:16, 24fps cinematic, shallow depth of field. No readable text, letters, numbers or logos anywhere; screens show abstract blurred interface blocks only. No real people, no police uniforms, badges or vehicles, no weapons, no gore. The host never touches a keyboard or mouse. No dialogue, no music.",
+      "use_character": true,
+      "timing": "25–28.5s",
+      "role": "Ending",
+      "duration_seconds": 4,
+      "trim_to_seconds": 3.5,
+      "reference_assets": [
+        "brand/character-reference.png"
+      ]
+    }
+  ]
+}

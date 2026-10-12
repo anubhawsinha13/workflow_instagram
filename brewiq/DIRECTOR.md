@@ -28,7 +28,7 @@ Before calling Veo or assembling a reel:
 | id | When to use |
 |---|---|
 | `cinematic_3d` | Inventions, robotics, dramatic character environments |
-| `interactive_explainer` | AI tools, product updates: the host demonstrates the tool on a laptop in a premium navy home studio, shaping animated holographic 3D elements (no text in them); real screen UI is composited in post |
+| `interactive_explainer` | AI tools, product updates: the host demonstrates the tool on a laptop in a premium navy home studio. The screen behind him shows an illustrated sample (chat, notes, or original app tiles) with no readable text or logos |
 | `tech_storytelling` | Agents, automation, problem → transformation → reveal |
 | `motion_graphics` | Architecture / integration topics; **prefer when Veo quota is exhausted** |
 

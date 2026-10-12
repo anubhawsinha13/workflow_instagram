@@ -47,7 +47,8 @@ STYLES: dict[str, dict[str, str]] = {
         "id": "interactive_explainer",
         "label": "Interactive Explainer",
         "description": (
-            "Character tries the tool on real devices in a real room; the screen UI is composited in post. "
+            "Character tries the tool on real devices in a real room. The laptop behind him shows an illustrated "
+            "sample of a chat, a notes page, or original app tiles, with no logos or readable text. "
             "Great for AI tools and product updates."
         ),
         "pipeline": "explainer_render",
@@ -691,9 +692,9 @@ CHARACTER_ENVIRONMENTS = {
     "interactive_explainer": (
         "SET LOCK — one consistent premium home studio at night in every shot: midnight-navy walls, a dark oak desk "
         "with an open laptop and a phone, a warm amber desk lamp, electric-cyan and vibrant-blue edge lights on the "
-        "shelves, plants, glossy reflections; animated holographic 3D shapes, nodes and light particles float above "
-        "the desk and react to the host's hands; laptop and phone screens show soft abstract light only (real UI is "
-        "composited in post)."
+        "shelves, plants, glossy reflections. The laptop and phone behind the host show a recognizable sample of "
+        "the task: a chat thread, a notes page, or a row of original app tiles for chat, mail, calendar, and a lock. "
+        "Shapes only, no letters, numbers, logos, or copied company marks. Holographic light stays behind that screen."
     ),
     "tech_storytelling": (
         "SET LOCK — one consistent apartment at night in every shot: midnight-navy room, a desk with a laptop by a "
@@ -815,7 +816,7 @@ def _cinematic_scenes(
     )
     visuals = (
         (
-            f"The laptop screen shows {moment}, large enough to understand in one glance"
+            f"The laptop screen behind the hands shows {moment} as a real sample: chat bubbles, a notes page, or app tiles, large enough to understand in one glance, with no readable text or logos"
             if style == "interactive_explainer"
             else f"{moment}, already in motion in frame one"
         ),

@@ -100,6 +100,7 @@ def render_explainer(payload: dict, make_host=None) -> dict:
         ))
     total = sum(item[1] for item in prepared)
     frames = max(1, round(total * fps))
+    hook_element = _first_hook(prepared[0][2] if prepared else [])
 
     audio = Path(str(payload.get("voiceover") or ""))
     command = [
@@ -121,10 +122,11 @@ def render_explainer(payload: dict, make_host=None) -> dict:
                 if start <= t < start + duration or (index == frames - 1 and start <= t):
                     local = t - start
                     for element, sprite in sprites:
+                        draw_at = _hook_time(element, local) if element is hook_element else local
                         if sprite is None:
-                            _draw_character(frame, element, library, local, duration, colors)
+                            _draw_character(frame, element, library, draw_at, duration, colors)
                         else:
-                            _place(frame, element, sprite, local, duration, colors)
+                            _place(frame, element, sprite, draw_at, duration, colors)
                     frame = _camera(frame, camera, focus, local / max(0.01, duration))
             process.stdin.write(frame.convert("RGB").tobytes())
         process.stdin.close()
@@ -135,7 +137,72 @@ def render_explainer(payload: dict, make_host=None) -> dict:
     if process.returncode != 0 or not out.is_file() or out.stat().st_size == 0:
         detail = stderr.strip().splitlines()
         return {"ok": False, "error": (detail[-1] if detail else "ffmpeg could not render the explainer.")[:240]}
-    return {"ok": True, "path": str(out), "seconds": round(total, 2), "has_audio": audio.is_file(), "error": ""}
+    cover = out.with_name("cover.jpg")
+    try:
+        cover_frame = _opening_still(width, height, colors, radius, prepared[0][2] if prepared else [], hook_element)
+        cover_frame.convert("RGB").save(cover, quality=90)
+    except OSError:
+        cover = None
+    return {
+        "ok": True,
+        "path": str(out),
+        "cover": str(cover) if cover and cover.is_file() else "",
+        "seconds": round(total, 2),
+        "has_audio": audio.is_file(),
+        "error": "",
+    }
+
+
+_HOOK_TYPES = {"card", "text", "bubble", "token"}
+
+
+def _first_hook(sprites: list) -> dict | None:
+    for element, sprite in sprites:
+        if sprite is not None and element.get("type") in _HOOK_TYPES and str(element.get("label") or "").strip():
+            return element
+    return None
+
+
+def _hook_time(element: dict, local: float) -> float:
+    """The opening label is fully drawn from the first frame.
+
+    Instagram uses that frame as the reel cover. Waiting for enter_at leaves a blank beige still.
+    """
+    enter = float(element.get("enter_at") or 0)
+    enter_for = max(0.01, float(element.get("enter_duration") or 0.4))
+    ready = enter + enter_for
+    return ready if local < ready else local
+
+
+def _opening_still(width: int, height: int, colors: dict, radius: int, sprites: list, hook: dict | None) -> Image.Image:
+    frame = _background(width, height, colors)
+    for element, sprite in sprites:
+        draw_at = _hook_time(element, 0.0) if element is hook else 0.0
+        duration = float(element.get("hold_until") or 2) + 1
+        if sprite is None:
+            continue
+        _place(frame, element, sprite, draw_at, duration, colors)
+    return frame
+
+
+def opening_still(canvas: dict, elements: list) -> Image.Image:
+    """The cover frame: the hook label is visible even when its entrance is later than 0."""
+    width = int(canvas.get("width") or 1080)
+    height = int(canvas.get("height") or 1920)
+    colors = {
+        "background": canvas.get("background") or "#F7F3EC",
+        "text": canvas.get("text") or "#2B2B2B",
+        "accent": canvas.get("accent") or "#22C3D6",
+        "warning": canvas.get("warning") or "#D6623E",
+        "card": canvas.get("card") or "#FFFFFF",
+    }
+    radius = int(canvas.get("corner_radius") or 32)
+    sprites = []
+    for element in elements:
+        sprite = _sprite(element, colors, radius, None)
+        if sprite is not None:
+            sprites.append((element, sprite))
+    return _opening_still(width, height, colors, radius, sprites, _first_hook(sprites))
 
 
 def build_pose_library(source: Path, dest: Path = POSE_DIR) -> dict:

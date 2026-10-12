@@ -51,7 +51,7 @@ Candidates, in order: eligible `hook_evaluations` (only when `verified_facts` ex
 A line that is not catchy and intuitive loses first: template phrases ("stop scrolling", "watch this"), two or more technical words, a label with no verb, or a clarity score below 7. Among the lines that pass, technique fit comes next, then the research score, then the capped learning bonus. The on-screen hook is the first sentence in at most 8 words, with no ellipsis and no "Watch this". `POST_TECHNIQUE_RANK` is the fit order:
 
 - `cinematic_3d`: surprising contrast, narrative tension, curiosity gap, then the rest
-- `interactive_explainer`: everyday problem, specific mistake, useful promise, curiosity gap
+- `interactive_explainer`: curiosity gap, surprising fact, specific mistake, then everyday problem. The first frame shows that line on the laptop, not a host walking in.
 - `tech_storytelling`: narrative tension, transformation, curiosity gap
 - `motion_graphics`: useful promise, specific mistake, surprising fact, everyday problem
 - `utility_carousel`: useful promise, specific mistake, everyday problem

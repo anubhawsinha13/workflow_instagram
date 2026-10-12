@@ -271,8 +271,8 @@ POST_TECHNIQUE_RANK: dict[str, tuple[str, ...]] = {
         "everyday_problem", "specific_mistake", "useful_promise",
     ),
     "interactive_explainer": (
-        "everyday_problem", "specific_mistake", "useful_promise", "curiosity_gap",
-        "surprising_fact", "transformation", "surprising_contrast", "narrative_tension",
+        "curiosity_gap", "surprising_fact", "specific_mistake", "everyday_problem",
+        "useful_promise", "transformation", "surprising_contrast", "narrative_tension",
         "bold_opinion", "future_implication", "contrarian",
     ),
     "tech_storytelling": (

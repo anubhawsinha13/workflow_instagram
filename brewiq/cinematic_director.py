@@ -796,6 +796,10 @@ def _cinematic_scenes(
     )
     actions = (
         (
+            "Hands are already on the laptop in frame one, mid-action. The screen shows the task before any greeting. "
+            "The host's face stays out of the first second."
+            if style == "interactive_explainer"
+            else
             "No host for the first 1.5s: the subject is already mid-action. At 1.5s the host walks into frame, "
             "stops mid-stride and reacts with a small surprised lean."
         ),
@@ -810,7 +814,11 @@ def _cinematic_scenes(
         ),
     )
     visuals = (
-        f"{moment}, already in motion in frame one",
+        (
+            f"The laptop screen shows {moment}, large enough to understand in one glance"
+            if style == "interactive_explainer"
+            else f"{moment}, already in motion in frame one"
+        ),
         "The subject keeps working in the background; the next step lands as the host arrives",
         "The method working up close, step by step",
         "The limit, shown honestly: one step visibly fails" if lines["limitation"] else "A tricky detail of the process, up close",
@@ -819,7 +827,11 @@ def _cinematic_scenes(
         "The subject finishes in the background as the host speaks",
     )
     event_steps = (
-        ("Subject already in motion", "Host walks into frame and stops mid-stride", "The action completes a visible step"),
+        (
+            ("Laptop screen already shows the task", "A result or mistake lands on screen", "Hands react; no look to camera")
+            if style == "interactive_explainer"
+            else ("Subject already in motion", "Host walks into frame and stops mid-stride", "The action completes a visible step")
+        ),
         ("Host sets his things down", "Walks closer, observing", "The subject's next step lands"),
         ("Hands on the device or object", "It responds", "Rack focus: host leans back, eyebrows up"),
         ("Action moves across the room", "The limit shows", "Host winces"),
@@ -840,9 +852,15 @@ def _cinematic_scenes(
             text = short_line(written or research.get("cover_headline") or overlay)
         else:
             text = short_line(written or lines.get(overlay_key, "")) if overlay_key else ""
-        if text and text.rstrip(".?!").lower() == narration.rstrip(".?!").lower():
-            text = ""  # the subtitle already says it; a matching headline is a duplicate caption
-        text_end = end - 0.9 if index == len(_CINEMATIC_BEATS) else end
+        same_as_speech = bool(text) and text.rstrip(".?!").lower() == narration.rstrip(".?!").lower()
+        # An explainer is read before it is heard. Keep the hook on screen for the first second,
+        # and let the matching caption start after that headline ends.
+        if same_as_speech and not (style == "interactive_explainer" and overlay_key == "hook"):
+            text = ""
+        if style == "interactive_explainer" and overlay_key == "hook" and text:
+            text_end = round(min(end - 1.4, start + 1.15), 2)
+        else:
+            text_end = end - 0.9 if index == len(_CINEMATIC_BEATS) else end
         if line_key == "limitation" and narration:
             basis: Any = [limit_index]
         elif line_key in ("hook", "point", "try_it", "takeaway") and grounded:
@@ -852,6 +870,9 @@ def _cinematic_scenes(
         duration = end - start
         offsets = (0.0, 0.5, 0.8) if index == 1 else (0.0, 0.4, 0.8)
         presence = "" if host else "The BrewIQ host does not appear in this shot. "
+        shot_camera = camera
+        if style == "interactive_explainer" and index == 1:
+            shot_camera = "Tight push-in on the laptop screen from frame one, then a small rise to the hands"
         shot = f"{presence}{actions[index - 1]} {visuals[index - 1]}."
         scenes.append(
             {
@@ -863,7 +884,7 @@ def _cinematic_scenes(
                 "environment": CHARACTER_ENVIRONMENTS[style],
                 "host_in_shot": host,
                 "character_action": actions[index - 1],
-                "camera": camera,
+                "camera": shot_camera,
                 "visual_animation": visuals[index - 1],
                 "narration": narration,
                 "on_screen_text": text,
@@ -884,7 +905,7 @@ def _cinematic_scenes(
                         HOST_LOCK,
                         CHARACTER_ENVIRONMENTS[style],
                         BRAND_LOOK,
-                        f"SHOT — {shot} Camera: {camera}.",
+                        f"SHOT — {shot} Camera: {shot_camera}.",
                         FRAME_RULE,
                         _PLAN_NEGATIVES,
                     ]
@@ -906,6 +927,10 @@ def _subtitles(scenes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for scene in scenes:
         if scene["narration"]:
             start = scene["start"] + 0.05
+            overlay = scene.get("text_overlay") or {}
+            headline = str(overlay.get("text") or "")
+            if headline and headline.rstrip(".?!").lower() == scene["narration"].rstrip(".?!").lower():
+                start = max(start, float(overlay.get("end") or start) + 0.05)
             spoken = len(scene["narration"].split()) / NARRATION_WPM * 60
             subs += phrase_subtitles(scene["narration"], start, min(scene["end"] - 0.1, start + spoken))
     return subs

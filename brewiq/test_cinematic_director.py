@@ -167,6 +167,12 @@ class PlanTests(unittest.TestCase):
         self.assertIsNone(explainer["director_reel"])
         self.assertIn("holographic", explainer["scenes"][2]["character_action"])
         self.assertIn("premium", explainer["scenes"][0]["environment"].lower())
+        opening = explainer["scenes"][0]
+        self.assertEqual(opening["on_screen_text"], "Your notes hide the gaps")
+        self.assertIn("laptop", opening["character_action"].lower())
+        self.assertIn("laptop", opening["camera"].lower())
+        self.assertLessEqual(opening["text_overlay"]["end"], 1.4)
+        self.assertEqual(explainer["cinematic_problems"], [])
         veo = plan_reel("Gemini study notebooks", research=research, style="cinematic_3d", hook_id="hook_1")
         jobs = veo["director_reel"]["scenes"]
         self.assertTrue(all(job["duration_seconds"] in (4, 6) for job in jobs))
@@ -362,7 +368,7 @@ class KeywordTriggerTests(unittest.TestCase):
             {"approach": "curiosity_gap", "text": "What is your home robot hiding", "why": "Open question."},
         ]
         cases = (
-            ("explainer: NotebookLM quizzes you", "interactive_explainer", "everyday_problem"),
+            ("explainer: NotebookLM quizzes you", "interactive_explainer", "curiosity_gap"),
             ("#motion API retries", "motion_graphics", "useful_promise"),
             ("tech storytelling about AI agents", "tech_storytelling", "curiosity_gap"),
         )

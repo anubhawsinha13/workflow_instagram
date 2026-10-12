@@ -154,7 +154,7 @@ class PostTypeHookTests(unittest.TestCase):
         }
         expected = {
             "cinematic_3d": "surprising_contrast",
-            "interactive_explainer": "everyday_problem",
+            "interactive_explainer": "curiosity_gap",
             "tech_storytelling": "narrative_tension",
             "motion_graphics": "useful_promise",
             "utility_carousel": "useful_promise",

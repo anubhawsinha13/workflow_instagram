@@ -209,11 +209,197 @@ def select_from_pool(
 
 
 def pool_to_brief_hooks(selection: dict[str, Any]) -> list[dict[str, str]]:
-    """The top five as ``research["brief_hooks"]``, which ``plan_reel`` offers in Slack."""
+    """The top five as ``research["brief_hooks"]``. ``plan_reel`` then picks one per post type."""
     return [
         {"approach": r["technique"], "text": r["text"], "why": r["why"] or f"Score {r['score']} ({r['technique']})."}
         for r in selection.get("top") or []
     ]
+
+
+# Which research hook fits each post. Earlier techniques are a better fit.
+# The agent only chooses among hooks research already wrote.
+POST_TECHNIQUE_RANK: dict[str, tuple[str, ...]] = {
+    "cinematic_3d": (
+        "surprising_contrast", "narrative_tension", "curiosity_gap", "bold_opinion",
+        "surprising_fact", "future_implication", "contrarian", "transformation",
+        "everyday_problem", "specific_mistake", "useful_promise",
+    ),
+    "interactive_explainer": (
+        "everyday_problem", "specific_mistake", "useful_promise", "curiosity_gap",
+        "surprising_fact", "transformation", "surprising_contrast", "narrative_tension",
+        "bold_opinion", "future_implication", "contrarian",
+    ),
+    "tech_storytelling": (
+        "narrative_tension", "transformation", "curiosity_gap", "surprising_contrast",
+        "bold_opinion", "everyday_problem", "surprising_fact", "future_implication",
+        "contrarian", "specific_mistake", "useful_promise",
+    ),
+    "motion_graphics": (
+        "useful_promise", "specific_mistake", "surprising_fact", "everyday_problem",
+        "future_implication", "curiosity_gap", "transformation", "surprising_contrast",
+        "narrative_tension", "bold_opinion", "contrarian",
+    ),
+    "utility_carousel": (
+        "useful_promise", "specific_mistake", "everyday_problem", "transformation",
+        "surprising_fact", "curiosity_gap", "future_implication", "contrarian",
+        "bold_opinion", "narrative_tension", "surprising_contrast",
+    ),
+    "slides": (
+        "curiosity_gap", "useful_promise", "surprising_fact", "everyday_problem",
+        "contrarian", "future_implication", "specific_mistake", "transformation",
+        "narrative_tension", "surprising_contrast", "bold_opinion",
+    ),
+}
+POST_TYPE_LABELS = {
+    "cinematic_3d": "Cinematic 3D",
+    "interactive_explainer": "Interactive Explainer",
+    "tech_storytelling": "Tech Storytelling",
+    "motion_graphics": "Motion Graphics",
+    "utility_carousel": "Prompt pack",
+    "slides": "Slides",
+}
+
+
+def _mean_score(scores: dict[str, Any], keys: tuple[str, ...]) -> float | None:
+    try:
+        values = [float(scores[key]) for key in keys]
+    except (KeyError, TypeError, ValueError):
+        return None
+    if any(not 1 <= value <= 10 for value in values):
+        return None
+    return round(sum(values) / len(values), 2)
+
+
+def research_hook_candidates(research: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Hooks research actually wrote. Empty when the brief has no hook to choose."""
+    research = research or {}
+    facts = research.get("verified_facts") or []
+    brief = {"verified_facts": facts}
+    found: list[dict[str, Any]] = []
+    evaluations = list(research.get("hook_evaluations") or [])
+    for index, evaluation in enumerate(evaluations):
+        text = str(evaluation.get("text") or "").strip()
+        if not text or is_weak_opener(text):
+            continue
+        if facts and hook_eligibility(evaluation, brief):
+            continue
+        scores = evaluation.get("scores") or {}
+        score = _mean_score(scores, POOL_CRITERIA)
+        if score is None:
+            score = _mean_score(scores, CRITERIA)
+        if score is None:
+            score = float(len(evaluations) - index)
+        found.append(
+            {
+                "approach": str(evaluation.get("technique") or evaluation.get("approach") or ""),
+                "text": text,
+                "why": str(evaluation.get("why") or ""),
+                "score": score,
+                "research_rank": index,
+            }
+        )
+    if found:
+        return found
+
+    brief_hooks = [h for h in research.get("brief_hooks") or [] if isinstance(h, dict)]
+    for index, hook in enumerate(brief_hooks):
+        text = str(hook.get("text") or "").strip()
+        if not text or is_weak_opener(text):
+            continue
+        try:
+            score = float(hook["score"]) if hook.get("score") is not None else float(len(brief_hooks) - index)
+        except (TypeError, ValueError):
+            score = float(len(brief_hooks) - index)
+        found.append(
+            {
+                "approach": str(hook.get("approach") or hook.get("technique") or ""),
+                "text": text,
+                "why": str(hook.get("why") or ""),
+                "score": score,
+                "research_rank": index,
+            }
+        )
+    if found:
+        return found
+
+    text = str(research.get("hook") or "").strip()
+    if text and not is_weak_opener(text):
+        return [
+            {
+                "approach": str(research.get("hook_approach") or ""),
+                "text": text,
+                "why": "Research hook.",
+                "score": 1.0,
+                "research_rank": 0,
+            }
+        ]
+    return []
+
+
+def best_hook_for_post(
+    research: dict[str, Any] | None,
+    post_type: str,
+    learnings: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """Best research-backed hook for this post type.
+
+    Technique fit for the post type comes first, then the research score, then a
+    capped learning bonus as a tie-break. Hooks that research did not write are
+    never invented here.
+    """
+    candidates = research_hook_candidates(research)
+    if not candidates:
+        return None
+    order = POST_TECHNIQUE_RANK.get(post_type, ())
+    fit = {name: index for index, name in enumerate(order)}
+    bonus = {k: max(-MAX_TECHNIQUE_BONUS, min(MAX_TECHNIQUE_BONUS, float(v))) for k, v in hook_bonus(learnings).items()}
+    unknown = len(fit)
+
+    def sort_key(candidate: dict[str, Any]) -> tuple:
+        technique = candidate["approach"]
+        return (
+            fit.get(technique, unknown),
+            -float(candidate["score"]),
+            -bonus.get(technique, 0.0),
+            candidate["research_rank"],
+        )
+
+    ranked = sorted(candidates, key=sort_key)
+    winner = ranked[0]
+    why = winner["why"] or f"Best research {winner['approach'] or 'hook'} for {POST_TYPE_LABELS.get(post_type, post_type)}."
+    return {
+        "text": winner["text"],
+        "approach": winner["approach"],
+        "why": why,
+        "score": winner["score"],
+        "post_type": post_type,
+        "source": "research",
+        "ranked": ranked,
+    }
+
+
+def hooks_for_post_types(
+    research: dict[str, Any] | None,
+    learnings: dict[str, Any] | None = None,
+) -> list[dict[str, str]]:
+    """The research hook each post type would use."""
+    if not research_hook_candidates(research):
+        return []
+    chosen = []
+    for post_type, label in POST_TYPE_LABELS.items():
+        hook = best_hook_for_post(research, post_type, learnings)
+        if hook is None:
+            continue
+        chosen.append(
+            {
+                "id": post_type,
+                "label": label,
+                "text": hook["text"],
+                "approach": hook["approach"],
+                "why": hook["why"],
+            }
+        )
+    return chosen
 
 
 def apply_to_brief(brief: dict[str, Any], selection: dict[str, Any], opening: dict[str, Any]) -> dict[str, Any]:

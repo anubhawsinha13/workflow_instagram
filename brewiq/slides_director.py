@@ -65,6 +65,27 @@ _SLIDE_BEATS = (
 )
 
 
+def _fits_slide_headline(text: str) -> bool:
+    value = short_line(text, MAX_HEADLINE_WORDS)
+    if not value:
+        return False
+    return len(wrap_lines(value, SLIDE_HEADLINE_SIZE, SLIDE_HEADLINE_WIDTH)) <= MAX_HEADLINE_LINES
+
+
+def _slide_hook_text(topic: str, research: dict, hook_text: str) -> str:
+    """Use the slides research hook when it fits; otherwise the template overlay."""
+    template = rank_hooks(topic, research)[0]
+    if str(hook_text or "").strip():
+        return hook_text
+    from hook_agent import best_hook_for_post
+
+    picked = best_hook_for_post(research, "slides")
+    candidate = str(picked["text"]).strip() if picked else ""
+    if candidate and _fits_slide_headline(candidate):
+        return short_line(candidate, MAX_HEADLINE_WORDS)
+    return str(template["on_screen_text"])
+
+
 def plan_slides(
     topic: str,
     research: dict | None = None,
@@ -81,8 +102,7 @@ def plan_slides(
     """
     research = dict(research or {})
     env = CHARACTER_ENVIRONMENTS.get(style, CHARACTER_ENVIRONMENTS["cinematic_3d"])
-    hook = rank_hooks(topic, research)[0]
-    headline_hook = hook_text or hook["on_screen_text"]
+    headline_hook = _slide_hook_text(topic, research, hook_text)
     facts = research_facts(research)
     limitations = research_limitations(research)
     limit_index = len(facts) - len(limitations)

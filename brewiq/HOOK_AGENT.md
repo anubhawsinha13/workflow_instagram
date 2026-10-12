@@ -40,4 +40,21 @@ Use this when you want more hook options than the five research approaches.
 3. Give each hook `accuracy` and `supported_by`, the same as above.
 4. Avoid misleading clickbait and empty phrases. Words like "shocking", "secret", "this changes everything" and "guaranteed" are rejected, and so are duplicates.
 
-`hook_agent.select_from_pool(evaluations, brief, technique_bonus=learnings["technique_bonus"])` ranks the pool. It returns the top five eligible hooks, which `pool_to_brief_hooks` turns into the Slack hook options. The technique bonus comes from measured past posts (see `PERFORMANCE_AGENT.md`) and is capped at ±0.5.
+`hook_agent.select_from_pool(evaluations, brief, technique_bonus=learnings["technique_bonus"])` ranks the pool. It returns the top five eligible hooks, which `pool_to_brief_hooks` turns into `research["brief_hooks"]`. The technique bonus comes from measured past posts (see `PERFORMANCE_AGENT.md`) and is capped at ±0.5.
+
+## Best hook per post type
+
+`best_hook_for_post(research, post_type, learnings=None)` chooses one hook research already wrote. It never invents a line.
+
+Candidates, in order: eligible `hook_evaluations` (only when `verified_facts` exist; partial and unsupported are skipped), else `brief_hooks`, else a single non-weak `research["hook"]`.
+
+Technique fit for the post type comes first, then the research score, then the capped learning bonus as a tie-break. `POST_TECHNIQUE_RANK` is that order:
+
+- `cinematic_3d`: surprising contrast, narrative tension, curiosity gap, then the rest
+- `interactive_explainer`: everyday problem, specific mistake, useful promise, curiosity gap
+- `tech_storytelling`: narrative tension, transformation, curiosity gap
+- `motion_graphics`: useful promise, specific mistake, surprising fact, everyday problem
+- `utility_carousel`: useful promise, specific mistake, everyday problem
+- `slides`: curiosity gap, useful promise, surprising fact, everyday problem
+
+`hooks_for_post_types` returns that choice for every post type. The operator still picks the style. `hook N` overrides the research pick. If research wrote no hook, the director asks for a template hook. Nothing is posted without exact `post it`.

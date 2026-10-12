@@ -6,7 +6,7 @@ Covers PROB-007, UC-007 (weekly learning loop), UC-008 (weekly test plan), PH-00
 
 ```text
 plan_week (5–7 posts, each an EXP-### test)
-    → produce and post (operator still picks style and hook; nothing ships without `post it`)
+    → produce and post (operator still picks the style; hook comes from research unless overridden; nothing ships without `post it`)
     → 72h+ later: weekly_review(posts)
          → review_posts (performance_agent)
          → research_runs/learnings.json        ← memory, committed to the repo
@@ -34,7 +34,7 @@ Pass `learnings=load_learnings()` on every request:
 | `cinematic_director.recommend_style(topic, research, learnings=)` | The learned style is recommended after the brief's suggested style and the architecture rule, before topic heuristics. |
 | `cinematic_director.plan_reel(..., learnings=)` / `slack_director.start_or_continue(..., learnings=)` | `learnings_applied` lists what was applied; Slack shows it under "Applied from the last review". |
 
-Learnings only adjust scores and recommendations. They never override the accuracy, clickbait, brand or posting gates, and the operator still picks the style and hook.
+Learnings only adjust scores and recommendations. The operator still picks the style; the hook comes from research unless they override it. Learnings never bypass the accuracy, clickbait, brand or posting gates.
 
 ## Weekly test plan
 

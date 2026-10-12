@@ -7,6 +7,7 @@ import json
 import unittest
 from pathlib import Path
 
+from cinematic_director import rank_hooks
 from composition import BRAND_LOOK
 from research_agent import brief_to_script_research
 from slides_director import plan_slides, slides_problems
@@ -32,6 +33,23 @@ class SlidesDirectorTests(unittest.TestCase):
         self.assertTrue(all(len(s["headline"]["lines"]) <= 2 for s in self.plan["slides"]))
         for limitation in self.research["limitations"]:
             self.assertIn(limitation, self.plan["caption"])
+
+    def test_fitting_research_hook_is_the_slide_hook(self) -> None:
+        research = {
+            "brief_hooks": [
+                {"approach": "useful_promise", "text": "Save ten minutes every Sunday night"},
+                {"approach": "curiosity_gap", "text": "What is your robot hiding now"},
+            ],
+            "verified_facts": ["A robot folded towels in a lab kitchen."],
+        }
+        plan = plan_slides("Home robots", research)
+        self.assertEqual(plan["hook"], "What is your robot hiding now")
+
+    def test_long_research_hook_keeps_the_template_overlay(self) -> None:
+        research = {"hook": "Would you leave this folding robot completely alone in the house tonight"}
+        plan = plan_slides("Home robots", research)
+        self.assertEqual(plan["hook"], rank_hooks("Home robots", research)[0]["on_screen_text"])
+        self.assertNotEqual(plan["hook"], research["hook"])
 
     def test_long_lines_need_written_headlines(self) -> None:
         plan = plan_slides(self.topic, self.research)

@@ -11,6 +11,7 @@ from cinematic_director import rank_hooks
 from hook_agent import (
     POOL_TECHNIQUES,
     apply_to_brief,
+    best_hook_for_post,
     opening_visual_problems,
     pool_to_brief_hooks,
     score_hook,
@@ -124,6 +125,106 @@ class HookPoolTests(unittest.TestCase):
         hooks = rank_hooks("Home robots", {"brief_hooks": brief_hooks})
         self.assertEqual(len(hooks), 5)
         self.assertEqual(hooks[0]["text"], brief_hooks[0]["text"])
+
+
+def _eval(technique: str, text: str, accuracy: str, score: int = 8) -> dict:
+    return {
+        "technique": technique,
+        "text": text,
+        "accuracy": accuracy,
+        "supported_by": [0],
+        "scores": {"clarity": score, "curiosity": score, "relevance": score, "keeps_right_viewer": score},
+        "why": technique,
+    }
+
+
+class PostTypeHookTests(unittest.TestCase):
+    def test_post_types_pick_different_approaches_from_the_same_hooks(self) -> None:
+        research = {
+            "brief_hooks": [
+                {"approach": "everyday_problem", "text": "Your laundry pile never really shrinks", "score": 5},
+                {"approach": "useful_promise", "text": "Save ten minutes every Sunday night", "score": 5},
+                {"approach": "curiosity_gap", "text": "What is your home robot hiding", "score": 5},
+                {"approach": "narrative_tension", "text": "The robot stalled halfway through the fold", "score": 5},
+                {"approach": "surprising_contrast", "text": "A slow robot beat a rushed human folder", "score": 5},
+                {"approach": "specific_mistake", "text": "One missed sensor ruins the whole fold", "score": 5},
+                {"approach": "surprising_fact", "text": "This robot folded slower than a teenager", "score": 5},
+            ]
+        }
+        expected = {
+            "cinematic_3d": "surprising_contrast",
+            "interactive_explainer": "everyday_problem",
+            "tech_storytelling": "narrative_tension",
+            "motion_graphics": "useful_promise",
+            "utility_carousel": "useful_promise",
+            "slides": "curiosity_gap",
+        }
+        for post_type, approach in expected.items():
+            picked = best_hook_for_post(research, post_type)
+            self.assertIsNotNone(picked)
+            self.assertEqual(picked["approach"], approach, post_type)
+            self.assertEqual(picked["source"], "research")
+
+    def test_partial_and_unsupported_evaluations_are_skipped_when_facts_exist(self) -> None:
+        facts = ["Figure tested its robot in thirty homes."]
+        evaluations = [
+            _eval("curiosity_gap", "Would you leave this robot home alone", "partial", 10),
+            _eval("useful_promise", "Save ten minutes with this one retry", "unsupported", 10),
+            _eval("everyday_problem", "Your laundry pile never really shrinks", "supported", 6),
+        ]
+        research = {"verified_facts": facts, "hook_evaluations": evaluations}
+        picked = best_hook_for_post(research, "cinematic_3d")
+        self.assertEqual(picked["approach"], "everyday_problem")
+        self.assertIsNone(best_hook_for_post({"verified_facts": facts, "hook_evaluations": evaluations[:2]}, "slides"))
+        kept = best_hook_for_post({"hook_evaluations": evaluations[:1]}, "slides")
+        self.assertEqual(kept["text"], evaluations[0]["text"])
+
+    def test_no_research_hook_returns_none(self) -> None:
+        self.assertIsNone(best_hook_for_post(None, "cinematic_3d"))
+        self.assertIsNone(best_hook_for_post({}, "interactive_explainer"))
+        self.assertIsNone(best_hook_for_post({"hook": "WHY IT MATTERS", "headline": "Queue the render"}, "slides"))
+        self.assertIsNone(best_hook_for_post({"brief_hooks": [{"approach": "curiosity_gap", "text": "Try this"}]}, "slides"))
+
+    def test_learnings_only_break_ties(self) -> None:
+        fit = {
+            "brief_hooks": [
+                {"approach": "useful_promise", "text": "Save ten minutes with this one retry", "score": 10},
+                {"approach": "curiosity_gap", "text": "Would you leave this robot home", "score": 1},
+            ]
+        }
+        bonus = {
+            "reviewed_on": "2026-10-12",
+            "technique_bonus": {"useful_promise": 5.0, "curiosity_gap": -0.5},
+            "experiments": ["EXP-004"],
+        }
+        self.assertEqual(best_hook_for_post(fit, "cinematic_3d", bonus)["approach"], "curiosity_gap")
+
+        scored = {
+            "brief_hooks": [
+                {"approach": "zeta_angle", "text": "Zeta robots fold towels at night", "score": 4},
+                {"approach": "alpha_angle", "text": "Alpha robots fold towels at night", "score": 9},
+            ]
+        }
+        score_bonus = {
+            "reviewed_on": "2026-10-12",
+            "technique_bonus": {"zeta_angle": 0.5, "alpha_angle": -0.5},
+            "experiments": ["EXP-004"],
+        }
+        self.assertEqual(best_hook_for_post(scored, "cinematic_3d", score_bonus)["approach"], "alpha_angle")
+
+        tied = {
+            "brief_hooks": [
+                {"approach": "zeta_angle", "text": "Zeta robots fold towels at night", "score": 5},
+                {"approach": "alpha_angle", "text": "Alpha robots fold towels at night", "score": 5},
+            ]
+        }
+        self.assertEqual(best_hook_for_post(tied, "slides")["approach"], "zeta_angle")
+        tie_bonus = {
+            "reviewed_on": "2026-10-12",
+            "technique_bonus": {"alpha_angle": 0.5, "zeta_angle": -0.5},
+            "experiments": ["EXP-004"],
+        }
+        self.assertEqual(best_hook_for_post(tied, "slides", tie_bonus)["approach"], "alpha_angle")
 
 
 if __name__ == "__main__":

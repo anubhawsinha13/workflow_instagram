@@ -17,11 +17,9 @@ Transform any AI, technology, architecture, integration, or innovation topic int
 Before calling Veo or assembling a reel:
 
 1. Research / verify the topic (primary URL required).
-2. Call `plan_reel(topic, research=...)` with **no** style/hook → receive `awaiting_choice`.
-3. Show the four styles and three ranked hooks in Slack (buttons or numbered replies).
-4. After the operator picks, call `plan_reel(topic, research=..., style=..., hook_id=...)`.
-   A style keyword in the request (`explainer`, `cinematic`, `tech story`, `motion graphics`; see the README) only preselects the style. The hook choice is still required, and every step below still runs.
-   Pass `learnings=load_learnings()` (see [`LEARNING_LOOP.md`](LEARNING_LOOP.md)). The last review's style becomes the recommendation and its technique bonus re-ranks hooks; show the "Applied from the last review" lines. The operator still picks, and learnings never bypass a gate.
+2. Call `plan_reel(topic, research=...)` with **no** style. If research wrote hooks, Slack lists the research hook for each post type and waits for a style. If research wrote no hook, it lists the template hooks and waits for a style and a hook.
+3. A style keyword or `style=` plans immediately with the best research hook for that post type (`best_hook_for_post`). Reply `hook N` only to override that pick. Without a research hook, a style keyword still waits for `hook 1`, `hook 2` or `hook 3`.
+4. Pass `learnings=load_learnings()` (see [`LEARNING_LOOP.md`](LEARNING_LOOP.md)). The last review's style becomes the recommendation, and its technique bonus only tie-breaks research hooks. Show the "Applied from the last review" lines. The operator still picks the style. Learnings never bypass a gate, and nothing is posted without exact `post it`.
 5. Show storyboard summary (hooks used, VO length, scene count). Say nothing has been posted.
 6. Only then render via the style’s pipeline.
 

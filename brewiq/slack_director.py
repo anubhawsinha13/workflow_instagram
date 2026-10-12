@@ -88,7 +88,7 @@ def start_or_continue(
     """
     messages = [*(thread or []), operator_reply]
     if any(UTILITY_KEYWORDS.search(m or "") for m in messages):
-        return _utility_request(topic or topic_from_request(messages[0]), research)
+        return _utility_request(topic or topic_from_request(messages[0]), research, learnings)
     picks = thread_picks(messages)
     current = parse_operator_reply(operator_reply)
     if current.get("recovery"):
@@ -124,9 +124,29 @@ def _learned_lines(payload: dict[str, Any]) -> list[str]:
     return ["", "*Applied from the last review:*", *(f"• {line}" for line in applied)] if applied else []
 
 
-def _utility_request(topic: str, research: dict | None) -> dict[str, Any]:
-    """Prompt-pack carousel: no style or hook choice; it waits for written items, then runs its gates."""
+def _cover_from_hook(text: str) -> str:
+    words = re.sub(r"[?!.]", "", str(text or "")).split()
+    if 2 <= len(words) <= 6:
+        return " ".join(words)
+    return ""
+
+
+def _utility_request(topic: str, research: dict | None, learnings: dict | None = None) -> dict[str, Any]:
+    """Prompt-pack carousel. The cover hook comes from research; the operator still writes the prompts."""
+    from hook_agent import best_hook_for_post
+
     spec = dict((research or {}).get("utility_carousel") or {})
+    picked = best_hook_for_post(research, "utility_carousel", learnings)
+    hook_line = ""
+    if picked:
+        cover = _cover_from_hook(picked["text"])
+        if cover and not spec.get("cover_headline"):
+            spec["cover_headline"] = cover
+        hook_line = (
+            f" Research hook for this prompt pack: \"{picked['text']}\""
+            + (f" ({picked['approach']})." if picked.get("approach") else ".")
+            + (" That line is the cover." if cover else " Write a 2–6 word cover_headline that keeps this idea.")
+        )
     if not spec.get("items"):
         return {
             "ok": False,
@@ -134,14 +154,24 @@ def _utility_request(topic: str, research: dict | None) -> dict[str, Any]:
             "format": "utility_carousel",
             "topic": topic,
             "nothing_posted": True,
+            "hook": picked,
             "prompt": (
-                f"Prompt pack for: {topic}. Send {MIN_ITEMS}–{MAX_ITEMS} items as research.utility_carousel.items "
+                f"Prompt pack for: {topic}.{hook_line} Send {MIN_ITEMS}–{MAX_ITEMS} items as research.utility_carousel.items "
                 "[{title ≤6 words, benefit ≤12 words, prompt ≤70 words with [PLACEHOLDERS]}], plus cover_headline "
                 "(2–6 words), cover_visual, save_reason, share_reason, closing_line and search_keywords. "
                 "Adapt other creators' formats; don't copy their prompts."
             ),
         }
-    return plan_utility_carousel(topic, spec.pop("items"), **spec)
+    plan = plan_utility_carousel(topic, spec.pop("items"), **spec)
+    if picked:
+        plan["hook"] = {
+            "text": picked["text"],
+            "approach": picked["approach"],
+            "why": picked["why"],
+            "source": "research",
+            "post_type": "utility_carousel",
+        }
+    return plan
 
 
 def format_slack_message(payload: dict[str, Any]) -> str:
@@ -161,10 +191,18 @@ def format_slack_message(payload: dict[str, Any]) -> str:
                 mark = " (recommended)" if style["id"] == payload["options"].get("recommended_style") else ""
                 lines.append(f"{number}. `{style['id']}` — {style['label']}{mark}: {style['description']}")
         lines.append("")
-        lines.append("*Hooks:*")
-        for hook in payload.get("options", {}).get("hooks") or []:
-            lines.append(f"• `{hook['id']}` (rank {hook['rank']}): {hook['text']}")
-            lines.append(f"  _{hook['why']}_")
+        by_type = (payload.get("options") or {}).get("hooks_for_style") or []
+        if by_type:
+            lines.append("*Research hook for each post type:*")
+            for item in by_type:
+                approach = f" ({item['approach']})" if item.get("approach") else ""
+                lines.append(f"• {item['label']}: {item['text']}{approach}")
+            lines.append("Pick a style. That post type's research hook is used. Reply `hook 2` only to override it.")
+        else:
+            lines.append("*Hooks:*")
+            for hook in payload.get("options", {}).get("hooks") or []:
+                lines.append(f"• `{hook['id']}` (rank {hook['rank']}): {hook['text']}")
+                lines.append(f"  _{hook['why']}_")
         lines += _learned_lines(payload)
         lines.append("")
         lines.append(payload.get("prompt") or "")
@@ -195,6 +233,9 @@ def format_slack_message(payload: dict[str, Any]) -> str:
                 lines.append(f"{slide['index']}. *{slide['title']}* — {slide['benefit']}")
         for item in payload.get("problems") or []:
             lines.append(f"• Needs fix: {item}")
+        hook = payload.get("hook") or {}
+        if hook.get("text"):
+            lines.append(f"*Hook:* {hook['text']} — chosen from research for this prompt pack.")
         if payload.get("ok"):
             lines.append("Reply `post it` only after the rendered slides are approved.")
         lines.append("*Nothing has been posted.*")
@@ -205,7 +246,10 @@ def format_slack_message(payload: dict[str, Any]) -> str:
         hook = payload.get("hook") or {}
         lines.append("BrewIQ reel plan ready (not posted).")
         lines.append(f"*Style:* {style.get('label')} (`{style.get('id')}`)")
-        lines.append(f"*Hook:* {hook.get('text')}")
+        hook_line = f"*Hook:* {hook.get('text')}"
+        if hook.get("source") == "research":
+            hook_line += " — chosen from research for this style."
+        lines.append(hook_line)
         lines.append(f"*Scenes:* {len(payload.get('scenes') or [])}")
         lines.append(f"*Pipeline:* {style.get('pipeline')}")
         lines += _learned_lines(payload)

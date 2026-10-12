@@ -287,14 +287,55 @@ def plan_reel(
     hook_id: str | None = None,
     learnings: dict | None = None,
 ) -> dict[str, Any]:
-    """Plan a cinematic reel. Without style+hook, returns awaiting_choice options.
+    """Plan a cinematic reel.
 
-    ``learnings`` (``learning_loop.load_learnings()``) only changes the recommended
-    style; ``learnings_applied`` lists what was used so Slack can show it.
+    Without a style, returns ``awaiting_choice``. A style uses the best research
+    hook for that post type; ``hook_id`` overrides it. With no research hook, the
+    operator still has to pick a template hook. ``learnings`` only changes the
+    recommended style and tie-breaks hooks.
     """
     payload = _plan_reel(topic, research=research, style=style, hook_id=hook_id, learnings=learnings)
     payload["learnings_applied"] = applied_summary(learnings)
     return payload
+
+
+def _research_hooks(
+    topic: str,
+    research: dict | None,
+    post_type: str,
+    learnings: dict | None,
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    """Ranked hooks for Slack. Research hooks are ordered for this post type."""
+    from hook_agent import best_hook_for_post
+
+    picked = best_hook_for_post(research, post_type, learnings)
+    if not picked:
+        return rank_hooks(topic, research), None
+    # Best fit first. The id stays hook_N for the Nth hook research wrote, so
+    # `hook 5` still means that hook and hooks[0] is the automatic pick.
+    hooks = []
+    for index, item in enumerate(picked["ranked"][:5], start=1):
+        number = int(item.get("research_rank", index - 1)) + 1
+        hooks.append(
+            {
+                "id": f"hook_{number}",
+                "rank": number,
+                "text": item["text"],
+                "approach": item["approach"],
+                "why": item["why"] or f"Research hook for {post_type}.",
+                "on_screen_text": _on_screen_hook(item["text"]),
+                "source": "research",
+                "post_type": post_type,
+                "score": item["score"],
+            }
+        )
+    return hooks, picked
+
+
+def _hooks_for_types(research: dict | None, learnings: dict | None) -> list[dict[str, str]]:
+    from hook_agent import hooks_for_post_types
+
+    return hooks_for_post_types(research, learnings)
 
 
 def _plan_reel(
@@ -317,46 +358,61 @@ def _plan_reel(
             "error": "Topic is required.",
         }
 
-    hooks = rank_hooks(topic, research)
     styles = list_styles()
     recommended = recommend_style(topic, research, learnings)
-
     chosen = (style or "").strip().lower()
-    if chosen in STYLES and not hook_id:
-        return {
-            "ok": False,
-            "status": "awaiting_choice",
-            "nothing_posted": True,
-            "chosen_style": chosen,
-            "prompt": (
-                f"Style: {STYLES[chosen]['label']} (`{chosen}`). Pick a hook before the reel is generated. "
-                f"Reply in this thread with `hook 1`, `hook 2` or `hook 3` (or style={chosen} hook={hooks[0]['id']})."
-            ),
-            "options": {
-                "styles": styles,
-                "hooks": hooks,
-                "recommended_style": recommended,
-                "recommended_hook": hooks[0]["id"],
-            },
-            "topic": topic,
-            "error": "",
-        }
+    post_type = chosen if chosen in STYLES else recommended
+    hooks, picked = _research_hooks(topic, research, post_type, learnings)
+    by_type = _hooks_for_types(research, learnings)
+    hook_from_research = bool(picked)
 
-    if not style or not hook_id:
-        return {
-            "ok": False,
-            "status": "awaiting_choice",
-            "nothing_posted": True,
-            "prompt": (
+    if chosen in STYLES and not hook_id:
+        if not hook_from_research:
+            return {
+                "ok": False,
+                "status": "awaiting_choice",
+                "nothing_posted": True,
+                "chosen_style": chosen,
+                "prompt": (
+                    f"Style: {STYLES[chosen]['label']} (`{chosen}`). Research has no hook yet, so pick one "
+                    f"before the reel is generated. Reply `hook 1`, `hook 2` or `hook 3`."
+                ),
+                "options": {
+                    "styles": styles,
+                    "hooks": hooks,
+                    "recommended_style": recommended,
+                    "recommended_hook": hooks[0]["id"],
+                },
+                "topic": topic,
+                "error": "",
+            }
+        hook_id = hooks[0]["id"]
+
+    if not chosen or not hook_id:
+        if hook_from_research:
+            prompt = (
+                "Pick a style. The hook is chosen from research for that post type. "
+                f"Recommended style: {STYLES[recommended]['label']} (`{recommended}`). "
+                "Reply like: style=interactive_explainer. Reply `hook 2` only to override the research hook."
+            )
+        else:
+            prompt = (
                 "Pick a style and a hook before the reel is generated. "
                 f"Recommended style: {STYLES[recommended]['label']} (`{recommended}`). "
                 "Reply like: style=interactive_explainer hook=hook_1"
-            ),
+            )
+        return {
+            "ok": False,
+            "status": "awaiting_choice",
+            "nothing_posted": True,
+            "prompt": prompt,
             "options": {
                 "styles": styles,
                 "hooks": hooks,
+                "hooks_for_style": by_type,
                 "recommended_style": recommended,
                 "recommended_hook": hooks[0]["id"],
+                "hook_from_research": hook_from_research,
             },
             "topic": topic,
             "error": "",

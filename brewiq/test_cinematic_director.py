@@ -149,7 +149,11 @@ class PlanTests(unittest.TestCase):
                 self.assertTrue(all(3.0 <= s["end"] - s["start"] <= 5.0 for s in scenes))
                 self.assertEqual(result["icon"]["category"], "productivity")
                 layers = {layer["type"] for layer in result["composition"]["layers"]}
-                self.assertTrue({"footage", "headline", "subtitle", "icon", "brand", "label"} <= layers)
+                # The research hook is spoken, so it is a subtitle rather than a second headline.
+                self.assertTrue({"footage", "subtitle", "icon", "brand", "label"} <= layers)
+                self.assertEqual(result["hook"]["source"], "research")
+                self.assertEqual(result["hook"]["text"], research["hook"])
+                self.assertEqual(result["cover"]["headline"]["text"], research["hook"])
                 self.assertEqual(result["cover"]["source"], "generated")
                 self.assertTrue(all(BRAND_LOOK in s["prompt"] for s in scenes))
                 self.assertFalse(any("beige" in s["environment"].lower() for s in scenes))
@@ -203,7 +207,7 @@ class PlanTests(unittest.TestCase):
             "API idempotency keys",
             research={"hook": "Retries are not double charges"},
             style="motion_graphics",
-            hook_id="hook_2",
+            hook_id="hook_1",
         )
         self.assertTrue(result["ok"])
         self.assertIsNone(result["director_reel"])
@@ -334,17 +338,54 @@ class KeywordTriggerTests(unittest.TestCase):
         self.assertEqual(parse_operator_reply("hook=hook_1"), {"hook_id": "hook_1"})
         self.assertEqual(parse_operator_reply("NotebookLM"), {})
 
-    def test_keyword_still_waits_for_the_hook(self):
+    def test_keyword_without_a_research_hook_still_waits(self):
+        research = {key: value for key, value in KEYWORD_RESEARCH.items() if key != "hook"}
         for message, style in (("explainer: NotebookLM quizzes you", "interactive_explainer"), ("#motion API retries", "motion_graphics")):
             with self.subTest(message=message):
-                first = start_or_continue("", research=KEYWORD_RESEARCH, operator_reply=message)
+                first = start_or_continue("", research=research, operator_reply=message)
                 self.assertEqual(first["status"], "awaiting_choice")
                 self.assertEqual(first["chosen_style"], style)
                 self.assertTrue(first["nothing_posted"])
+                self.assertFalse(first["options"].get("hook_from_research"))
                 body = format_slack_message(first)
                 self.assertIn("from your message", body)
                 self.assertIn("hook_1", body)
                 self.assertNotIn("*Styles:*", body)
+
+    def test_keyword_uses_the_research_hook_for_that_post_type(self):
+        research = {
+            key: value for key, value in KEYWORD_RESEARCH.items() if key != "hook"
+        }
+        research["brief_hooks"] = [
+            {"approach": "everyday_problem", "text": "Your laundry pile never really shrinks", "why": "Daily chore."},
+            {"approach": "useful_promise", "text": "Save ten minutes every Sunday night", "why": "Clear payoff."},
+            {"approach": "curiosity_gap", "text": "What is your home robot hiding", "why": "Open question."},
+        ]
+        cases = (
+            ("explainer: NotebookLM quizzes you", "interactive_explainer", "everyday_problem"),
+            ("#motion API retries", "motion_graphics", "useful_promise"),
+            ("tech storytelling about AI agents", "tech_storytelling", "curiosity_gap"),
+        )
+        for message, style, approach in cases:
+            with self.subTest(message=message):
+                result = start_or_continue("", research=research, operator_reply=message)
+                self.assertEqual(result["status"], "planned", result.get("waiting_on") or result.get("error"))
+                self.assertEqual(result["style"]["id"], style)
+                self.assertEqual(result["hook"]["approach"], approach)
+                self.assertEqual(result["hook"]["source"], "research")
+                self.assertTrue(result["nothing_posted"])
+                body = format_slack_message(result)
+                self.assertIn("chosen from research for this style", body)
+                self.assertIn("post it", body)
+
+        overridden = start_or_continue(
+            "",
+            research=research,
+            operator_reply="explainer: NotebookLM quizzes you hook 2",
+        )
+        self.assertEqual(overridden["status"], "planned", overridden.get("waiting_on"))
+        self.assertEqual(overridden["hook"]["approach"], "useful_promise")
+        self.assertEqual(overridden["hook"]["id"], "hook_2")
 
     def test_thread_keeps_the_keyword_style_and_runs_every_gate(self):
         thread = ["explainer: NotebookLM quizzes you"]
@@ -361,7 +402,10 @@ class KeywordTriggerTests(unittest.TestCase):
 
     def test_later_reply_can_change_the_style(self):
         result = start_or_continue("", research=KEYWORD_RESEARCH, thread=["explainer: NotebookLM"], operator_reply="style=motion_graphics")
-        self.assertEqual(result["chosen_style"], "motion_graphics")
+        self.assertEqual(result["status"], "planned", result.get("waiting_on") or result.get("error"))
+        self.assertEqual(result["style"]["id"], "motion_graphics")
+        self.assertEqual(result["hook"]["text"], KEYWORD_RESEARCH["hook"])
+        self.assertEqual(result["hook"]["source"], "research")
 
 
 if __name__ == "__main__":

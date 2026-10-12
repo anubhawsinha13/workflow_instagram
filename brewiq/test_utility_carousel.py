@@ -91,6 +91,44 @@ class SlackRouteTests(unittest.TestCase):
         self.assertIn("Find the weak spots", body)
         self.assertIn("Nothing has been posted", body)
 
+    def test_research_hook_becomes_the_cover_when_headline_is_omitted(self):
+        spec = copy.deepcopy(json.loads(RUN.read_text(encoding="utf-8"))["spec"])
+        spec.pop("cover_headline")
+        research = {
+            "utility_carousel": spec,
+            "brief_hooks": [
+                {"approach": "curiosity_gap", "text": "What is your chatbot leaving out", "score": 9},
+                {"approach": "useful_promise", "text": "Save these five prompts", "score": 4, "why": "A clear payoff."},
+            ],
+        }
+        result = start_or_continue("", research=research, operator_reply="#prompts checking AI answers")
+        self.assertEqual(result["status"], "planned", result.get("problems"))
+        headline = next(layer for layer in result["slides"][0]["layers"] if layer["type"] == "headline")
+        self.assertEqual(headline["text"], "Save these five prompts")
+        self.assertEqual(result["hook"]["approach"], "useful_promise")
+        self.assertEqual(result["hook"]["source"], "research")
+        self.assertIn("chosen from research", format_slack_message(result))
+        self.assertIn("Nothing has been posted", format_slack_message(result))
+
+    def test_awaiting_prompt_names_the_research_hook(self):
+        research = {"brief_hooks": [{"approach": "useful_promise", "text": "Save these five prompts"}]}
+        first = start_or_continue("", research=research, operator_reply="#prompts checking AI answers")
+        self.assertEqual(first["status"], "awaiting_content")
+        self.assertIn("Save these five prompts", first["prompt"])
+        self.assertIn("Nothing has been posted", format_slack_message(first))
+
+    def test_existing_cover_is_kept_when_research_has_a_hook(self):
+        spec = copy.deepcopy(json.loads(RUN.read_text(encoding="utf-8"))["spec"])
+        research = {
+            "utility_carousel": spec,
+            "brief_hooks": [{"approach": "useful_promise", "text": "Save these five prompts"}],
+        }
+        result = start_or_continue("", research=research, thread=["#prompts checking AI answers"], operator_reply="here")
+        self.assertEqual(result["status"], "planned", result.get("problems"))
+        headline = next(layer for layer in result["slides"][0]["layers"] if layer["type"] == "headline")
+        self.assertEqual(headline["text"], spec["cover_headline"])
+        self.assertEqual(result["hook"]["text"], "Save these five prompts")
+
 
 if __name__ == "__main__":
     unittest.main()

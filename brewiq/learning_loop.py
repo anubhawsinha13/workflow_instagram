@@ -24,7 +24,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from performance_agent import experiment_record, review_posts
+from performance_agent import LAYOUTS, experiment_record, review_posts
 
 RUNS = Path(__file__).with_name("research_runs")
 LEARNINGS_FILE = RUNS / "learnings.json"
@@ -38,6 +38,7 @@ _RULE_CHANGES = {
     "technique": "Rank `{value}` hooks first by default in HOOK_AGENT.md, instead of relying on the weekly bonus.",
     "format": "Shift the default weekly mix in `weekly_planner` toward `{value}`.",
     "style": "Make `{value}` the default recommended style in `recommend_style` for matching topics.",
+    "layout": "Make `{value}` the default explainer opening in the motion-graphics renderer.",
 }
 
 
@@ -50,6 +51,8 @@ def empty_learnings() -> dict[str, Any]:
         "bonus_metric": "",
         "preferred_format": None,
         "preferred_style": None,
+        "preferred_layout": None,
+        "layout_counts": {},
         "priority_changes": [],
         "history": [],
         "rule_proposals": [],
@@ -79,6 +82,8 @@ def _signals(entry: dict[str, Any]) -> set[tuple[str, str]]:
         found.add(("format", entry["preferred_format"]))
     if entry.get("preferred_style"):
         found.add(("style", entry["preferred_style"]))
+    if entry.get("preferred_layout"):
+        found.add(("layout", entry["preferred_layout"]))
     return found
 
 
@@ -122,9 +127,16 @@ def update_learnings(
     if measured.get("technique_bonus"):
         learned["technique_bonus"] = dict(measured["technique_bonus"])
         learned["bonus_metric"] = measured.get("bonus_metric", "")
-    for key in ("preferred_format", "preferred_style"):
+    for key in ("preferred_format", "preferred_style", "preferred_layout"):
         if measured.get(key):
             learned[key] = measured[key]
+    counts: dict[str, int] = {}
+    for row in review.get("posts") or []:
+        layout = str((row.get("labels") or {}).get("layout") or "")
+        if layout in LAYOUTS:
+            counts[layout] = counts.get(layout, 0) + 1
+    if counts:
+        learned["layout_counts"] = counts
     learned["priority_changes"] = list(review.get("priority_changes") or [])
     learned["reviewed_on"] = reviewed_on
     learned["experiments"] = sorted(set(experiments))
@@ -138,6 +150,7 @@ def update_learnings(
             "strong_techniques": sorted(k for k, v in (measured.get("technique_bonus") or {}).items() if v >= STRONG_TECHNIQUE),
             "preferred_format": measured.get("preferred_format"),
             "preferred_style": measured.get("preferred_style"),
+            "preferred_layout": measured.get("preferred_layout"),
         },
     ][-MAX_HISTORY:]
     learned["rule_proposals"] = rule_proposals(learned["history"], learned.get("rule_proposals"))
@@ -159,7 +172,11 @@ def set_rule_status(learnings: dict[str, Any], rule_id: str, status: str) -> dic
 def has_learnings(learnings: dict[str, Any] | None) -> bool:
     learned = learnings or {}
     return bool(learned.get("reviewed_on")) and bool(
-        learned.get("technique_bonus") or learned.get("priority_changes") or learned.get("preferred_style") or learned.get("preferred_format")
+        learned.get("technique_bonus")
+        or learned.get("priority_changes")
+        or learned.get("preferred_style")
+        or learned.get("preferred_format")
+        or learned.get("preferred_layout")
     )
 
 
@@ -169,6 +186,26 @@ def hook_bonus(learnings: dict[str, Any] | None) -> dict[str, float]:
 
 def preferred_style(learnings: dict[str, Any] | None) -> str | None:
     return (learnings or {}).get("preferred_style") if has_learnings(learnings) else None
+
+
+def next_layout(learnings: dict[str, Any] | None) -> str:
+    """The explainer opening to use next.
+
+    A measured winner is reused until it is two posts ahead of the least-used layout,
+    then the least-used layout is tried so the next review can compare them.
+    With no measurement yet, the opening is a step rail.
+    """
+    learned = learnings or {}
+    counts = {name: int((learned.get("layout_counts") or {}).get(name) or 0) for name in LAYOUTS}
+    preferred = learned.get("preferred_layout") if has_learnings(learned) and learned.get("preferred_layout") in LAYOUTS else None
+    if any(counts.values()):
+        least = min(LAYOUTS, key=lambda name: (counts[name], name))
+        leader = preferred or max(LAYOUTS, key=lambda name: (counts[name], name))
+        if counts[leader] >= counts[least] + 2:
+            return least
+        if preferred:
+            return preferred
+    return preferred or "rail"
 
 
 def _source(learnings: dict[str, Any]) -> str:
@@ -196,6 +233,8 @@ def applied_summary(learnings: dict[str, Any] | None) -> list[str]:
         lines.append(f"Recommended style: `{learned['preferred_style']}` (you still pick).")
     if learned.get("preferred_format"):
         lines.append(f"Format leading on sends: `{learned['preferred_format']}`.")
+    if learned.get("preferred_layout"):
+        lines.append(f"Explainer opening layout: `{learned['preferred_layout']}` (next plan uses `{next_layout(learned)}`).")
     return [f"{line} [{_source(learned)}; directional]" for line in lines]
 
 

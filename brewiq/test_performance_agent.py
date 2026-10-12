@@ -16,13 +16,14 @@ from performance_agent import (
 
 
 def _post(post_id, *, fmt="reel", technique="curiosity_gap", style="cinematic_3d", reach=2000, saves=20, sends=20,
-          comments=4, follows=4, hold=0.5, watch=10.0, duration=24.0, experiment="EXP-001"):
+          comments=4, follows=4, hold=0.5, watch=10.0, duration=24.0, experiment="EXP-001", layout=None):
     return {
         "post_id": post_id,
         "experiment": experiment,
         "format": fmt,
         "style": style,
         "hook_technique": technique,
+        **({"layout": layout} if layout else {}),
         "duration_seconds": duration,
         "metrics": {"reach": reach, "saves": saves, "sends": sends, "comments": comments, "follows": follows,
                     "hold_3s": hold, "avg_watch_seconds": watch},
@@ -103,6 +104,17 @@ class ReviewTests(unittest.TestCase):
         self.assertGreater(found["technique_bonus"]["curiosity_gap"], 0)
         self.assertLess(found["technique_bonus"]["useful_promise"], 0)
         self.assertTrue(all(abs(v) <= 0.5 for v in found["technique_bonus"].values()))
+        self.assertIsNone(found["preferred_layout"])
+
+    def test_layout_with_more_saves_loses_when_viewers_leave(self):
+        posts = [
+            _post("a1", layout="split", hold=0.30, saves=80, sends=10),
+            _post("a2", layout="split", hold=0.32, saves=70, sends=12),
+            _post("b1", layout="rail", hold=0.60, saves=20, sends=18),
+            _post("b2", layout="rail", hold=0.62, saves=22, sends=16),
+        ]
+        found = learnings(review_posts(posts))
+        self.assertEqual(found["preferred_layout"], "rail")
 
     def test_too_few_posts_draws_no_conclusions(self):
         review = review_posts(_sample()[:2])

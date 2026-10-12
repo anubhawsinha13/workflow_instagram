@@ -17,7 +17,7 @@ plan_week (5–7 posts, each an EXP-### test)
 
 ## Memory
 
-`research_runs/learnings.json` holds the latest `technique_bonus`, `bonus_metric`, `preferred_format`, `preferred_style` and `priority_changes`, the experiments it came from, up to 26 weekly history entries and the rule proposals. It's committed, so every change to what the agent "believes" shows up in a diff.
+`research_runs/learnings.json` holds the latest `technique_bonus`, `bonus_metric`, `preferred_format`, `preferred_style`, `preferred_layout`, `layout_counts` and `priority_changes`, the experiments it came from, up to 26 weekly history entries and the rule proposals. It's committed, so every change to what the agent "believes" shows up in a diff.
 
 - `load_learnings()` returns empty learnings when the file is missing.
 - `update_learnings(previous, review, ...)` keeps the previous bonus, format and style when a review measured nothing new.
@@ -33,6 +33,7 @@ Pass `learnings=load_learnings()` on every request:
 | `hook_agent.select_from_pool(..., learnings=)` | Uses the learned `technique_bonus` (capped at ±0.5) unless one is passed explicitly. |
 | `cinematic_director.recommend_style(topic, research, learnings=)` | The learned style is recommended after the brief's suggested style and the architecture rule, before topic heuristics. |
 | `cinematic_director.plan_reel(..., learnings=)` / `slack_director.start_or_continue(..., learnings=)` | `learnings_applied` lists what was applied; Slack shows it under "Applied from the last review". |
+| Motion explainer `next_layout(learnings)` | The next explainer opens on the layout that led on saves without a worse 3-second hold (`rail`, `split`, `board`, `clock`, or `card`). Until one is measured, the opening is a step rail. A winner that is two posts ahead is set aside once so a less-used layout can be compared. |
 
 Learnings only adjust scores and recommendations. The operator still picks the style; the hook comes from research unless they override it. Learnings never bypass the accuracy, clickbait, brand or posting gates.
 

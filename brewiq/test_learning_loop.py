@@ -18,6 +18,7 @@ from learning_loop import (
     hook_bonus,
     instructions_block,
     load_learnings,
+    next_layout,
     set_rule_status,
     update_learnings,
     weekly_review,
@@ -73,6 +74,13 @@ class MemoryTests(unittest.TestCase):
         self.assertEqual(updated["technique_bonus"], previous["technique_bonus"])
         self.assertEqual(updated["preferred_format"], "utility_carousel")
         self.assertEqual(len(updated["history"]), 2)
+
+    def test_next_layout_starts_on_the_rail_and_then_explores(self):
+        self.assertEqual(next_layout(empty_learnings()), "rail")
+        learned = _learned(preferred_layout="split", layout_counts={"split": 3, "rail": 1, "card": 0})
+        self.assertEqual(next_layout(learned), "board")
+        settled = _learned(preferred_layout="split", layout_counts={"split": 2, "rail": 1, "board": 1, "clock": 1, "card": 1})
+        self.assertEqual(next_layout(settled), "split")
 
 
 class ApplyTests(unittest.TestCase):

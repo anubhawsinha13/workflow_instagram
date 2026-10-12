@@ -124,7 +124,7 @@ def render_explainer(payload: dict, make_host=None) -> dict:
                     local = t - start
                     frame.alpha_composite(backdrop)
                     for element, sprite in sprites:
-                        early = element is hook_element or element.get("type") == "icon"
+                        early = element is hook_element or element.get("type") in _EARLY_TYPES
                         draw_at = _hook_time(element, local) if early else local
                         if sprite is None:
                             _draw_character(frame, element, library, draw_at, duration, colors)
@@ -162,6 +162,7 @@ def render_explainer(payload: dict, make_host=None) -> dict:
 
 
 _HOOK_TYPES = {"card", "text", "bubble", "token"}
+_EARLY_TYPES = {"icon", "rail", "clock", "split", "board"}
 
 
 def _first_hook(sprites: list) -> dict | None:
@@ -188,7 +189,7 @@ def _opening_still(width: int, height: int, colors: dict, radius: int, sprites: 
     if backdrop is not None:
         frame.alpha_composite(backdrop)
     for element, sprite in sprites:
-        early = element is hook or element.get("type") == "icon"
+        early = element is hook or element.get("type") in _EARLY_TYPES
         draw_at = _hook_time(element, 0.0) if early else 0.0
         duration = float(element.get("hold_until") or 2) + 1
         if sprite is None:
@@ -611,6 +612,56 @@ def _composite(base: Image.Image, sprite: Image.Image, x: int, y: int) -> None:
     base.alpha_composite(sprite.crop((src_left, src_top, src_right, src_bottom)), (dest_x, dest_y))
 
 
+def _marked_steps(label: str) -> list[tuple[str, bool]]:
+    parts = [part.strip() for part in label.split("|") if part.strip()]
+    steps = [(part.lstrip("*").strip(), part.startswith("*")) for part in parts]
+    if steps and not any(active for _, active in steps):
+        steps[0] = (steps[0][0], True)
+    return steps or [("Plan", True), ("Build", False), ("Check", False)]
+
+
+def _draw_rail(sprite: Image.Image, inner: tuple, label: str, text: tuple, accent: tuple) -> None:
+    left, top, right, bottom = inner
+    steps = _marked_steps(label)
+    gap = 12
+    width = right - left - 36
+    height = bottom - top - 36
+    pill_w = max(40, (width - gap * (len(steps) - 1)) / len(steps))
+    pill_h = min(height, 72)
+    y = top + (bottom - top - pill_h) / 2
+    draw = ImageDraw.Draw(sprite)
+    for index, (name, active) in enumerate(steps):
+        x = left + 18 + index * (pill_w + gap)
+        box = (x, y, x + pill_w, y + pill_h)
+        if active:
+            draw.rounded_rectangle(box, pill_h / 2, fill=accent + (255,))
+            _write(sprite, name, (x + 8, y + 6, x + pill_w - 8, y + pill_h - 6), (255, 255, 255), weight="Bold", max_size=36, center=True)
+        else:
+            draw.rounded_rectangle(box, pill_h / 2, outline=text + (180,), width=3)
+            _write(sprite, name, (x + 8, y + 6, x + pill_w - 8, y + pill_h - 6), text, weight="Demi Bold", max_size=32, center=True)
+
+
+def _draw_split(sprite: Image.Image, inner: tuple, label: str, text: tuple, accent: tuple, card: tuple, radius: int) -> None:
+    left, right_text = (label.split("|", 1) + [""])[:2]
+    x0, y0, x1, y1 = inner
+    gap = 16
+    mid = (x0 + x1) / 2
+    panels = ((x0, y0, mid - gap / 2, y1, "Result", left.strip()), (mid + gap / 2, y0, x1, y1, "Prompt", right_text.strip()))
+    for px0, py0, px1, py1, title, body in panels:
+        _shadow(sprite, (px0, py0, px1, py1), radius)
+        ImageDraw.Draw(sprite).rounded_rectangle((px0, py0, px1, py1), radius, fill=card + (255,))
+        _write(sprite, title, (px0 + 20, py0 + 16, px1 - 20, py0 + 64), accent, weight="Bold", max_size=32)
+        _write(sprite, body, (px0 + 20, py0 + 72, px1 - 20, py1 - 20), text, weight="Demi Bold", max_size=64)
+
+
+def _draw_board(sprite: Image.Image, inner: tuple, label: str, text: tuple, accent: tuple) -> None:
+    title, line = (label.split("|", 1) + [""])[:2]
+    left, top, right, bottom = inner
+    _write(sprite, "Scene", (left + 28, top + 20, right - 28, top + 64), accent, weight="Bold", max_size=28)
+    _write(sprite, title.strip(), (left + 28, top + 68, right - 28, top + (bottom - top) * 0.48), text, weight="Bold", max_size=72)
+    _write(sprite, line.strip(), (left + 28, top + (bottom - top) * 0.52, right - 28, bottom - 24), text, weight="Demi Bold", max_size=48)
+
+
 def _sprite(element: dict, colors: dict, radius: int, host: Image.Image | None) -> Image.Image | None:
     box = element.get("box") or {}
     w, h = max(8, int(box.get("w") or 0)), max(8, int(box.get("h") or 0))
@@ -635,6 +686,20 @@ def _sprite(element: dict, colors: dict, radius: int, host: Image.Image | None) 
         left, top = pad + (w - size) // 2, pad + (h - size) // 2
         _shadow(sprite, (left, top, left + size, top + size), size // 5)
         _paint_tile(sprite, (left, top, left + size, top + size), _icon_kind(label))
+    elif kind == "rail":
+        _shadow(sprite, inner, radius)
+        ImageDraw.Draw(sprite).rounded_rectangle(inner, radius, fill=card + (255,))
+        _draw_rail(sprite, inner, label, text, accent)
+    elif kind == "clock":
+        _shadow(sprite, inner, radius)
+        ImageDraw.Draw(sprite).rounded_rectangle(inner, radius, fill=card + (255,))
+        _write(sprite, label or "0:00", (pad + 24, pad + 16, pad + w - 24, pad + h - 16), accent, weight="Bold", max_size=120, center=True)
+    elif kind == "split":
+        _draw_split(sprite, inner, label, text, accent, card, radius)
+    elif kind == "board":
+        _shadow(sprite, inner, radius)
+        ImageDraw.Draw(sprite).rounded_rectangle(inner, radius, fill=card + (255,))
+        _draw_board(sprite, inner, label, text, accent)
     elif kind == "line":
         y = pad + h // 2
         ImageDraw.Draw(sprite).rounded_rectangle((pad, y - 5, pad + w, y + 5), 5, fill=accent + (255,))

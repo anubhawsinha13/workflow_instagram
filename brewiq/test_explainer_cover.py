@@ -60,6 +60,31 @@ class ExplainerCoverTests(unittest.TestCase):
         corner = frame.crop((0, 0, 220, 280))
         self.assertGreater(_count_near(corner, (34, 195, 214)), 20, "an app icon should sit behind the host")
 
+    def test_step_rail_marks_one_step_and_split_shows_both_sides(self) -> None:
+        rail = _still("rail", "Plan | *Connect | Build | Check", {"x": 40, "y": 40, "w": 640, "h": 140})
+        accent = _count_near(rail.crop((200, 20, 420, 120)), (34, 195, 214))
+        self.assertGreater(accent, 30, "the current step on the rail should be filled")
+        split = _still("split", "Checks the date | Ask before you send", {"x": 20, "y": 20, "w": 680, "h": 280})
+        self.assertGreater(_count_near(split, (255, 255, 255)), 200, "the result and the prompt each need a card")
+
+
+def _still(kind: str, label: str, box: dict):
+    element = {
+        "type": kind,
+        "label": label,
+        "box": box,
+        "enter_at": 0.2,
+        "enter_duration": 0.3,
+        "enter_motion": "snap",
+        "hold_until": 3,
+        "exit_motion": "hold",
+        "exit_duration": 0,
+    }
+    return opening_still(
+        {"width": box["x"] + box["w"] + 40, "height": box["y"] + box["h"] + 40, "background": "#F7F3EC"},
+        [element],
+    ).convert("RGB")
+
 
 def _icon_frame(label: str):
     element = {

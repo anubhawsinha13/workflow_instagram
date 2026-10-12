@@ -16,7 +16,7 @@ import re
 from statistics import mean, median
 from typing import Any
 
-RATES = ("hold_3s", "watch_ratio", "save_rate", "send_rate", "comment_rate", "follow_rate")
+RATES = ("hold_3s", "watch_ratio", "save_rate", "send_rate", "comment_rate", "follow_rate", "like_rate")
 RATE_LABELS = {
     "hold_3s": "3-second hold",
     "watch_ratio": "average watch / length",
@@ -24,8 +24,10 @@ RATE_LABELS = {
     "send_rate": "sends per reach",
     "comment_rate": "comments per reach",
     "follow_rate": "follows per reach",
+    "like_rate": "likes per reach",
 }
-GROUP_BY = ("format", "style", "hook_technique")
+GROUP_BY = ("format", "style", "hook_technique", "layout")
+LAYOUTS = ("rail", "split", "board", "clock", "card")
 MIN_REACH = 300  # below this a single post's rates are noise
 MIN_POSTS = 3  # fewer posts than this and there is no baseline
 MIN_GROUP_POSTS = 2  # a group needs this many posts before it can be compared
@@ -54,6 +56,8 @@ def from_graph_insights(media: dict[str, Any], insights: dict[str, Any], **label
     API; pass ``hold_3s`` (0–1) from the in-app insights screen when you have it.
     """
     metrics = {field: insights[name] for name, field in GRAPH_METRICS.items() if name in insights}
+    if media.get("like_count") is not None and "likes" not in metrics:
+        metrics["likes"] = media["like_count"]
     if "ig_reels_avg_watch_time" in insights:
         metrics["avg_watch_seconds"] = round(float(insights["ig_reels_avg_watch_time"]) / 1000, 2)
     if labels.get("hold_3s") is not None:
@@ -85,6 +89,7 @@ def post_rates(post: dict[str, Any]) -> dict[str, float | None]:
         "send_rate": per_reach("sends"),
         "comment_rate": per_reach("comments"),
         "follow_rate": per_reach("follows"),
+        "like_rate": per_reach("likes"),
     }
 
 
@@ -247,6 +252,7 @@ def priority_changes(review: dict[str, Any]) -> list[dict[str, str]]:
         "save_rate": ("save value", "Add a keepable asset: numbered steps or a copyable prompt the viewer will come back to."),
         "comment_rate": ("conversation", "End on a specific question the viewer can answer in a few words."),
         "follow_rate": ("series", "Make the post part of a named, repeatable series so following has a reason."),
+        "like_rate": ("response", "Keep the opening specific enough that a viewer can react to it in the first second."),
     }
     ordered = sorted((rate for rate in RATES if counts[rate]), key=lambda r: (-counts[r], RATES.index(r)))
     changes = [
@@ -301,7 +307,29 @@ def learnings(review: dict[str, Any]) -> dict[str, Any]:
         "bonus_metric": ", ".join(sorted(metrics)),
         "preferred_format": _best_group(review, "format", "send_rate"),
         "preferred_style": _best_group(review, "style", "hold_3s") or _best_group(review, "style", "send_rate"),
+        "preferred_layout": _preferred_layout(review),
     }
+
+
+def _preferred_layout(review: dict[str, Any]) -> str | None:
+    """The layout people save, unless that layout's 3-second hold is clearly worse."""
+    leader = _best_group(review, "layout", "save_rate") or _best_group(review, "layout", "send_rate")
+    if leader and _hold_ok(review, leader):
+        return leader
+    held = _best_group(review, "layout", "hold_3s")
+    return held if held in LAYOUTS else None
+
+
+def _hold_ok(review: dict[str, Any], name: str) -> bool:
+    holds = {
+        key.split("/", 1)[-1]: stats["hold_3s"]
+        for key, stats in ((review.get("groups") or {}).get("layout") or {}).items()
+        if stats.get("comparable") and "hold_3s" in stats
+    }
+    if name not in holds or len(holds) < 2:
+        return True
+    best = max(holds.values())
+    return not best or holds[name] >= best * WEAK
 
 
 def experiment_record(review: dict[str, Any], experiment: str, *, decision: str = "") -> dict[str, Any]:

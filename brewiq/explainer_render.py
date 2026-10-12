@@ -97,6 +97,7 @@ def render_explainer(payload: dict, make_host=None) -> dict:
             sprites,
             str(scene.get("camera") or "steady"),
             _focus(scene.get("elements") or [], width, height),
+            _backdrop(width, height, colors, radius, scene.get("elements") or []),
         ))
     total = sum(item[1] for item in prepared)
     frames = max(1, round(total * fps))
@@ -118,11 +119,13 @@ def render_explainer(payload: dict, make_host=None) -> dict:
         for index in range(frames):
             t = index / fps
             frame = background.copy()
-            for start, duration, sprites, camera, focus in prepared:
+            for start, duration, sprites, camera, focus, backdrop in prepared:
                 if start <= t < start + duration or (index == frames - 1 and start <= t):
                     local = t - start
+                    frame.alpha_composite(backdrop)
                     for element, sprite in sprites:
-                        draw_at = _hook_time(element, local) if element is hook_element else local
+                        early = element is hook_element or element.get("type") == "icon"
+                        draw_at = _hook_time(element, local) if early else local
                         if sprite is None:
                             _draw_character(frame, element, library, draw_at, duration, colors)
                         else:
@@ -139,7 +142,12 @@ def render_explainer(payload: dict, make_host=None) -> dict:
         return {"ok": False, "error": (detail[-1] if detail else "ffmpeg could not render the explainer.")[:240]}
     cover = out.with_name("cover.jpg")
     try:
-        cover_frame = _opening_still(width, height, colors, radius, prepared[0][2] if prepared else [], hook_element)
+        cover_frame = _opening_still(
+            width, height, colors, radius,
+            prepared[0][2] if prepared else [],
+            prepared[0][5] if prepared else None,
+            hook_element,
+        )
         cover_frame.convert("RGB").save(cover, quality=90)
     except OSError:
         cover = None
@@ -174,10 +182,14 @@ def _hook_time(element: dict, local: float) -> float:
     return ready if local < ready else local
 
 
-def _opening_still(width: int, height: int, colors: dict, radius: int, sprites: list, hook: dict | None) -> Image.Image:
+def _opening_still(width: int, height: int, colors: dict, radius: int, sprites: list, backdrop: Image.Image | None,
+                   hook: dict | None) -> Image.Image:
     frame = _background(width, height, colors)
+    if backdrop is not None:
+        frame.alpha_composite(backdrop)
     for element, sprite in sprites:
-        draw_at = _hook_time(element, 0.0) if element is hook else 0.0
+        early = element is hook or element.get("type") == "icon"
+        draw_at = _hook_time(element, 0.0) if early else 0.0
         duration = float(element.get("hold_until") or 2) + 1
         if sprite is None:
             continue
@@ -202,7 +214,11 @@ def opening_still(canvas: dict, elements: list) -> Image.Image:
         sprite = _sprite(element, colors, radius, None)
         if sprite is not None:
             sprites.append((element, sprite))
-    return _opening_still(width, height, colors, radius, sprites, _first_hook(sprites))
+    return _opening_still(
+        width, height, colors, radius, sprites,
+        _backdrop(width, height, colors, radius, elements),
+        _first_hook(sprites),
+    )
 
 
 def build_pose_library(source: Path, dest: Path = POSE_DIR) -> dict:
@@ -356,6 +372,245 @@ def _tone(element: dict, colors: dict) -> tuple:
     return _rgb(colors["warning"] if element.get("tone") == "warning" else colors["accent"])
 
 
+# Original drawings of everyday objects. These are not company logos or product screenshots.
+_ICON_KEYS = (
+    ("chat", ("chat", "message", "reply", "comment")),
+    ("gear", ("setting", "gear", "toggle", "preference")),
+    ("lock", ("lock", "password", "privacy", "secure")),
+    ("mail", ("mail", "email", "inbox")),
+    ("phone", ("phone", "call", "mobile")),
+    ("calendar", ("calendar", "schedule")),
+    ("search", ("search", "find", "lookup")),
+    ("person", ("profile", "account", "person")),
+    ("alert", ("alert", "risk", "wrong")),
+    ("check", ("done", "approve", "correct")),
+    ("photo", ("photo", "image", "picture")),
+    ("link", ("link", "url")),
+    ("note", ("note", "doc", "file", "page", "paper")),
+)
+_TILE_COLOR = {
+    "chat": (34, 195, 214),
+    "mail": (61, 107, 140),
+    "note": (214, 154, 46),
+    "calendar": (214, 98, 62),
+    "lock": (43, 43, 43),
+    "search": (46, 138, 122),
+    "gear": (92, 107, 115),
+    "phone": (47, 111, 143),
+    "person": (107, 91, 149),
+    "alert": (214, 98, 62),
+    "check": (46, 138, 122),
+    "photo": (184, 112, 78),
+    "link": (61, 107, 140),
+}
+_BACKDROP_SLOTS = ((0.76, 0.07), (0.06, 0.09), (0.76, 0.50), (0.56, 0.68))
+_FILLER_ICONS = ("chat", "mail", "calendar", "lock", "search", "note")
+
+
+def _has_word(key: str, text: str) -> bool:
+    return any(word.startswith(key) for word in text.split())
+
+
+def _icon_kind(label: str) -> str:
+    text = label.lower()
+    for kind, keys in _ICON_KEYS:
+        if any(_has_word(key, text) for key in keys):
+            return kind
+    return "note"
+
+
+def _kinds_for(labels: list[str]) -> list[str]:
+    found: list[str] = []
+    for label in labels:
+        if not str(label).strip():
+            continue
+        kind = _icon_kind(label)
+        if kind not in found:
+            found.append(kind)
+    for kind in _FILLER_ICONS:
+        if len(found) >= 4:
+            break
+        if kind not in found:
+            found.append(kind)
+    return found[:4]
+
+
+def _draw_glyph(draw: ImageDraw.ImageDraw, kind: str, box: tuple, fill: tuple) -> None:
+    left, top, right, bottom = box
+    width, height = right - left, bottom - top
+    stroke = max(3, round(min(width, height) / 7))
+
+    def line(points: list) -> None:
+        draw.line(points, fill=fill, width=stroke, joint="curve")
+
+    if kind == "chat":
+        body_bottom = top + height * 0.78
+        draw.rounded_rectangle((left, top, right, body_bottom), stroke * 1.3, fill=fill)
+        draw.polygon(
+            [(left + width * 0.18, body_bottom - 1), (left + width * 0.46, body_bottom - 1), (left + width * 0.16, bottom)],
+            fill=fill,
+        )
+    elif kind == "mail":
+        draw.rounded_rectangle((left, top + height * 0.16, right, bottom), max(6, stroke), outline=fill, width=stroke)
+        line([(left + stroke, top + height * 0.28), (left + width / 2, top + height * 0.66), (right - stroke, top + height * 0.28)])
+    elif kind == "calendar":
+        draw.rounded_rectangle((left, top + height * 0.18, right, bottom), max(6, stroke), outline=fill, width=stroke)
+        line([(left + width * 0.28, top), (left + width * 0.28, top + height * 0.32)])
+        line([(left + width * 0.72, top), (left + width * 0.72, top + height * 0.32)])
+        line([(left + width * 0.2, top + height * 0.55), (right - width * 0.2, top + height * 0.55)])
+    elif kind == "lock":
+        draw.arc((left + width * 0.22, top, right - width * 0.22, top + height * 0.7), 200, 340, fill=fill, width=stroke)
+        draw.rounded_rectangle((left + width * 0.12, top + height * 0.4, right - width * 0.12, bottom), max(4, stroke), fill=fill)
+    elif kind == "search":
+        draw.ellipse((left, top, left + width * 0.68, top + height * 0.68), outline=fill, width=stroke)
+        line([(left + width * 0.58, top + height * 0.58), (right, bottom)])
+    elif kind == "gear":
+        draw.ellipse((left + width * 0.22, top + height * 0.22, right - width * 0.22, bottom - height * 0.22), outline=fill, width=stroke)
+        draw.ellipse((left + width * 0.4, top + height * 0.4, right - width * 0.4, bottom - height * 0.4), outline=fill, width=stroke)
+        mid_x, mid_y = left + width / 2, top + height / 2
+        for dx, dy in ((0, -0.46), (0, 0.46), (-0.46, 0), (0.46, 0)):
+            line([(mid_x + dx * width * 0.55, mid_y + dy * height * 0.55), (mid_x + dx * width * 0.95, mid_y + dy * height * 0.95)])
+    elif kind == "phone":
+        draw.rounded_rectangle((left + width * 0.22, top, right - width * 0.22, bottom), max(8, stroke), outline=fill, width=stroke)
+        draw.ellipse((left + width * 0.42, bottom - height * 0.2, left + width * 0.58, bottom - height * 0.06), outline=fill, width=max(2, stroke - 1))
+    elif kind == "person":
+        draw.ellipse((left + width * 0.28, top, right - width * 0.28, top + height * 0.4), outline=fill, width=stroke)
+        draw.arc((left, top + height * 0.46, right, bottom + height * 0.15), 200, 340, fill=fill, width=stroke)
+    elif kind == "alert":
+        draw.polygon([(left + width / 2, top + 2), (right - 2, bottom), (left + 2, bottom)], fill=fill)
+    elif kind == "check":
+        line([(left + width * 0.08, top + height * 0.52), (left + width * 0.38, bottom - height * 0.08), (right - width * 0.06, top + height * 0.16)])
+    elif kind == "photo":
+        draw.rounded_rectangle((left, top + height * 0.12, right, bottom), max(6, stroke), outline=fill, width=stroke)
+        draw.ellipse((left + width * 0.16, top + height * 0.28, left + width * 0.4, top + height * 0.52), outline=fill, width=max(2, stroke - 1))
+        line([
+            (left + width * 0.14, bottom - height * 0.22),
+            (left + width * 0.4, top + height * 0.5),
+            (left + width * 0.62, bottom - height * 0.28),
+            (right - width * 0.12, top + height * 0.46),
+        ])
+    elif kind == "link":
+        draw.rounded_rectangle((left, top + height * 0.28, left + width * 0.62, bottom - height * 0.1), max(6, stroke), outline=fill, width=stroke)
+        draw.rounded_rectangle((right - width * 0.62, top + height * 0.1, right, bottom - height * 0.28), max(6, stroke), outline=fill, width=stroke)
+    else:
+        draw.rounded_rectangle((left + width * 0.08, top, right, bottom), max(6, stroke), outline=fill, width=stroke)
+        dog = width * 0.28
+        draw.polygon([(right - dog, top), (right, top + dog), (right - dog, top + dog)], fill=fill)
+        for index in range(3):
+            y = top + height * (0.32 + index * 0.18)
+            line([(left + width * 0.22, y), (right - width * 0.18, y)])
+
+
+def _paint_tile(image: Image.Image, box: tuple, kind: str) -> None:
+    left, top, right, bottom = (round(value) for value in box)
+    size = min(right - left, bottom - top)
+    if size < 12:
+        return
+    color = _TILE_COLOR.get(kind, _TILE_COLOR["note"])
+    ImageDraw.Draw(image).rounded_rectangle((left, top, left + size, top + size), max(8, size // 4), fill=color + (255,))
+    inset = size * 0.24
+    _draw_glyph(
+        ImageDraw.Draw(image),
+        kind,
+        (left + inset, top + inset, left + size - inset, top + size - inset),
+        (255, 255, 255, 255),
+    )
+
+
+def _sample_rows(sprite: Image.Image, kind: str, area: tuple, text: tuple, accent: tuple) -> None:
+    left, top, right, bottom = area
+    width, height = right - left, bottom - top
+    if width < 48 or height < 36:
+        return
+    draw = ImageDraw.Draw(sprite)
+    ink = text + (36,)
+    soft = accent + (80,)
+    if kind == "chat":
+        draw.rounded_rectangle((left, top, left + width * 0.62, top + height * 0.4), 18, fill=ink)
+        draw.rounded_rectangle((left + width * 0.3, top + height * 0.52, right, min(bottom, top + height * 0.96)), 18, fill=soft)
+    elif kind in ("gear", "lock"):
+        for index in range(3):
+            y = top + index * (height / 3)
+            draw.rounded_rectangle((left, y + 4, left + width * 0.52, y + height / 3 - 8), 8, fill=ink)
+            draw.rounded_rectangle((right - 64, y + 2, right, y + height / 3 - 10), 16, fill=soft)
+    elif kind == "calendar":
+        gap = 8
+        cell_w = (width - gap * 3) / 4
+        cell_h = (height - gap) / 2
+        for row in range(2):
+            for col in range(4):
+                x = left + col * (cell_w + gap)
+                y = top + row * (cell_h + gap)
+                fill = soft if (row, col) == (0, 1) else ink
+                draw.rounded_rectangle((x, y, x + cell_w, y + cell_h), 8, fill=fill)
+    elif kind == "mail":
+        for index, frac in enumerate((0.86, 0.64, 0.48)):
+            y = top + index * (height / 3)
+            draw.ellipse((left, y + 2, left + 22, y + 24), fill=ink)
+            draw.rounded_rectangle((left + 34, y + 6, left + 34 + (width - 34) * frac, y + 20), 6, fill=ink)
+    else:
+        for index, frac in enumerate((1.0, 0.92, 0.74, 0.56)):
+            y = top + index * (height / 4)
+            draw.rounded_rectangle((left, y, left + width * frac, y + max(5, height * 0.1)), 4, fill=ink)
+
+
+def _dress_card(sprite: Image.Image, inner: tuple, label: str, text: tuple, accent: tuple) -> None:
+    """A card reads as a sample screen: an app tile, the hook, then rows like a real app."""
+    left, top, right, bottom = inner
+    width, height = right - left, bottom - top
+    margin = max(20, round(min(width, height) * 0.08))
+    if width < 180 or height < 150:
+        _write(sprite, label, (left + margin, top + margin, right - margin, bottom - margin), text, weight="Demi Bold", max_size=104)
+        return
+    kind = _icon_kind(label)
+    tile = min(88, max(44, round(min(width, height) * 0.2)))
+    _paint_tile(sprite, (left + margin, top + margin, left + margin + tile, top + margin + tile), kind)
+    label_room = height - margin * 2 - tile - 12
+    rows = min(label_room * 0.42, 140) if label_room >= 170 else 0
+    _write(
+        sprite,
+        label,
+        (left + margin, top + margin + tile + 12, right - margin, bottom - margin - rows),
+        text,
+        weight="Demi Bold",
+        max_size=104,
+    )
+    if rows:
+        _sample_rows(sprite, kind, (left + margin, bottom - margin - rows + 8, right - margin, bottom - margin), text, accent)
+
+
+def _backdrop(width: int, height: int, colors: dict, radius: int, elements: list) -> Image.Image:
+    """App tiles behind the host when the plan did not already place icons."""
+    layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    if any(element.get("type") == "icon" for element in elements):
+        return layer
+    size = max(64, round(width * 0.15))
+    labels = [str(element.get("label") or "") for element in elements]
+    for (fx, fy), kind in zip(_BACKDROP_SLOTS, _kinds_for(labels)):
+        sprite = _sprite(
+            {"type": "icon", "label": kind, "box": {"x": 0, "y": 0, "w": size, "h": size}},
+            colors,
+            radius,
+            None,
+        )
+        if sprite is None:
+            continue
+        _composite(layer, sprite, round(width * fx) - 40, round(height * fy) - 40)
+    return layer
+
+
+def _composite(base: Image.Image, sprite: Image.Image, x: int, y: int) -> None:
+    if x >= base.width or y >= base.height or x + sprite.width <= 0 or y + sprite.height <= 0:
+        return
+    src_left, src_top = max(0, -x), max(0, -y)
+    dest_x, dest_y = max(0, x), max(0, y)
+    src_right = min(sprite.width, base.width - dest_x + src_left)
+    src_bottom = min(sprite.height, base.height - dest_y + src_top)
+    if src_right <= src_left or src_bottom <= src_top:
+        return
+    base.alpha_composite(sprite.crop((src_left, src_top, src_right, src_bottom)), (dest_x, dest_y))
+
+
 def _sprite(element: dict, colors: dict, radius: int, host: Image.Image | None) -> Image.Image | None:
     box = element.get("box") or {}
     w, h = max(8, int(box.get("w") or 0)), max(8, int(box.get("h") or 0))
@@ -371,20 +626,15 @@ def _sprite(element: dict, colors: dict, radius: int, host: Image.Image | None) 
     if kind == "card":
         _shadow(sprite, inner, radius)
         ImageDraw.Draw(sprite).rounded_rectangle(inner, radius, fill=card + (255,))
-        ImageDraw.Draw(sprite).rounded_rectangle(
-            (pad + 28, pad + 28, pad + 28 + 56, pad + 28 + 8), 4, fill=accent + (255,)
-        )
-        _write(sprite, label, (pad + 44, pad + 52, pad + w - 44, pad + h - 36), text, weight="Demi Bold", max_size=104)
+        _dress_card(sprite, inner, label, text, accent)
     elif kind == "text":
         color = accent if element.get("tone") == "warning" else text
         _write(sprite, label, inner, color, weight="Bold", max_size=120)
     elif kind == "icon":
         size = min(w, h)
         left, top = pad + (w - size) // 2, pad + (h - size) // 2
-        draw = ImageDraw.Draw(sprite)
-        draw.ellipse((left, top, left + size, top + size), fill=accent + (255,))
-        ring = size // 4
-        draw.ellipse((left + ring, top + ring, left + size - ring, top + size - ring), outline=(255, 255, 255, 255), width=max(4, size // 14))
+        _shadow(sprite, (left, top, left + size, top + size), size // 5)
+        _paint_tile(sprite, (left, top, left + size, top + size), _icon_kind(label))
     elif kind == "line":
         y = pad + h // 2
         ImageDraw.Draw(sprite).rounded_rectangle((pad, y - 5, pad + w, y + 5), 5, fill=accent + (255,))
@@ -406,8 +656,9 @@ def _sprite(element: dict, colors: dict, radius: int, host: Image.Image | None) 
         draw = ImageDraw.Draw(sprite)
         draw.rounded_rectangle(body, radius, fill=card + (255,))
         draw.polygon([(pad + 70, body[3] - 2), (pad + 150, body[3] - 2), (pad + 60, pad + h)], fill=card + (255,))
-        draw.rounded_rectangle((pad + 28, pad + 28, pad + 84, pad + 36), 4, fill=accent + (255,))
-        _write(sprite, label, (pad + 44, pad + 52, pad + w - 44, body[3] - 32), text, weight="Demi Bold", max_size=96)
+        tile = min(72, max(40, (body[3] - body[1]) // 5))
+        _paint_tile(sprite, (pad + 28, pad + 28, pad + 28 + tile, pad + 28 + tile), _icon_kind(label or "chat"))
+        _write(sprite, label, (pad + 40 + tile, pad + 28, pad + w - 36, body[3] - 28), text, weight="Demi Bold", max_size=96)
     elif kind == "slots":
         _shadow(sprite, inner, radius)
         draw = ImageDraw.Draw(sprite)

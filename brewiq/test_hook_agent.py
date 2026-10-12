@@ -7,11 +7,12 @@ import json
 import unittest
 from pathlib import Path
 
-from cinematic_director import rank_hooks
+from cinematic_director import _on_screen_hook, rank_hooks
 from hook_agent import (
     POOL_TECHNIQUES,
     apply_to_brief,
     best_hook_for_post,
+    opening_line_problems,
     opening_visual_problems,
     pool_to_brief_hooks,
     score_hook,
@@ -225,6 +226,39 @@ class PostTypeHookTests(unittest.TestCase):
             "experiments": ["EXP-004"],
         }
         self.assertEqual(best_hook_for_post(tied, "slides", tie_bonus)["approach"], "alpha_angle")
+
+    def test_jargon_format_match_loses_to_a_plain_hook(self) -> None:
+        research = {
+            "brief_hooks": [
+                {
+                    "approach": "surprising_contrast",
+                    "text": "Idempotency latency spikes the inference pipeline today",
+                    "score": 9,
+                },
+                {"approach": "everyday_problem", "text": "Your laundry pile never really shrinks", "score": 6},
+            ]
+        }
+        self.assertTrue(opening_line_problems(research["brief_hooks"][0]["text"]))
+        self.assertEqual(opening_line_problems(research["brief_hooks"][1]["text"]), [])
+        picked = best_hook_for_post(research, "cinematic_3d")
+        self.assertEqual(picked["approach"], "everyday_problem")
+
+    def test_low_clarity_loses_to_a_clear_line(self) -> None:
+        muddy = _eval("surprising_contrast", "A slow robot beat a rushed human folder", "supported", 9)
+        muddy["scores"]["clarity"] = 4
+        clear = _eval("everyday_problem", "Your laundry pile never really shrinks", "supported", 8)
+        research = {"hook_evaluations": [muddy, clear]}
+        self.assertEqual(best_hook_for_post(research, "cinematic_3d")["approach"], "everyday_problem")
+
+    def test_on_screen_hook_is_a_short_complete_idea(self) -> None:
+        self.assertEqual(_on_screen_hook("An AI sent police a murder tip. It was invented."), "An AI sent police a murder tip.")
+        self.assertEqual(_on_screen_hook("Your notes hide the gaps"), "Your notes hide the gaps")
+        self.assertEqual(_on_screen_hook("Stop scrolling — Your notes hide the gaps"), "Your notes hide the gaps")
+        shown = _on_screen_hook("Would you trust a robot home alone with the laundry pile")
+        self.assertNotIn("…", shown)
+        self.assertLessEqual(len(shown.split()), 8)
+        self.assertTrue(shown.lower().startswith("would you trust"))
+        self.assertEqual(_on_screen_hook("WHY IT MATTERS"), "")
 
 
 if __name__ == "__main__":

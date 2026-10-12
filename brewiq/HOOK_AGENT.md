@@ -48,7 +48,7 @@ Use this when you want more hook options than the five research approaches.
 
 Candidates, in order: eligible `hook_evaluations` (only when `verified_facts` exist; partial and unsupported are skipped), else `brief_hooks`, else a single non-weak `research["hook"]`.
 
-Technique fit for the post type comes first, then the research score, then the capped learning bonus as a tie-break. `POST_TECHNIQUE_RANK` is that order:
+A line that is not catchy and intuitive loses first: template phrases ("stop scrolling", "watch this"), two or more technical words, a label with no verb, or a clarity score below 7. Among the lines that pass, technique fit comes next, then the research score, then the capped learning bonus. The on-screen hook is the first sentence in at most 8 words, with no ellipsis and no "Watch this". `POST_TECHNIQUE_RANK` is the fit order:
 
 - `cinematic_3d`: surprising contrast, narrative tension, curiosity gap, then the rest
 - `interactive_explainer`: everyday problem, specific mistake, useful promise, curiosity gap

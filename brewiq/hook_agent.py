@@ -39,6 +39,7 @@ def score_hook(evaluation: dict[str, Any]) -> float:
 def hook_eligibility(evaluation: dict[str, Any], brief: dict[str, Any]) -> list[str]:
     """Reasons a hook cannot win. Accuracy is a gate, not a weighted score."""
     reasons = list(hook_problems(evaluation.get("text", "")))
+    reasons += opening_line_problems(str(evaluation.get("text") or ""))
     accuracy = evaluation.get("accuracy")
     if accuracy not in ACCURACY_LEVELS:
         reasons.append(f"accuracy must be one of {ACCURACY_LEVELS}.")
@@ -124,6 +125,51 @@ _CLICKBAIT = re.compile(
     r"100%|everyone is wrong|they don'?t want you to know|before it'?s deleted)\b",
     re.IGNORECASE,
 )
+# Lines that talk about the reel instead of the idea. They do not stop a scroll.
+_TEMPLATE_HOOK = re.compile(
+    r"\b(stop scrolling|watch this|watch closely|most people miss|most people get this wrong|"
+    r"you'?re doing .+ backwards|one mistake ruins|here'?s why|let me explain|in this video)\b",
+    re.IGNORECASE,
+)
+# Two or more of these in the opening means a nontechnical viewer cannot read it in one second.
+_JARGON = re.compile(
+    r"\b(api|idempoten\w*|llm|transformer|inference|latency|pipeline|architecture|"
+    r"embedding|fine-?tun\w*|neural net\w*|algorithm|tokeniz\w*|throughput|"
+    r"webhook|kubernetes|microservice)\b",
+    re.IGNORECASE,
+)
+_VERB = re.compile(
+    r"\b(is|are|was|were|be|been|do|does|did|don'?t|doesn'?t|didn'?t|has|have|had|"
+    r"can|can'?t|cannot|will|won'?t|sent|send|hide|hides|hid|hiding|miss|missed|"
+    r"save|saved|ruin|ruins|fold|folds|folded|stall|stalls|stalled|beat|beats|"
+    r"leave|leaves|left|shrink|shrinks|trust|try|tries|invented|caught|catch|"
+    r"fail|fails|failed|work|works|stop|stops|show|shows|need|needs|get|gets|got|"
+    r"make|makes|made|take|takes|took|know|knows|want|wants|see|sees|saw|"
+    r"click|clicks|clicked|check|checks|act|acts|hack|happen|happens|touch|touches|"
+    r"[a-z]{4,}ed|[a-z]{5,}ing)\b",
+    re.IGNORECASE,
+)
+_CLARITY_FLOOR = 7
+
+
+def opening_line_problems(text: str, *, clarity: float | None = None) -> list[str]:
+    """Why this line will not hold a viewer through the first second.
+
+    Catchy means it makes a concrete claim. Intuitive means a nontechnical adult
+    can understand it without rereading. A low clarity score is the same gate
+    when the model supplied one.
+    """
+    value = " ".join(str(text or "").split())
+    problems: list[str] = []
+    if _TEMPLATE_HOOK.search(value):
+        problems.append("Hook talks about scrolling instead of the idea.")
+    if len(_JARGON.findall(value)) >= 2:
+        problems.append("Hook uses technical words a viewer cannot read in the first second.")
+    if "?" not in value and not _VERB.search(value):
+        problems.append("Hook is a label, not a line someone can grasp immediately.")
+    if clarity is not None and clarity < _CLARITY_FLOOR:
+        problems.append(f"Clarity {clarity} is below {_CLARITY_FLOOR}; the line is not intuitive.")
+    return problems
 
 
 def _key(text: str) -> str:
@@ -289,12 +335,14 @@ def research_hook_candidates(research: dict[str, Any] | None) -> list[dict[str, 
             score = _mean_score(scores, CRITERIA)
         if score is None:
             score = float(len(evaluations) - index)
+        clarity = _mean_score({"clarity": (evaluation.get("scores") or {}).get("clarity")}, ("clarity",))
         found.append(
             {
                 "approach": str(evaluation.get("technique") or evaluation.get("approach") or ""),
                 "text": text,
                 "why": str(evaluation.get("why") or ""),
                 "score": score,
+                "clarity": clarity,
                 "research_rank": index,
             }
         )
@@ -343,9 +391,10 @@ def best_hook_for_post(
 ) -> dict[str, Any] | None:
     """Best research-backed hook for this post type.
 
-    Technique fit for the post type comes first, then the research score, then a
-    capped learning bonus as a tie-break. Hooks that research did not write are
-    never invented here.
+    A line that is not catchy and intuitive cannot beat one that is, even when
+    its technique fits the format better. Among clear lines, technique fit comes
+    next, then the research score, then a capped learning bonus. Hooks that
+    research did not write are never invented here.
     """
     candidates = research_hook_candidates(research)
     if not candidates:
@@ -357,7 +406,9 @@ def best_hook_for_post(
 
     def sort_key(candidate: dict[str, Any]) -> tuple:
         technique = candidate["approach"]
+        unclear = 1 if opening_line_problems(candidate["text"], clarity=candidate.get("clarity")) else 0
         return (
+            unclear,
             fit.get(technique, unknown),
             -float(candidate["score"]),
             -bonus.get(technique, 0.0),

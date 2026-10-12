@@ -269,13 +269,40 @@ def _is_noun_phrase(text: str) -> bool:
     return 0 < len(words) <= 6 and not any(w in _SENTENCE_WORDS for w in words)
 
 
+_GLANCE_WORDS = 8
+_LEADING_FILLER = frozenset({"a", "an", "the"})
+_DANGLING = frozenset(
+    {"a", "an", "the", "to", "of", "and", "or", "for", "with", "in", "on", "at", "your", "you", "this", "that"}
+)
+_TEMPLATE_PREFIX = re.compile(
+    r"^(stop scrolling|watch this|watch closely|most people miss this|most people get this wrong)\s*[—:\-]+\s*",
+    re.IGNORECASE,
+)
+
+
 def _on_screen_hook(text: str) -> str:
-    """Short overlay for 0–2s. Never a section label."""
+    """Glanceable overlay for 0–2s, at most 8 words. A longer script is spoken; the frame shows the idea.
+
+    Never a section label, never "Watch this", and never a line cut off with an ellipsis.
+    """
     value = " ".join(str(text or "").split()).strip()
-    if is_weak_opener(value):
-        value = "Watch this"
-    if len(value) > 42:
-        value = value[:39].rstrip() + "…"
+    value = _TEMPLATE_PREFIX.sub("", value).strip()
+    first = re.split(r"(?<=[.!?])\s+", value)[0].strip()
+    ending = first[-1] if first and first[-1] in ".?!" else ""
+    body = first[:-1].strip() if ending else first
+    words = [word for word in body.split() if word]
+    original_count = len(words)
+    while len(words) > _GLANCE_WORDS and words[0].lower().strip(".,") in _LEADING_FILLER:
+        words = words[1:]
+    if len(words) > _GLANCE_WORDS:
+        words = words[:_GLANCE_WORDS]
+    while len(words) > 2 and words[-1].lower().strip(".,") in _DANGLING:
+        words = words[:-1]
+    value = " ".join(words).strip(" -—")
+    if ending and len(words) == original_count:
+        value = f"{value}{ending}"
+    if is_weak_opener(value) or len(value.split()) < 2:
+        return ""
     return value
 
 

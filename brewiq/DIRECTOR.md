@@ -21,6 +21,7 @@ Before calling Veo or assembling a reel:
 3. Show the four styles and three ranked hooks in Slack (buttons or numbered replies).
 4. After the operator picks, call `plan_reel(topic, research=..., style=..., hook_id=...)`.
    A style keyword in the request (`explainer`, `cinematic`, `tech story`, `motion graphics`; see the README) only preselects the style. The hook choice is still required, and every step below still runs.
+   Pass `learnings=load_learnings()` (see [`LEARNING_LOOP.md`](LEARNING_LOOP.md)). The last review's style becomes the recommendation and its technique bonus re-ranks hooks; show the "Applied from the last review" lines. The operator still picks, and learnings never bypass a gate.
 5. Show storyboard summary (hooks used, VO length, scene count). Say nothing has been posted.
 6. Only then render via the style’s pipeline.
 

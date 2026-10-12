@@ -31,3 +31,5 @@ For each post:
   - `preferred_format`;
   - `preferred_style`.
 - `experiment_record(review, "EXP-###", decision=...)`: store it as `research_runs/<date>.performance.json` and update the experiment row in `docs/identifiers/REGISTRY.md`.
+
+Run it weekly through `learning_loop.weekly_review(posts, reviewed_on=..., learnings_path=..., runs_dir=...)`. That stores the learnings in `research_runs/learnings.json`, writes the experiment records, and the next plans apply them automatically (see [`LEARNING_LOOP.md`](LEARNING_LOOP.md)).

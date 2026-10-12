@@ -16,6 +16,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from cinematic_director import STYLES, is_weak_opener
+from learning_loop import instructions_block
 
 # BrewIQ's initial editorial experiment, not Instagram algorithm weights.
 WEIGHTS: dict[str, float] = {
@@ -76,8 +77,12 @@ def weighted_score(scores: dict[str, Any]) -> float:
     return round(total, 2)
 
 
-def build_research_prompt(today: date, recent: list[dict[str, Any]] | None = None) -> str:
-    """Prompt for the live-search model. Includes recent reels so it avoids repeats."""
+def build_research_prompt(
+    today: date,
+    recent: list[dict[str, Any]] | None = None,
+    learnings: dict[str, Any] | None = None,
+) -> str:
+    """Prompt for the live-search model. Includes recent reels so it avoids repeats, and the stored learnings."""
     body = (Path(__file__).with_name("RESEARCH_AGENT.md")).read_text(encoding="utf-8")
     lines = [
         body,
@@ -94,6 +99,9 @@ def build_research_prompt(today: date, recent: list[dict[str, Any]] | None = Non
                 f"- topic: {item.get('topic', '')} | visual: {item.get('key_visual_moment', '')} "
                 f"| hook approach: {item.get('hook_approach', '')}"
             )
+    block = instructions_block(learnings)
+    if block:
+        lines.append(block)
     lines.append("Return only the JSON object.")
     return "\n".join(lines)
 

@@ -11,6 +11,7 @@ import re
 from typing import Any
 
 from cinematic_director import is_weak_opener, opening_frame_problems
+from learning_loop import hook_bonus
 from research_agent import HOOK_APPROACHES, hook_problems
 
 # Equal weights are BrewIQ's starting assumption, not a measured result (EXP-002).
@@ -134,6 +135,7 @@ def select_from_pool(
     brief: dict[str, Any],
     *,
     technique_bonus: dict[str, float] | None = None,
+    learnings: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Rank a pool of ~20 hooks across techniques and return the top five eligible ones.
 
@@ -155,6 +157,8 @@ def select_from_pool(
     if problems:
         return {"ok": False, "error": " ".join(problems), "ranked": [], "top": []}
 
+    if technique_bonus is None:
+        technique_bonus = hook_bonus(learnings)
     bonus = {k: max(-MAX_TECHNIQUE_BONUS, min(MAX_TECHNIQUE_BONUS, float(v))) for k, v in (technique_bonus or {}).items()}
     seen: set[str] = set()
     ranked = []

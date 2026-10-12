@@ -31,6 +31,7 @@ from composition import (
     phrase_subtitles,
     voice_pacing,
 )
+from learning_loop import applied_summary, preferred_style
 
 STYLES: dict[str, dict[str, str]] = {
     "cinematic_3d": {
@@ -107,13 +108,17 @@ def list_styles() -> list[dict[str, str]]:
     ]
 
 
-def recommend_style(topic: str, research: dict | None = None) -> str:
+def recommend_style(topic: str, research: dict | None = None, learnings: dict | None = None) -> str:
+    """Research's suggestion first; architecture topics need motion graphics; then the learned style; then topic words."""
     suggested = str((research or {}).get("suggested_style") or "")
     if suggested in STYLES:
         return suggested
     text = _topic_text(topic, research).lower()
     if any(word in text for word in ("architect", "integrat", "api", "pipeline", "idempoten")):
         return "motion_graphics"
+    learned = preferred_style(learnings)
+    if learned in STYLES:
+        return learned
     if any(word in text for word in ("agent", "automat", "retry", "workflow")):
         return "tech_storytelling"
     if any(word in text for word in ("ui", "chatgpt", "gemini", "product", "tool", "notebook")):
@@ -280,8 +285,26 @@ def plan_reel(
     research: dict | None = None,
     style: str | None = None,
     hook_id: str | None = None,
+    learnings: dict | None = None,
 ) -> dict[str, Any]:
-    """Plan a cinematic reel. Without style+hook, returns awaiting_choice options."""
+    """Plan a cinematic reel. Without style+hook, returns awaiting_choice options.
+
+    ``learnings`` (``learning_loop.load_learnings()``) only changes the recommended
+    style; ``learnings_applied`` lists what was used so Slack can show it.
+    """
+    payload = _plan_reel(topic, research=research, style=style, hook_id=hook_id, learnings=learnings)
+    payload["learnings_applied"] = applied_summary(learnings)
+    return payload
+
+
+def _plan_reel(
+    topic: str,
+    *,
+    research: dict | None,
+    style: str | None,
+    hook_id: str | None,
+    learnings: dict | None,
+) -> dict[str, Any]:
     research = dict(research or {})
     topic = (topic or research.get("topic") or "").strip()
     if not topic:
@@ -296,7 +319,7 @@ def plan_reel(
 
     hooks = rank_hooks(topic, research)
     styles = list_styles()
-    recommended = recommend_style(topic, research)
+    recommended = recommend_style(topic, research, learnings)
 
     chosen = (style or "").strip().lower()
     if chosen in STYLES and not hook_id:

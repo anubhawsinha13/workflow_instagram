@@ -78,11 +78,13 @@ def start_or_continue(
     operator_reply: str = "",
     prior_errors: list[str] | None = None,
     thread: list[str] | None = None,
+    learnings: dict | None = None,
 ) -> dict[str, Any]:
     """One entry point for Slack: plan, continue after a pick, or offer recovery.
 
     ``thread`` is the earlier messages in the Slack thread (oldest first), so a style
     chosen by keyword in the first message is kept while the operator picks the hook.
+    ``learnings`` is ``learning_loop.load_learnings()``; the host loads it on every request.
     """
     messages = [*(thread or []), operator_reply]
     if any(UTILITY_KEYWORDS.search(m or "") for m in messages):
@@ -102,7 +104,24 @@ def start_or_continue(
         research=research,
         style=picks.get("style"),
         hook_id=picks.get("hook_id"),
+        learnings=learnings,
     )
+
+
+_RULE_REPLY = re.compile(r"\b(approve|reject)\s+rule\s+([a-z_]+:[a-z0-9_]+)\b", re.IGNORECASE)
+
+
+def parse_rule_reply(text: str) -> tuple[str, str] | None:
+    """``approve rule technique:curiosity_gap`` -> ("approved", "technique:curiosity_gap")."""
+    match = _RULE_REPLY.search(text or "")
+    if not match:
+        return None
+    return ("approved" if match.group(1).lower() == "approve" else "rejected"), match.group(2).lower()
+
+
+def _learned_lines(payload: dict[str, Any]) -> list[str]:
+    applied = payload.get("learnings_applied") or []
+    return ["", "*Applied from the last review:*", *(f"• {line}" for line in applied)] if applied else []
 
 
 def _utility_request(topic: str, research: dict | None) -> dict[str, Any]:
@@ -146,6 +165,7 @@ def format_slack_message(payload: dict[str, Any]) -> str:
         for hook in payload.get("options", {}).get("hooks") or []:
             lines.append(f"• `{hook['id']}` (rank {hook['rank']}): {hook['text']}")
             lines.append(f"  _{hook['why']}_")
+        lines += _learned_lines(payload)
         lines.append("")
         lines.append(payload.get("prompt") or "")
         lines.append("*Nothing has been posted.*")
@@ -188,6 +208,7 @@ def format_slack_message(payload: dict[str, Any]) -> str:
         lines.append(f"*Hook:* {hook.get('text')}")
         lines.append(f"*Scenes:* {len(payload.get('scenes') or [])}")
         lines.append(f"*Pipeline:* {style.get('pipeline')}")
+        lines += _learned_lines(payload)
         lines.append("")
         lines.append("Reply `post it` only after the rendered draft is approved.")
         lines.append("*Nothing has been posted.*")

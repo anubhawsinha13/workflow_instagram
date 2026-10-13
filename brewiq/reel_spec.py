@@ -24,6 +24,7 @@ from explainer_render import (  # noqa: E402
     FIGURE_WIDTH, MIN_SWATCH_CONTRAST, POSE_FILES, POSE_HEAD, TILE_GLYPHS, contrast_ratio, load_pose_library,
     render_explainer,
 )  # noqa: E402
+from platforms import VERTICAL, fit_host  # noqa: E402
 
 FORMATS = ("beat_explainer", "chapter_build", "workflow_reel", "product_shot")
 SHOT_MODES = ("graphics", "pose", "still")
@@ -46,10 +47,15 @@ ROLE_LABELS = {
     "cta": "Call to action",
 }
 
-W, H, FPS = 1080, 1920, 30
-# Content stays inside these lines. The right edge clears the Reels buttons, and the bottom clears the caption.
-SAFE = {"left": 64, "right": 930, "top": 190, "bottom": 1500}
-LOWER_THIRD_LEFT = 40
+W, H, FPS = VERTICAL.width, VERTICAL.height, 30
+# 9:16 safe box. TikTok, Threads, and Discord use this frame. See platforms.VERTICAL.
+SAFE = {
+    "left": VERTICAL.safe_left,
+    "right": VERTICAL.safe_right,
+    "top": VERTICAL.safe_top,
+    "bottom": VERTICAL.safe_bottom,
+}
+LOWER_THIRD_LEFT = SAFE["left"]
 BEAT_PAD = 0.35
 MIN_BEAT = 2.4
 MAX_TOTAL = 75.0
@@ -63,22 +69,43 @@ COLORS = {
     "card": "#FFFFFF",
 }
 
-# Layout regions. The host stands on the left with the cut-off edge hidden behind the lower third.
-LOWER = {"x": LOWER_THIRD_LEFT, "y": 1330, "w": 890, "h": 170}
-HOST_SCALE = 0.7
+# Layout regions. The host is scaled so his opaque pixels stay inside SAFE and left of the type.
+LOWER = {"x": LOWER_THIRD_LEFT, "y": 1330, "w": SAFE["right"] - LOWER_THIRD_LEFT, "h": 170}
 HOST_FOOT = 1460
-HOST_LEFT = 36
-MAX_HOST_SHIFT = 150
-HOST = {"x": HOST_LEFT, "y": 0, "w": round(620 * HOST_SCALE), "h": 900}
-HOST_ZONE_Y = (540, 1330)
 COLUMN = {"x": 560, "y": 470, "w": 370, "h": 780}
-RAIL_ROW = {"x": 64, "y": 190, "w": 866, "h": 100}
-HERO = {"x": 64, "y": 230, "w": 866, "h": 780}
+
+
+def _opaque_span() -> tuple[int, int]:
+    """Leftmost and rightmost opaque pixel across the standing poses, in source pixels."""
+    left, right = 10**9, 0
+    library = load_pose_library()
+    for name in POSES:
+        entry = library.get(name)
+        if not entry:
+            continue
+        bounds = entry[0].getchannel("A").point(lambda v: 255 if v > 40 else 0).getbbox()
+        if not bounds:
+            continue
+        left, right = min(left, bounds[0]), max(right, bounds[2])
+    if right <= left:
+        return (0, 1120)
+    return (left, right)
+
+
+_HOST_W, _HOST_ORIGIN = fit_host(
+    [_opaque_span()], SAFE["left"], COLUMN["x"], FIGURE_WIDTH, round(FIGURE_WIDTH * 0.7),
+)
+_HOST_SCALE = _HOST_W / FIGURE_WIDTH
+HOST_LEFT = round(_HOST_ORIGIN + (POSE_HEAD[0] - FIGURE_WIDTH / 2) * _HOST_SCALE)
+HOST = {"x": HOST_LEFT, "y": 0, "w": _HOST_W, "h": 900}
+HOST_ZONE_Y = (540, 1330)
+RAIL_ROW = {"x": SAFE["left"], "y": SAFE["top"], "w": SAFE["right"] - SAFE["left"], "h": 100}
+HERO = {"x": SAFE["left"], "y": SAFE["top"], "w": SAFE["right"] - SAFE["left"], "h": 760}
 CHIPS_ROW = {"x": 64, "y": 1030, "w": 866, "h": 74}
 HEADLINE_ROW = {"x": 64, "y": 1130, "w": 866, "h": 180}
-WORKFLOW_IMAGE = {"x": 64, "y": 250, "w": 866, "h": 680}
+WORKFLOW_IMAGE = {"x": SAFE["left"], "y": SAFE["top"] + 60, "w": SAFE["right"] - SAFE["left"], "h": 630}
 WORKFLOW_PROMPT = {"x": 64, "y": 960, "w": 866, "h": 340}
-PRODUCT_HERO = {"x": 64, "y": 220, "w": 866, "h": 840}
+PRODUCT_HERO = {"x": SAFE["left"], "y": SAFE["top"], "w": SAFE["right"] - SAFE["left"], "h": 810}
 PRODUCT_THUMB = {"x": 64, "y": 1090, "w": 300, "h": 210}
 PRODUCT_PROMPT = {"x": 390, "y": 1090, "w": 540, "h": 210}
 
@@ -367,24 +394,29 @@ def _rail(spec: dict, beats: list, key: str, active: int, region: dict, *, chips
                     timer=timer, timeline=timeline)
 
 
-def _pose_right(name: str, left: float) -> float:
-    """Right edge, in canvas pixels, of a pose when the host's left anchor is at `left`."""
+def _pose_edges(name: str, left: float) -> tuple[float, float]:
+    """Opaque left and right, in canvas pixels, when the host's anchor is at `left`."""
     library = load_pose_library()
     entry = library.get(name) or library.get("neutral")
-    if not entry:
-        return left + 500
     scale = HOST["w"] / FIGURE_WIDTH
-    bounds = entry[0].getchannel("A").point(lambda v: 255 if v > 40 else 0).getbbox()
     origin = left - (POSE_HEAD[0] - FIGURE_WIDTH / 2) * scale
-    return origin + (bounds[2] if bounds else entry[0].width) * scale
+    if not entry:
+        return origin, origin + 500
+    bounds = entry[0].getchannel("A").point(lambda v: 255 if v > 40 else 0).getbbox()
+    if not bounds:
+        return origin, origin + entry[0].width * scale
+    return origin + bounds[0] * scale, origin + bounds[2] * scale
+
+
+def _pose_right(name: str, left: float) -> float:
+    """Right edge, in canvas pixels, of a pose when the host's left anchor is at `left`."""
+    return _pose_edges(name, left)[1]
 
 
 def host_left(beats: list) -> int:
-    """One left position for the whole reel, far enough left that his widest pose clears the text column."""
-    used = {(beat.get("pose") or "neutral") for beat in beats if isinstance(beat, dict)}
-    widest = max(_pose_right(name, HOST_LEFT) for name in used)
-    shift = min(MAX_HOST_SHIFT, max(0, widest - (COLUMN["x"] - 20)))
-    return round(HOST_LEFT - shift)
+    """One left position for the whole reel. The scale already clears the safe edge and the type."""
+    del beats
+    return HOST_LEFT
 
 
 def _host(key: str, beat: dict, previous_pose, left: int) -> dict:
@@ -481,7 +513,7 @@ def _workflow_scene(spec, beat, on_screen, key, index, plate, shot, slot, previo
     meta = f"Scene {scene_number} · {when}" if shot.get("mode") == "still" else f"Setup · {when}"
     elements.append(_element(f"{key}-prompt", "prompt_card", dict(WORKFLOW_PROMPT), label="PROMPT", meta=meta,
                              text=_text(on_screen.get("prompt_text")), motion="slide_up", at=0.2))
-    elements.insert(0, _element(f"{key}-rail", "rail", _box(RAIL_ROW, y=190, h=48), persist=True,
+    elements.insert(0, _element(f"{key}-rail", "rail", _box(RAIL_ROW, h=48), persist=True,
                                 label=_text(spec.get("rail_label")) or "Workflow",
                                 timer="remaining" if spec.get("timer") == "remaining" else None, chips=[], active=0,
                                 timeline=False))

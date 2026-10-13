@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from platforms import VERTICAL, fit_host  # noqa: E402
 from reel import ffmpeg_bin  # noqa: E402
 
 FONT_FILE = "/System/Library/Fonts/Avenir Next.ttc"
@@ -54,10 +55,36 @@ HOST_LEFT = 8
 HOST_FOOT = 1460
 HOST_WIDTH = 400
 TEXT_COLUMN = {"x": 580, "y": 470, "w": 350, "h": 780}
-WIDE_POSES = {"present", "reach", "point", "point_viewer", "push", "pinch", "toss"}
-RAIL_BOX = {"x": 64, "y": 190, "w": 866, "h": 100}
-LOWER_BOX = {"x": 40, "y": 1330, "w": 890, "h": 170}
+RAIL_BOX = {
+    "x": VERTICAL.safe_left, "y": VERTICAL.safe_top,
+    "w": VERTICAL.safe_right - VERTICAL.safe_left, "h": 100,
+}
+LOWER_BOX = {
+    "x": VERTICAL.safe_left, "y": 1330,
+    "w": VERTICAL.safe_right - VERTICAL.safe_left, "h": 170,
+}
 STAGE_TYPES = ("card", "text", "bubble", "slots", "token", "lens", "title", "prompt_card")
+
+
+def _fitted_host() -> tuple[int, int]:
+    """Anchor and width that keep every standing pose inside the Reel safe area and left of the type."""
+    library = load_pose_library()
+    left, right = 10**9, 0
+    for name, (image, _anchors) in library.items():
+        if str(name).startswith("walk"):
+            continue
+        bounds = image.getchannel("A").point(lambda value: 255 if value > 40 else 0).getbbox()
+        if not bounds:
+            continue
+        left, right = min(left, bounds[0]), max(right, bounds[2])
+    if right <= left:
+        return HOST_LEFT, HOST_WIDTH
+    host_w, origin = fit_host(
+        [(left, right)], VERTICAL.safe_left, TEXT_COLUMN["x"] - 16, FIGURE_WIDTH, HOST_WIDTH,
+    )
+    scale = host_w / FIGURE_WIDTH
+    anchor = round(origin + (POSE_HEAD[0] - FIGURE_WIDTH / 2) * scale)
+    return anchor, host_w
 
 
 def _stage_explainer(scenes: list) -> list:
@@ -80,8 +107,8 @@ def _stage_explainer(scenes: list) -> list:
                   if element.get("type") not in ("character", "rail", "lower_third") and element not in words]
         if host:
             host = dict(host)
-            left = HOST_LEFT - (90 if (host.get("pose") or "neutral") in WIDE_POSES else 0)
-            host["box"] = {"x": left, "y": 0, "w": HOST_WIDTH, "h": 900}
+            left, width = _fitted_host()
+            host["box"] = {"x": left, "y": 0, "w": width, "h": 900}
             host["foot_y"] = HOST_FOOT
             host["enter_at"] = 0.0
             host["enter_duration"] = 0.01
@@ -243,11 +270,9 @@ def render_explainer(payload: dict, make_host=None) -> dict:
         return {"ok": False, "error": (detail[-1] if detail else "ffmpeg could not render the explainer.")[:240]}
     cover = out.with_name("cover.jpg")
     try:
+        sprites = prepared[0][2] if prepared else []
         cover_frame = _opening_still(
-            width, height, colors, radius,
-            prepared[0][2] if prepared else [],
-            prepared[0][5] if prepared else None,
-            hook_element,
+            width, height, colors, radius, sprites, None, _first_hook(sprites),
         )
         cover_frame.convert("RGB").save(cover, quality=90)
     except OSError:
@@ -1284,7 +1309,7 @@ def _draw_rail(sprite: Image.Image, element: dict, colors: dict, pad: int, w: in
 def _rail_frame(sprite: Image.Image, element: dict, colors: dict, t: float) -> Image.Image:
     geometry = element.get("_rail") or {}
     total = float(element.get("_total") or 0)
-    if not total or not (element.get("timer") or geometry.get("line")):
+    if not total or not (element.get("timer") or geometry.get("line")) or "right" not in geometry:
         return sprite
     image = sprite.copy()
     draw = ImageDraw.Draw(image)

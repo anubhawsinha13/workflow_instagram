@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import re
 
+from platforms import INSTAGRAM_FEED
 from research_md import primary_urls
 
-CAPTION_LIMIT = 2200
+CAPTION_LIMIT = INSTAGRAM_FEED.caption_limit
 HASHTAG_LIMIT = 5
 
 

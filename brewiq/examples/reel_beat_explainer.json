@@ -1,0 +1,47 @@
+{
+  "format": "beat_explainer",
+  "topic": "How an AI agent decides which tool to use",
+  "title": "How does an AI agent pick a tool?",
+  "timer": "none",
+  "hook": "How agents pick their tools",
+  "disclosure": "Illustrations are AI-generated concept art, not product screenshots.",
+  "caption": "An AI agent reads your request, checks its list of tools, and picks the one that fits. Save this for the next time an agent surprises you.\n\nFollow @_brewiq.",
+  "beats": [
+    {
+      "id": "intro",
+      "role": "intro",
+      "voice": "Ask an AI agent to do something, and it has to choose a tool first.",
+      "lower_third": "An agent has to choose a tool first.",
+      "on_screen": { "headline": "How does an AI agent pick a tool?" },
+      "shot": {
+        "mode": "still",
+        "subject": "scene",
+        "prompt": "A friendly workbench seen from the front with a calendar, a search lens, a calculator and a small envelope laid out as tools, warm light, one glowing cyan highlight on the lens."
+      }
+    },
+    {
+      "id": "problem",
+      "role": "problem",
+      "voice": "It reads your request and matches it against what each tool says it can do.",
+      "lower_third": "It matches your request to tool descriptions.",
+      "on_screen": { "card": "Match request to tool" },
+      "shot": { "mode": "graphics" }
+    },
+    {
+      "id": "use",
+      "role": "use_case",
+      "voice": "Ask about next week, and it reaches for the calendar. Ask for a fact, and it searches.",
+      "lower_third": "Different request, different tool.",
+      "on_screen": { "card": "Next week? Calendar. A fact? Search." },
+      "shot": { "mode": "graphics" }
+    },
+    {
+      "id": "cta",
+      "role": "cta",
+      "voice": "So write your request clearly, and tell it which tool you expect it to use.",
+      "lower_third": "Name the tool you expect it to use.",
+      "on_screen": { "card": "Name the tool" },
+      "shot": { "mode": "graphics" }
+    }
+  ]
+}

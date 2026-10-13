@@ -1,0 +1,338 @@
+{
+  "format": "beat_explainer",
+  "topic": "Twelve ideas for turning a number into a moving chart",
+  "title": "12 ways to make a number move",
+  "timer": "none",
+  "hook": "Make a number move",
+  "caption": "A plain number is easy to skip. A number that moves gets read. Here are twelve simple chart ideas, each one a single sentence you can ask an AI tool to animate.\n\nSave this list for your next slide.\n\nFollow @_brewiq.",
+  "beats": [
+    {
+      "id": "intro",
+      "role": "intro",
+      "voice": "Here are twelve simple ways to make a plain number move.",
+      "lower_third": "Twelve ways to make a number move.",
+      "on_screen": {
+        "tiles": [
+          {
+            "label": "Bars → trend",
+            "glyph": "bars"
+          },
+          {
+            "label": "Visits → sales",
+            "glyph": "arrow"
+          },
+          {
+            "label": "Dots → logo",
+            "glyph": "dots"
+          },
+          {
+            "label": "Click → done",
+            "glyph": "check"
+          },
+          {
+            "label": "Price → plan",
+            "glyph": "card",
+            "value": "$29"
+          },
+          {
+            "label": "Progress → ring",
+            "glyph": "ring",
+            "value": "85%"
+          },
+          {
+            "label": "Line → peak",
+            "glyph": "line"
+          },
+          {
+            "label": "Off → on",
+            "glyph": "toggle"
+          },
+          {
+            "label": "Card → paid",
+            "glyph": "card",
+            "value": "$4,850"
+          },
+          {
+            "label": "Route → pinned",
+            "glyph": "pin"
+          },
+          {
+            "label": "Count → total",
+            "value": "12,480"
+          },
+          {
+            "label": "Goal → hit",
+            "glyph": "check"
+          }
+        ],
+        "headline": "12 ways to make a number move"
+      },
+      "shot": {
+        "mode": "graphics"
+      }
+    },
+    {
+      "id": "bars",
+      "role": "problem",
+      "voice": "Start with bars that grow, so the trend is clear at a glance.",
+      "lower_third": "Bars grow, and the trend shows.",
+      "on_screen": {
+        "tiles": [
+          {
+            "label": "Bars → trend",
+            "glyph": "bars"
+          },
+          {
+            "label": "Visits → sales",
+            "glyph": "arrow"
+          },
+          {
+            "label": "Dots → logo",
+            "glyph": "dots"
+          },
+          {
+            "label": "Click → done",
+            "glyph": "check"
+          },
+          {
+            "label": "Price → plan",
+            "glyph": "card",
+            "value": "$29"
+          },
+          {
+            "label": "Progress → ring",
+            "glyph": "ring",
+            "value": "85%"
+          },
+          {
+            "label": "Line → peak",
+            "glyph": "line"
+          },
+          {
+            "label": "Off → on",
+            "glyph": "toggle"
+          },
+          {
+            "label": "Card → paid",
+            "glyph": "card",
+            "value": "$4,850"
+          },
+          {
+            "label": "Route → pinned",
+            "glyph": "pin"
+          },
+          {
+            "label": "Count → total",
+            "value": "12,480"
+          },
+          {
+            "label": "Goal → hit",
+            "glyph": "check"
+          }
+        ],
+        "tile_focus": 1,
+        "headline": "Bars that grow"
+      },
+      "shot": {
+        "mode": "graphics"
+      }
+    },
+    {
+      "id": "price",
+      "role": "use_case",
+      "voice": "Or show a price turning into a plan, so the choice is easy to see.",
+      "lower_third": "A price becomes a plan.",
+      "on_screen": {
+        "tiles": [
+          {
+            "label": "Bars → trend",
+            "glyph": "bars"
+          },
+          {
+            "label": "Visits → sales",
+            "glyph": "arrow"
+          },
+          {
+            "label": "Dots → logo",
+            "glyph": "dots"
+          },
+          {
+            "label": "Click → done",
+            "glyph": "check"
+          },
+          {
+            "label": "Price → plan",
+            "glyph": "card",
+            "value": "$29"
+          },
+          {
+            "label": "Progress → ring",
+            "glyph": "ring",
+            "value": "85%"
+          },
+          {
+            "label": "Line → peak",
+            "glyph": "line"
+          },
+          {
+            "label": "Off → on",
+            "glyph": "toggle"
+          },
+          {
+            "label": "Card → paid",
+            "glyph": "card",
+            "value": "$4,850"
+          },
+          {
+            "label": "Route → pinned",
+            "glyph": "pin"
+          },
+          {
+            "label": "Count → total",
+            "value": "12,480"
+          },
+          {
+            "label": "Goal → hit",
+            "glyph": "check"
+          }
+        ],
+        "tile_focus": 5,
+        "headline": "A price that becomes a plan"
+      },
+      "shot": {
+        "mode": "graphics"
+      }
+    },
+    {
+      "id": "ring",
+      "role": "proof",
+      "voice": "A ring that fills shows progress without any extra words.",
+      "lower_third": "A ring fills to show progress.",
+      "on_screen": {
+        "tiles": [
+          {
+            "label": "Bars → trend",
+            "glyph": "bars"
+          },
+          {
+            "label": "Visits → sales",
+            "glyph": "arrow"
+          },
+          {
+            "label": "Dots → logo",
+            "glyph": "dots"
+          },
+          {
+            "label": "Click → done",
+            "glyph": "check"
+          },
+          {
+            "label": "Price → plan",
+            "glyph": "card",
+            "value": "$29"
+          },
+          {
+            "label": "Progress → ring",
+            "glyph": "ring",
+            "value": "85%"
+          },
+          {
+            "label": "Line → peak",
+            "glyph": "line"
+          },
+          {
+            "label": "Off → on",
+            "glyph": "toggle"
+          },
+          {
+            "label": "Card → paid",
+            "glyph": "card",
+            "value": "$4,850"
+          },
+          {
+            "label": "Route → pinned",
+            "glyph": "pin"
+          },
+          {
+            "label": "Count → total",
+            "value": "12,480"
+          },
+          {
+            "label": "Goal → hit",
+            "glyph": "check"
+          }
+        ],
+        "tile_focus": 6,
+        "headline": "A ring that fills"
+      },
+      "shot": {
+        "mode": "graphics"
+      }
+    },
+    {
+      "id": "cta",
+      "role": "cta",
+      "voice": "Pick one tile, write it as one sentence, and ask your AI tool to animate it.",
+      "lower_third": "Pick one tile. Write one sentence.",
+      "on_screen": {
+        "tiles": [
+          {
+            "label": "Bars → trend",
+            "glyph": "bars"
+          },
+          {
+            "label": "Visits → sales",
+            "glyph": "arrow"
+          },
+          {
+            "label": "Dots → logo",
+            "glyph": "dots"
+          },
+          {
+            "label": "Click → done",
+            "glyph": "check"
+          },
+          {
+            "label": "Price → plan",
+            "glyph": "card",
+            "value": "$29"
+          },
+          {
+            "label": "Progress → ring",
+            "glyph": "ring",
+            "value": "85%"
+          },
+          {
+            "label": "Line → peak",
+            "glyph": "line"
+          },
+          {
+            "label": "Off → on",
+            "glyph": "toggle"
+          },
+          {
+            "label": "Card → paid",
+            "glyph": "card",
+            "value": "$4,850"
+          },
+          {
+            "label": "Route → pinned",
+            "glyph": "pin"
+          },
+          {
+            "label": "Count → total",
+            "value": "12,480"
+          },
+          {
+            "label": "Goal → hit",
+            "glyph": "check"
+          }
+        ],
+        "headline": "Pick one. Write one sentence."
+      },
+      "shot": {
+        "mode": "graphics"
+      }
+    }
+  ]
+}

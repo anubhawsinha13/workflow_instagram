@@ -132,30 +132,12 @@ def fetch_cover_illustration(visual_idea: str) -> tuple[Image.Image | None, str]
 
 
 def _openai_image(key: str, prompt: str) -> Image.Image | None:
-    try:
-        from openai import OpenAI
-    except ImportError:
-        return None
-    client = OpenAI(api_key=key, timeout=90)
-    for model, size in (("gpt-image-1", "1024x1536"), ("dall-e-3", "1024x1792")):
-        try:
-            result = client.images.generate(model=model, prompt=prompt, size=size, n=1)
-            data = result.data[0]
-            raw = getattr(data, "b64_json", None)
-            if raw:
-                import base64
+    """Use the same gpt-image-2.5 chain as the carousel art. The retired gpt-image-1 and dall-e-3 are not called."""
+    from art import openai_image
 
-                return Image.open(BytesIO(base64.b64decode(raw))).convert("RGB")
-            url = getattr(data, "url", None)
-            if url:
-                import requests
-
-                response = requests.get(url, timeout=60)
-                response.raise_for_status()
-                return Image.open(BytesIO(response.content)).convert("RGB")
-        except Exception:
-            continue
-    return None
+    result = openai_image(prompt)
+    image = result.get("image")
+    return image if result.get("ok") and image is not None else None
 
 
 def _gemini_image(key: str, prompt: str) -> Image.Image | None:

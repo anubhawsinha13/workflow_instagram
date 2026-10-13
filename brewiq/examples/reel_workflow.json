@@ -1,0 +1,50 @@
+{
+  "format": "workflow_reel",
+  "topic": "A three-scene prompt workflow for a short animated clip",
+  "rail_label": "Workflow",
+  "timer": "remaining",
+  "hook": "One prompt per scene",
+  "disclosure": "Scene images are AI-generated stills. The host is the BrewIQ character.",
+  "caption": "Plan the reel scene by scene, and write one clear prompt for each. Save this workflow.\n\nFollow @_brewiq.",
+  "beats": [
+    {
+      "id": "sheet",
+      "role": "intro",
+      "voice": "First, lock your character so every scene uses the same face and outfit.",
+      "lower_third": "Step one: lock your character.",
+      "on_screen": {
+        "card": "Character sheet",
+        "poses": ["neutral", "present", "think", "thumbs_up"],
+        "captions": ["Front", "Presenting", "Thinking", "Happy"],
+        "prompt_text": "Same man, short dark hair, light stubble, black zip hoodie over a charcoal t-shirt, stylized 3D animation."
+      },
+      "shot": { "mode": "graphics" }
+    },
+    {
+      "id": "scene1",
+      "role": "problem",
+      "voice": "Then describe scene one: where he is, what he does, and how the camera moves.",
+      "lower_third": "Step two: describe each scene.",
+      "pose": "present",
+      "on_screen": { "prompt_text": "Scene 1. He walks into a bright studio, stops at a desk, and looks at the camera. Slow push-in, warm light." },
+      "shot": {
+        "mode": "still",
+        "subject": "character",
+        "prompt": "The man stands at a wooden desk in a bright studio with warm light, looking toward the camera with a friendly smile."
+      }
+    },
+    {
+      "id": "scene2",
+      "role": "solution",
+      "voice": "Keep each prompt short and specific, so every scene does exactly one thing.",
+      "lower_third": "One scene, one action.",
+      "pose": "think",
+      "on_screen": { "prompt_text": "Scene 2. He raises one eyebrow and looks at a floating checklist. Static camera, soft background blur." },
+      "shot": {
+        "mode": "still",
+        "subject": "character",
+        "prompt": "The man studies a floating checklist in front of him with one eyebrow raised, soft blurred studio behind him."
+      }
+    }
+  ]
+}

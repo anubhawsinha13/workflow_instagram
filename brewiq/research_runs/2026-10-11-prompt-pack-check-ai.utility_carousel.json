@@ -1,0 +1,809 @@
+{
+  "spec": {
+    "series": "BrewIQ Prompt Pack",
+    "cover_headline": "Don't trust AI. Check it.",
+    "cover_visual": "The BrewIQ host at a navy desk at night, holding up a phone whose glowing answer bubble is being inspected through a floating holographic magnifying lens",
+    "save_reason": "People reuse these prompts every time an AI answer matters, like health, money or school.",
+    "share_reason": "Easy to send to a parent or friend who trusts chatbot answers a little too quickly.",
+    "closing_line": "Save this for the next AI answer you're unsure about.",
+    "search_keywords": [
+      "ChatGPT prompts",
+      "fact check AI",
+      "AI tips"
+    ],
+    "hashtags": [
+      "ChatGPT",
+      "AItips",
+      "FactCheck"
+    ],
+    "items": [
+      {
+        "title": "Find the weak spots",
+        "benefit": "See which claims in an answer need checking",
+        "prompt": "Here is an answer an AI gave me: [PASTE ANSWER]. List every factual claim in it as a numbered list. For each claim, say how confident you are, what would prove it wrong, and what kind of source I should check."
+      },
+      {
+        "title": "Ask for real sources",
+        "benefit": "Get sources you can open and read yourself",
+        "prompt": "For the claim [CLAIM], give me up to three sources I can open myself: name, publisher, date and what each one says. If you aren't sure a source exists, say so instead of guessing."
+      },
+      {
+        "title": "Spot the missing context",
+        "benefit": "Catch answers that are true but misleading",
+        "prompt": "My question was [QUESTION]. What important context, exceptions or recent changes might your answer leave out? Tell me which ones would change the advice for someone in [MY SITUATION]."
+      },
+      {
+        "title": "Argue the other side",
+        "benefit": "Hear the strongest honest case against the answer",
+        "prompt": "Take the opposite position to this answer: [PASTE ANSWER]. Give the strongest honest counter-argument, then tell me which side the evidence supports better and why."
+      },
+      {
+        "title": "Check the numbers",
+        "benefit": "Catch math and unit mistakes before they cost you",
+        "prompt": "Recalculate every number in this answer step by step: [PASTE ANSWER]. Show your working, flag any figure you can't verify, and tell me whether the conclusion still holds."
+      },
+      {
+        "title": "Turn it into questions",
+        "benefit": "Walk into an appointment with the right questions",
+        "prompt": "Based on this answer about [TOPIC], write five short questions I should ask a [PROFESSIONAL] to confirm it applies to me. Keep them plain and specific."
+      }
+    ]
+  },
+  "plan": {
+    "ok": true,
+    "format": "utility_carousel",
+    "topic": "checking an AI answer before you trust it",
+    "series": "BrewIQ Prompt Pack",
+    "size": [
+      1080,
+      1350
+    ],
+    "aspect_ratio": "4:5",
+    "colors": {
+      "background": "#0B1020",
+      "card": "#151C33",
+      "card_border": "#13D8E8",
+      "title": "#F6F8FC",
+      "benefit": "#AEB8CF",
+      "prompt": "#F6F8FC",
+      "placeholder": "#FFB547",
+      "number": "#13D8E8"
+    },
+    "slides": [
+      {
+        "index": 1,
+        "role": "cover",
+        "image_prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. BRAND LOOK — rich, detailed 3D environment with cinematic lighting: midnight-navy (#0B1020) shadows, electric-cyan (#13D8E8) and vibrant-blue (#4169FF) rim and practical lights, warm-amber (#FFB547) accents, clean-white (#F6F8FC) highlights, subtle depth of field. Animated holographic 3D elements may glow and move but never contain text, letters or symbols. No beige or flat backgrounds, no slides, no floating text cards. COVER — The BrewIQ host at a navy desk at night, holding up a phone whose glowing answer bubble is being inspected through a floating holographic magnifying lens. 4:5 vertical still, the host in the lower half, clean negative space in the top 35% for the headline. No readable text, letters, numbers or logos anywhere.",
+        "reference_assets": [
+          "brand/character-reference.png"
+        ],
+        "layers": [
+          {
+            "type": "headline",
+            "text": "Don't trust AI. Check it.",
+            "lines": [
+              "Don't trust",
+              "AI. Check it."
+            ],
+            "size": 84,
+            "box": [
+              90,
+              120,
+              900,
+              300
+            ],
+            "color": "#F6F8FC",
+            "plate": "#0B1020"
+          },
+          {
+            "type": "swipe_cue",
+            "text": "6 prompts →",
+            "size": 34,
+            "box": [
+              90,
+              1210,
+              400,
+              60
+            ],
+            "color": "#13D8E8",
+            "plate": "#0B1020"
+          },
+          {
+            "type": "brand",
+            "text": "BrewIQ",
+            "size": 40,
+            "box": [
+              780,
+              1210,
+              210,
+              60
+            ],
+            "color": "#F6F8FC",
+            "plate": "#0B1020"
+          }
+        ]
+      },
+      {
+        "index": 2,
+        "role": "prompt",
+        "number": 1,
+        "title": "1. Find the weak spots",
+        "benefit": "See which claims in an answer need checking",
+        "prompt": "Here is an answer an AI gave me: [PASTE ANSWER]. List every factual claim in it as a numbered list. For each claim, say how confident you are, what would prove it wrong, and what kind of source I should check.",
+        "placeholders": [
+          "[PASTE ANSWER]"
+        ],
+        "layers": [
+          {
+            "type": "background",
+            "color": "#0B1020",
+            "box": [
+              0,
+              0,
+              1080,
+              1350
+            ]
+          },
+          {
+            "type": "title",
+            "text": "1. Find the weak spots",
+            "size": 56,
+            "box": [
+              90,
+              140,
+              900,
+              150
+            ],
+            "color": "#F6F8FC",
+            "plate": "#0B1020",
+            "lines": [
+              "1. Find the weak spots"
+            ]
+          },
+          {
+            "type": "benefit",
+            "text": "See which claims in an answer need checking",
+            "size": 36,
+            "box": [
+              90,
+              300,
+              900,
+              100
+            ],
+            "color": "#AEB8CF",
+            "plate": "#0B1020",
+            "lines": [
+              "See which claims in an answer need",
+              "checking"
+            ]
+          },
+          {
+            "type": "card",
+            "box": [
+              90,
+              430,
+              900,
+              760
+            ],
+            "fill": "#151C33",
+            "border": "#13D8E8",
+            "radius": 36,
+            "ui": "chat input: '+' bottom-left, mic and send arrow bottom-right"
+          },
+          {
+            "type": "prompt",
+            "text": "Here is an answer an AI gave me: [PASTE ANSWER]. List every factual claim in it as a numbered list. For each claim, say how confident you are, what would prove it wrong, and what kind of source I should check.",
+            "lines": [
+              "Here is an answer an AI gave me: [PASTE",
+              "ANSWER]. List every factual claim in it",
+              "as a numbered list. For each claim, say",
+              "how confident you are, what would prove",
+              "it wrong, and what kind of source I",
+              "should check."
+            ],
+            "size": 34,
+            "box": [
+              90,
+              430,
+              900,
+              760
+            ],
+            "color": "#F6F8FC",
+            "plate": "#151C33",
+            "placeholder_color": "#FFB547",
+            "placeholder_weight": "bold"
+          },
+          {
+            "type": "page",
+            "text": "2/8",
+            "size": 28,
+            "box": [
+              900,
+              60,
+              90,
+              50
+            ],
+            "color": "#AEB8CF",
+            "plate": "#0B1020"
+          }
+        ]
+      },
+      {
+        "index": 3,
+        "role": "prompt",
+        "number": 2,
+        "title": "2. Ask for real sources",
+        "benefit": "Get sources you can open and read yourself",
+        "prompt": "For the claim [CLAIM], give me up to three sources I can open myself: name, publisher, date and what each one says. If you aren't sure a source exists, say so instead of guessing.",
+        "placeholders": [
+          "[CLAIM]"
+        ],
+        "layers": [
+          {
+            "type": "background",
+            "color": "#0B1020",
+            "box": [
+              0,
+              0,
+              1080,
+              1350
+            ]
+          },
+          {
+            "type": "title",
+            "text": "2. Ask for real sources",
+            "size": 56,
+            "box": [
+              90,
+              140,
+              900,
+              150
+            ],
+            "color": "#F6F8FC",
+            "plate": "#0B1020",
+            "lines": [
+              "2. Ask for real sources"
+            ]
+          },
+          {
+            "type": "benefit",
+            "text": "Get sources you can open and read yourself",
+            "size": 36,
+            "box": [
+              90,
+              300,
+              900,
+              100
+            ],
+            "color": "#AEB8CF",
+            "plate": "#0B1020",
+            "lines": [
+              "Get sources you can open and read",
+              "yourself"
+            ]
+          },
+          {
+            "type": "card",
+            "box": [
+              90,
+              430,
+              900,
+              760
+            ],
+            "fill": "#151C33",
+            "border": "#13D8E8",
+            "radius": 36,
+            "ui": "chat input: '+' bottom-left, mic and send arrow bottom-right"
+          },
+          {
+            "type": "prompt",
+            "text": "For the claim [CLAIM], give me up to three sources I can open myself: name, publisher, date and what each one says. If you aren't sure a source exists, say so instead of guessing.",
+            "lines": [
+              "For the claim [CLAIM], give me up to",
+              "three sources I can open myself: name,",
+              "publisher, date and what each one says.",
+              "If you aren't sure a source exists, say",
+              "so instead of guessing."
+            ],
+            "size": 34,
+            "box": [
+              90,
+              430,
+              900,
+              760
+            ],
+            "color": "#F6F8FC",
+            "plate": "#151C33",
+            "placeholder_color": "#FFB547",
+            "placeholder_weight": "bold"
+          },
+          {
+            "type": "page",
+            "text": "3/8",
+            "size": 28,
+            "box": [
+              900,
+              60,
+              90,
+              50
+            ],
+            "color": "#AEB8CF",
+            "plate": "#0B1020"
+          }
+        ]
+      },
+      {
+        "index": 4,
+        "role": "prompt",
+        "number": 3,
+        "title": "3. Spot the missing context",
+        "benefit": "Catch answers that are true but misleading",
+        "prompt": "My question was [QUESTION]. What important context, exceptions or recent changes might your answer leave out? Tell me which ones would change the advice for someone in [MY SITUATION].",
+        "placeholders": [
+          "[QUESTION]",
+          "[MY SITUATION]"
+        ],
+        "layers": [
+          {
+            "type": "background",
+            "color": "#0B1020",
+            "box": [
+              0,
+              0,
+              1080,
+              1350
+            ]
+          },
+          {
+            "type": "title",
+            "text": "3. Spot the missing context",
+            "size": 56,
+            "box": [
+              90,
+              140,
+              900,
+              150
+            ],
+            "color": "#F6F8FC",
+            "plate": "#0B1020",
+            "lines": [
+              "3. Spot the missing",
+              "context"
+            ]
+          },
+          {
+            "type": "benefit",
+            "text": "Catch answers that are true but misleading",
+            "size": 36,
+            "box": [
+              90,
+              300,
+              900,
+              100
+            ],
+            "color": "#AEB8CF",
+            "plate": "#0B1020",
+            "lines": [
+              "Catch answers that are true but",
+              "misleading"
+            ]
+          },
+          {
+            "type": "card",
+            "box": [
+              90,
+              430,
+              900,
+              760
+            ],
+            "fill": "#151C33",
+            "border": "#13D8E8",
+            "radius": 36,
+            "ui": "chat input: '+' bottom-left, mic and send arrow bottom-right"
+          },
+          {
+            "type": "prompt",
+            "text": "My question was [QUESTION]. What important context, exceptions or recent changes might your answer leave out? Tell me which ones would change the advice for someone in [MY SITUATION].",
+            "lines": [
+              "My question was [QUESTION]. What",
+              "important context, exceptions or recent",
+              "changes might your answer leave out?",
+              "Tell me which ones would change the",
+              "advice for someone in [MY SITUATION]."
+            ],
+            "size": 34,
+            "box": [
+              90,
+              430,
+              900,
+              760
+            ],
+            "color": "#F6F8FC",
+            "plate": "#151C33",
+            "placeholder_color": "#FFB547",
+            "placeholder_weight": "bold"
+          },
+          {
+            "type": "page",
+            "text": "4/8",
+            "size": 28,
+            "box": [
+              900,
+              60,
+              90,
+              50
+            ],
+            "color": "#AEB8CF",
+            "plate": "#0B1020"
+          }
+        ]
+      },
+      {
+        "index": 5,
+        "role": "prompt",
+        "number": 4,
+        "title": "4. Argue the other side",
+        "benefit": "Hear the strongest honest case against the answer",
+        "prompt": "Take the opposite position to this answer: [PASTE ANSWER]. Give the strongest honest counter-argument, then tell me which side the evidence supports better and why.",
+        "placeholders": [
+          "[PASTE ANSWER]"
+        ],
+        "layers": [
+          {
+            "type": "background",
+            "color": "#0B1020",
+            "box": [
+              0,
+              0,
+              1080,
+              1350
+            ]
+          },
+          {
+            "type": "title",
+            "text": "4. Argue the other side",
+            "size": 56,
+            "box": [
+              90,
+              140,
+              900,
+              150
+            ],
+            "color": "#F6F8FC",
+            "plate": "#0B1020",
+            "lines": [
+              "4. Argue the other side"
+            ]
+          },
+          {
+            "type": "benefit",
+            "text": "Hear the strongest honest case against the answer",
+            "size": 36,
+            "box": [
+              90,
+              300,
+              900,
+              100
+            ],
+            "color": "#AEB8CF",
+            "plate": "#0B1020",
+            "lines": [
+              "Hear the strongest honest case against",
+              "the answer"
+            ]
+          },
+          {
+            "type": "card",
+            "box": [
+              90,
+              430,
+              900,
+              760
+            ],
+            "fill": "#151C33",
+            "border": "#13D8E8",
+            "radius": 36,
+            "ui": "chat input: '+' bottom-left, mic and send arrow bottom-right"
+          },
+          {
+            "type": "prompt",
+            "text": "Take the opposite position to this answer: [PASTE ANSWER]. Give the strongest honest counter-argument, then tell me which side the evidence supports better and why.",
+            "lines": [
+              "Take the opposite position to this",
+              "answer: [PASTE ANSWER]. Give the",
+              "strongest honest counter-argument, then",
+              "tell me which side the evidence supports",
+              "better and why."
+            ],
+            "size": 34,
+            "box": [
+              90,
+              430,
+              900,
+              760
+            ],
+            "color": "#F6F8FC",
+            "plate": "#151C33",
+            "placeholder_color": "#FFB547",
+            "placeholder_weight": "bold"
+          },
+          {
+            "type": "page",
+            "text": "5/8",
+            "size": 28,
+            "box": [
+              900,
+              60,
+              90,
+              50
+            ],
+            "color": "#AEB8CF",
+            "plate": "#0B1020"
+          }
+        ]
+      },
+      {
+        "index": 6,
+        "role": "prompt",
+        "number": 5,
+        "title": "5. Check the numbers",
+        "benefit": "Catch math and unit mistakes before they cost you",
+        "prompt": "Recalculate every number in this answer step by step: [PASTE ANSWER]. Show your working, flag any figure you can't verify, and tell me whether the conclusion still holds.",
+        "placeholders": [
+          "[PASTE ANSWER]"
+        ],
+        "layers": [
+          {
+            "type": "background",
+            "color": "#0B1020",
+            "box": [
+              0,
+              0,
+              1080,
+              1350
+            ]
+          },
+          {
+            "type": "title",
+            "text": "5. Check the numbers",
+            "size": 56,
+            "box": [
+              90,
+              140,
+              900,
+              150
+            ],
+            "color": "#F6F8FC",
+            "plate": "#0B1020",
+            "lines": [
+              "5. Check the numbers"
+            ]
+          },
+          {
+            "type": "benefit",
+            "text": "Catch math and unit mistakes before they cost you",
+            "size": 36,
+            "box": [
+              90,
+              300,
+              900,
+              100
+            ],
+            "color": "#AEB8CF",
+            "plate": "#0B1020",
+            "lines": [
+              "Catch math and unit mistakes before they",
+              "cost you"
+            ]
+          },
+          {
+            "type": "card",
+            "box": [
+              90,
+              430,
+              900,
+              760
+            ],
+            "fill": "#151C33",
+            "border": "#13D8E8",
+            "radius": 36,
+            "ui": "chat input: '+' bottom-left, mic and send arrow bottom-right"
+          },
+          {
+            "type": "prompt",
+            "text": "Recalculate every number in this answer step by step: [PASTE ANSWER]. Show your working, flag any figure you can't verify, and tell me whether the conclusion still holds.",
+            "lines": [
+              "Recalculate every number in this answer",
+              "step by step: [PASTE ANSWER]. Show your",
+              "working, flag any figure you can't",
+              "verify, and tell me whether the",
+              "conclusion still holds."
+            ],
+            "size": 34,
+            "box": [
+              90,
+              430,
+              900,
+              760
+            ],
+            "color": "#F6F8FC",
+            "plate": "#151C33",
+            "placeholder_color": "#FFB547",
+            "placeholder_weight": "bold"
+          },
+          {
+            "type": "page",
+            "text": "6/8",
+            "size": 28,
+            "box": [
+              900,
+              60,
+              90,
+              50
+            ],
+            "color": "#AEB8CF",
+            "plate": "#0B1020"
+          }
+        ]
+      },
+      {
+        "index": 7,
+        "role": "prompt",
+        "number": 6,
+        "title": "6. Turn it into questions",
+        "benefit": "Walk into an appointment with the right questions",
+        "prompt": "Based on this answer about [TOPIC], write five short questions I should ask a [PROFESSIONAL] to confirm it applies to me. Keep them plain and specific.",
+        "placeholders": [
+          "[TOPIC]",
+          "[PROFESSIONAL]"
+        ],
+        "layers": [
+          {
+            "type": "background",
+            "color": "#0B1020",
+            "box": [
+              0,
+              0,
+              1080,
+              1350
+            ]
+          },
+          {
+            "type": "title",
+            "text": "6. Turn it into questions",
+            "size": 56,
+            "box": [
+              90,
+              140,
+              900,
+              150
+            ],
+            "color": "#F6F8FC",
+            "plate": "#0B1020",
+            "lines": [
+              "6. Turn it into questions"
+            ]
+          },
+          {
+            "type": "benefit",
+            "text": "Walk into an appointment with the right questions",
+            "size": 36,
+            "box": [
+              90,
+              300,
+              900,
+              100
+            ],
+            "color": "#AEB8CF",
+            "plate": "#0B1020",
+            "lines": [
+              "Walk into an appointment with the right",
+              "questions"
+            ]
+          },
+          {
+            "type": "card",
+            "box": [
+              90,
+              430,
+              900,
+              760
+            ],
+            "fill": "#151C33",
+            "border": "#13D8E8",
+            "radius": 36,
+            "ui": "chat input: '+' bottom-left, mic and send arrow bottom-right"
+          },
+          {
+            "type": "prompt",
+            "text": "Based on this answer about [TOPIC], write five short questions I should ask a [PROFESSIONAL] to confirm it applies to me. Keep them plain and specific.",
+            "lines": [
+              "Based on this answer about [TOPIC],",
+              "write five short questions I should ask",
+              "a [PROFESSIONAL] to confirm it applies",
+              "to me. Keep them plain and specific."
+            ],
+            "size": 34,
+            "box": [
+              90,
+              430,
+              900,
+              760
+            ],
+            "color": "#F6F8FC",
+            "plate": "#151C33",
+            "placeholder_color": "#FFB547",
+            "placeholder_weight": "bold"
+          },
+          {
+            "type": "page",
+            "text": "7/8",
+            "size": 28,
+            "box": [
+              900,
+              60,
+              90,
+              50
+            ],
+            "color": "#AEB8CF",
+            "plate": "#0B1020"
+          }
+        ]
+      },
+      {
+        "index": 8,
+        "role": "closing",
+        "layers": [
+          {
+            "type": "closing",
+            "text": "Save this for the next AI answer you're unsure about.",
+            "size": 56,
+            "box": [
+              90,
+              420,
+              900,
+              300
+            ],
+            "color": "#F6F8FC",
+            "plate": "#0B1020",
+            "lines": [
+              "Save this for the next AI",
+              "answer you're unsure",
+              "about."
+            ]
+          },
+          {
+            "type": "brand",
+            "text": "BrewIQ",
+            "size": 48,
+            "box": [
+              90,
+              1180,
+              300,
+              80
+            ],
+            "color": "#F6F8FC",
+            "plate": "#0B1020"
+          }
+        ]
+      }
+    ],
+    "caption": "Don't trust AI. Check it.\n\n6 copy-and-paste prompts: checking an AI answer before you trust it. Swap the [BRACKETS] for your details.\n\n1. Find the weak spots\n2. Ask for real sources\n3. Spot the missing context\n4. Argue the other side\n5. Check the numbers\n6. Turn it into questions\n\nSave this for the next AI answer you're unsure about.\n\nChatGPT prompts · fact check AI · AI tips\n\n#ChatGPT #AItips #FactCheck",
+    "hashtags": [
+      "#ChatGPT",
+      "#AItips",
+      "#FactCheck"
+    ],
+    "search_keywords": [
+      "ChatGPT prompts",
+      "fact check AI",
+      "AI tips"
+    ],
+    "save_reason": "People reuse these prompts every time an AI answer matters, like health, money or school.",
+    "share_reason": "Easy to send to a parent or friend who trusts chatbot answers a little too quickly.",
+    "audio": "Optional: add a track from Instagram's licensed library in the app; never a ripped file.",
+    "nothing_posted": true,
+    "problems": [],
+    "status": "planned"
+  }
+}

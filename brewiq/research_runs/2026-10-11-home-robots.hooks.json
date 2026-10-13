@@ -1,0 +1,92 @@
+{
+  "evaluations": [
+    {
+      "approach": "curiosity_gap",
+      "text": "Would you leave THIS robot home alone?",
+      "scores": {
+        "curiosity": 9,
+        "clarity": 9,
+        "relatability": 9,
+        "visual_potential": 9
+      },
+      "accuracy": "supported",
+      "supported_by": [
+        0,
+        1
+      ],
+      "why": "A personal question the reel actually answers; pairs with a robot already mid-chore in frame one."
+    },
+    {
+      "approach": "surprising_fact",
+      "text": "This robot finished the job in 56% of homes.",
+      "scores": {
+        "curiosity": 8,
+        "clarity": 9,
+        "relatability": 7,
+        "visual_potential": 7
+      },
+      "accuracy": "partial",
+      "accuracy_note": "56% is the share of trials, not of homes, and it is Figure's own evaluation.",
+      "supported_by": [
+        1
+      ],
+      "why": "Strong number, but misstates what the 56% measures."
+    },
+    {
+      "approach": "everyday_problem",
+      "text": "Hate folding laundry? A robot just did it in strangers' homes.",
+      "scores": {
+        "curiosity": 7,
+        "clarity": 8,
+        "relatability": 9,
+        "visual_potential": 8
+      },
+      "accuracy": "partial",
+      "accuracy_note": "Figure tested towels, not general laundry, and finished the whole task in only 56% of trials.",
+      "supported_by": [
+        0
+      ],
+      "why": "Relatable, but overstates both the chore and the success."
+    },
+    {
+      "approach": "future_implication",
+      "text": "Home robots are coming. Who's watching through their eyes?",
+      "scores": {
+        "curiosity": 8,
+        "clarity": 7,
+        "relatability": 7,
+        "visual_potential": 6
+      },
+      "accuracy": "partial",
+      "accuracy_note": "Implies constant remote watching; 1X's Expert is scheduled for chores NEO doesn't know, and NEO is autonomous by default.",
+      "supported_by": [
+        4
+      ],
+      "why": "Provocative, but it frames an opt-in feature as surveillance."
+    },
+    {
+      "approach": "contrarian",
+      "text": "The impressive part isn't the folding. It's the retry.",
+      "scores": {
+        "curiosity": 7,
+        "clarity": 6,
+        "relatability": 6,
+        "visual_potential": 8
+      },
+      "accuracy": "supported",
+      "supported_by": [
+        3
+      ],
+      "why": "Accurate and visual, but needs context the viewer doesn't have at 0s."
+    }
+  ],
+  "opening_visual": {
+    "first_frame": "A humanoid robot's hands snap a white towel open over a low walnut coffee table in a sunlit living room; the towel is already in motion in frame one.",
+    "action": "The robot folds the towel in half by 1.0s and lays it on a stack; the front door behind it swings open at 1.8s and the host steps in at 2.4s.",
+    "camera": "Low tracking dolly gliding past the coffee table toward the robot's hands from frame one, rising slightly as the door opens.",
+    "on_screen_text": "Leave THIS robot home alone?",
+    "narration": "Would you leave this robot home alone?",
+    "character_in_first_frame": false,
+    "why": "The robot doing a chore is the hook; the host arrives as the viewer's stand-in, walking in on it."
+  }
+}

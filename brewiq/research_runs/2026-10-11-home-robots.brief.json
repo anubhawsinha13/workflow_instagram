@@ -1,0 +1,126 @@
+{
+  "run_type": "remake",
+  "run_note": "Remake of the household-robot reel requested on 2026-10-11. Not a daily-news pick: the newest primary source (Figure, 2026-09-17) is older than the 7-day research window, so this brief did not go through research_agent.select_winner. Facts were re-verified against the primary pages on 2026-10-11.",
+  "selected_topic": "Would you trust a robot home alone? What home humanoids have actually shown",
+  "source": {
+    "primary_source_url": "https://www.figure.ai/news/helix-2-5-zero-shot-30-home-generalization",
+    "event_date": "2026-09-17",
+    "publication_date": "2026-09-17",
+    "freshness": "evergreen_remake"
+  },
+  "secondary_sources": [
+    "https://www.1x.tech/neo",
+    "https://www.1x.tech/discover/neo-home-robot"
+  ],
+  "verified_facts": [
+    "Figure (Sept 17, 2026): Helix 2.5 was tested in 30 Bay Area homes with no data collected in any of them, on three chores: tidying a living room, folding towels and making a bed.",
+    "Figure: the robot completed the entire task in 56% of zero-shot trials (9% for a policy trained from scratch). No partial credit; a safety intervention counted as a failure.",
+    "Figure: 'zero-shot' refers to the homes and the objects handled; the chores were specified with fine-tuning data collected elsewhere.",
+    "Figure: Helix 2.5 self-corrects, stepping back to reposition, changing stance or moving around a bed to fix a fold.",
+    "1X NEO page: 'NEO works autonomously by default. For any chore it doesn't know, you can schedule a 1X Expert to guide it'; the Expert can remotely supervise its actions at scheduled times.",
+    "1X (Oct 28, 2025): NEO pre-orders at $20,000 Early Access or $499/month, first orders shipping to homes in 2026; from day one it opens doors, fetches items and turns off lights, and learns more skills over time."
+  ],
+  "can_do_today": "In Figure's own test, a humanoid finished whole household chores in unfamiliar homes about half the time. 1X sells NEO with optional remote human help for chores it doesn't know.",
+  "limitations": [
+    "Figure's 56% comes from Figure's own evaluation, not an independent test.",
+    "'Never seen' applies to the homes and objects; the three chores were trained on data collected elsewhere.",
+    "1X says NEO works autonomously by default; the remote 1X Expert is scheduled for chores NEO doesn't know.",
+    "Figure's robot and 1X's NEO are different robots from different companies; the robot in this reel is an illustration of neither."
+  ],
+  "speculative": [
+    "When home humanoids will be reliable enough to leave unsupervised.",
+    "Whether NEO has reached paying customers yet (1X says 2026 deliveries; not independently confirmed).",
+    "How often NEO owners will need the remote Expert."
+  ],
+  "reel_potential": {
+    "scores": {
+      "curiosity": 9,
+      "relatability": 9,
+      "visual_potential": 10,
+      "surprise": 8,
+      "shareability": 8,
+      "timeliness": 5
+    }
+  },
+  "hooks": [
+    {
+      "approach": "curiosity_gap",
+      "text": "Would you leave THIS robot home alone?"
+    },
+    {
+      "approach": "surprising_fact",
+      "text": "This robot finished the job in 56% of homes."
+    },
+    {
+      "approach": "everyday_problem",
+      "text": "Hate folding laundry? A robot just did it in strangers' homes."
+    },
+    {
+      "approach": "future_implication",
+      "text": "Home robots are coming. Who's watching through their eyes?"
+    },
+    {
+      "approach": "contrarian",
+      "text": "The impressive part isn't the folding. It's the retry."
+    }
+  ],
+  "human_story": {
+    "surprise": "Home robots can now do chores in homes they've never seen, but not every time, and one of them can hand the controls to a remote human.",
+    "who_is_affected": "Anyone who has imagined coming home to the chores already done.",
+    "why_care": "'Home alone' is the real promise, and it depends on reliability and on who else is in the loop.",
+    "everyday_situation": "Walking in the door after work and finding the laundry folded.",
+    "most_compelling_fact": "Whole job done in 56% of tries, in Figure's own 30-home test.",
+    "viewer_question": "Would I trust it alone in my home, and is it ever really alone?",
+    "scroll_stop_visual": "A humanoid robot snapping a towel open in a sunlit living room."
+  },
+  "everyday_angle": "Coming home to chores done, and deciding who you let in to do them.",
+  "key_visual_moment": "A toy slips from the robot's hand, it steps back, re-grips and finishes the job.",
+  "suggested_style": "cinematic_3d",
+  "share_reason": "Sent with 'would you get one?' The 56% and the remote-human twist give people something to argue about.",
+  "winning_hook": {
+    "approach": "curiosity_gap",
+    "text": "Would you leave THIS robot home alone?",
+    "why": "A personal question the reel actually answers; pairs with a robot already mid-chore in frame one."
+  },
+  "opening_visual": {
+    "first_frame": "A humanoid robot's hands snap a white towel open over a low walnut coffee table in a sunlit living room; the towel is already in motion in frame one.",
+    "action": "The robot folds the towel in half by 1.0s and lays it on a stack; the front door behind it swings open at 1.8s and the host steps in at 2.4s.",
+    "camera": "Low tracking dolly gliding past the coffee table toward the robot's hands from frame one, rising slightly as the door opens.",
+    "on_screen_text": "Leave THIS robot home alone?",
+    "narration": "Would you leave this robot home alone?",
+    "character_in_first_frame": false,
+    "why": "The robot doing a chore is the hook; the host arrives as the viewer's stand-in, walking in on it."
+  },
+  "hook_ranking": [
+    {
+      "approach": "curiosity_gap",
+      "text": "Would you leave THIS robot home alone?",
+      "score": 9.0,
+      "eligible": true
+    },
+    {
+      "approach": "contrarian",
+      "text": "The impressive part isn't the folding. It's the retry.",
+      "score": 6.75,
+      "eligible": true
+    },
+    {
+      "approach": "everyday_problem",
+      "text": "Hate folding laundry? A robot just did it in strangers' homes.",
+      "score": 8.0,
+      "eligible": false
+    },
+    {
+      "approach": "surprising_fact",
+      "text": "This robot finished the job in 56% of homes.",
+      "score": 7.75,
+      "eligible": false
+    },
+    {
+      "approach": "future_implication",
+      "text": "Home robots are coming. Who's watching through their eyes?",
+      "score": 7.0,
+      "eligible": false
+    }
+  ]
+}

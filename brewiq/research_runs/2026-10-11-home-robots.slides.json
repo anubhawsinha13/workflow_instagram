@@ -1,0 +1,200 @@
+{
+  "headlines": {
+    "hook": "Leave THIS robot home alone?",
+    "point": "30 homes it had never seen",
+    "try_it": "Towels · beds · toys",
+    "limitation": "Figure's own test: 56% success",
+    "takeaway": "1X NEO: remote human help",
+    "question": "So who's really home?"
+  },
+  "plan": {
+    "ok": true,
+    "format": "slides",
+    "topic": "Would you trust a robot home alone? What home humanoids have actually shown",
+    "aspect_ratio": "4:5",
+    "size": "1080×1350",
+    "label": "Illustrative animation",
+    "hook": "Would you leave THIS robot home alone?",
+    "environment_lock": "SET LOCK — one consistent modern apartment at blue hour in every shot: deep midnight-navy walls, dark walnut and graphite furniture, warm amber practical lamps, electric-cyan shelf and under-cabinet strip lights, vibrant-blue city glow through a tall window, glossy floor reflections, detailed lived-in objects.",
+    "typography": {
+      "frame_rule": "FRAME RULE — 4:5 carousel still: keep clean negative space in the top 25% with every head and face below it; keep the bottom 15% free of key detail.",
+      "rules": [
+        "One bold headline per slide (max 6 words, 2 lines at 84px), top safe band (y 110–420px), white on a midnight-navy plate, composited as the top layer.",
+        "Never place text over a face or head; the frame rule keeps the top band clear.",
+        "Small 'Illustrative animation' tag bottom-left on every slide."
+      ]
+    },
+    "slides": [
+      {
+        "index": 1,
+        "role": "Hook",
+        "frame": "Low-angle action close-up",
+        "moment": "A toy slips from the robot's hand, it steps back, re-grips and finishes the job, caught mid-action",
+        "character_action": "The host is at the edge of frame, mid-stride, just arriving.",
+        "headline": {
+          "text": "Leave THIS robot home alone?",
+          "lines": [
+            "Leave THIS robot",
+            "home alone?"
+          ],
+          "size": 84,
+          "placement": "top_safe",
+          "layer": "above_all"
+        },
+        "fact_basis": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "image_prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. SET LOCK — one consistent modern apartment at blue hour in every shot: deep midnight-navy walls, dark walnut and graphite furniture, warm amber practical lamps, electric-cyan shelf and under-cabinet strip lights, vibrant-blue city glow through a tall window, glossy floor reflections, detailed lived-in objects. BRAND LOOK — rich, detailed 3D environment with cinematic lighting: midnight-navy (#0B1020) shadows, electric-cyan (#13D8E8) and vibrant-blue (#4169FF) rim and practical lights, warm-amber (#FFB547) accents, clean-white (#F6F8FC) highlights, subtle depth of field. Animated holographic 3D elements may glow and move but never contain text, letters or symbols. No beige or flat backgrounds, no slides, no floating text cards. SHOT — Low-angle action close-up. A toy slips from the robot's hand, it steps back, re-grips and finishes the job, caught mid-action. The host is at the edge of frame, mid-stride, just arriving. FRAME RULE — 4:5 carousel still: keep clean negative space in the top 25% with every head and face below it; keep the bottom 15% free of key detail. Cinematic film still captured mid-motion: natural motion blur on moving parts, shallow depth of field, motivated light. No pointing, thumbs-up or waving. No readable text, letters, numbers or logos anywhere.",
+        "alt_text": "Hook: A toy slips from the robot's hand, it steps back, re-grips and finishes the job, caught mid-action. The host is at the edge of frame, mid-stride, just arriving.",
+        "reference_assets": [
+          "brand/character-reference.png"
+        ]
+      },
+      {
+        "index": 2,
+        "role": "Setup",
+        "frame": "Over-the-shoulder from behind the host",
+        "moment": "The subject keeps working while the host takes it in",
+        "character_action": "The host watches, one hand still on the door frame.",
+        "headline": {
+          "text": "30 homes it had never seen",
+          "lines": [
+            "30 homes it had",
+            "never seen"
+          ],
+          "size": 84,
+          "placement": "top_safe",
+          "layer": "above_all"
+        },
+        "fact_basis": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "image_prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. SET LOCK — one consistent modern apartment at blue hour in every shot: deep midnight-navy walls, dark walnut and graphite furniture, warm amber practical lamps, electric-cyan shelf and under-cabinet strip lights, vibrant-blue city glow through a tall window, glossy floor reflections, detailed lived-in objects. BRAND LOOK — rich, detailed 3D environment with cinematic lighting: midnight-navy (#0B1020) shadows, electric-cyan (#13D8E8) and vibrant-blue (#4169FF) rim and practical lights, warm-amber (#FFB547) accents, clean-white (#F6F8FC) highlights, subtle depth of field. Animated holographic 3D elements may glow and move but never contain text, letters or symbols. No beige or flat backgrounds, no slides, no floating text cards. SHOT — Over-the-shoulder from behind the host. The subject keeps working while the host takes it in. The host watches, one hand still on the door frame. FRAME RULE — 4:5 carousel still: keep clean negative space in the top 25% with every head and face below it; keep the bottom 15% free of key detail. Cinematic film still captured mid-motion: natural motion blur on moving parts, shallow depth of field, motivated light. No pointing, thumbs-up or waving. No readable text, letters, numbers or logos anywhere.",
+        "alt_text": "Setup: The subject keeps working while the host takes it in. The host watches, one hand still on the door frame.",
+        "reference_assets": [
+          "brand/character-reference.png"
+        ]
+      },
+      {
+        "index": 3,
+        "role": "How it works",
+        "frame": "Close-up on hands and the device or object",
+        "moment": "The method working up close, step by step",
+        "character_action": "The host tries it himself, leaning in.",
+        "headline": {
+          "text": "Towels · beds · toys",
+          "lines": [
+            "Towels · beds",
+            "toys"
+          ],
+          "size": 84,
+          "placement": "top_safe",
+          "layer": "above_all"
+        },
+        "fact_basis": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "image_prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. SET LOCK — one consistent modern apartment at blue hour in every shot: deep midnight-navy walls, dark walnut and graphite furniture, warm amber practical lamps, electric-cyan shelf and under-cabinet strip lights, vibrant-blue city glow through a tall window, glossy floor reflections, detailed lived-in objects. BRAND LOOK — rich, detailed 3D environment with cinematic lighting: midnight-navy (#0B1020) shadows, electric-cyan (#13D8E8) and vibrant-blue (#4169FF) rim and practical lights, warm-amber (#FFB547) accents, clean-white (#F6F8FC) highlights, subtle depth of field. Animated holographic 3D elements may glow and move but never contain text, letters or symbols. No beige or flat backgrounds, no slides, no floating text cards. SHOT — Close-up on hands and the device or object. The method working up close, step by step. The host tries it himself, leaning in. FRAME RULE — 4:5 carousel still: keep clean negative space in the top 25% with every head and face below it; keep the bottom 15% free of key detail. Cinematic film still captured mid-motion: natural motion blur on moving parts, shallow depth of field, motivated light. No pointing, thumbs-up or waving. No readable text, letters, numbers or logos anywhere.",
+        "alt_text": "How it works: The method working up close, step by step. The host tries it himself, leaning in.",
+        "reference_assets": [
+          "brand/character-reference.png"
+        ]
+      },
+      {
+        "index": 4,
+        "role": "The catch",
+        "frame": "Side-angle medium wide",
+        "moment": "The limit, shown honestly: one step visibly fails",
+        "character_action": "The host winces and half-steps forward.",
+        "headline": {
+          "text": "Figure's own test: 56% success",
+          "lines": [
+            "Figure's own",
+            "test: 56% success"
+          ],
+          "size": 84,
+          "placement": "top_safe",
+          "layer": "above_all"
+        },
+        "fact_basis": [
+          6
+        ],
+        "image_prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. SET LOCK — one consistent modern apartment at blue hour in every shot: deep midnight-navy walls, dark walnut and graphite furniture, warm amber practical lamps, electric-cyan shelf and under-cabinet strip lights, vibrant-blue city glow through a tall window, glossy floor reflections, detailed lived-in objects. BRAND LOOK — rich, detailed 3D environment with cinematic lighting: midnight-navy (#0B1020) shadows, electric-cyan (#13D8E8) and vibrant-blue (#4169FF) rim and practical lights, warm-amber (#FFB547) accents, clean-white (#F6F8FC) highlights, subtle depth of field. Animated holographic 3D elements may glow and move but never contain text, letters or symbols. No beige or flat backgrounds, no slides, no floating text cards. SHOT — Side-angle medium wide. The limit, shown honestly: one step visibly fails. The host winces and half-steps forward. FRAME RULE — 4:5 carousel still: keep clean negative space in the top 25% with every head and face below it; keep the bottom 15% free of key detail. Cinematic film still captured mid-motion: natural motion blur on moving parts, shallow depth of field, motivated light. No pointing, thumbs-up or waving. No readable text, letters, numbers or logos anywhere.",
+        "alt_text": "The catch: The limit, shown honestly: one step visibly fails. The host winces and half-steps forward.",
+        "reference_assets": [
+          "brand/character-reference.png"
+        ]
+      },
+      {
+        "index": 5,
+        "role": "Payoff",
+        "frame": "Low-angle medium shot",
+        "moment": "The result, finished and clear",
+        "character_action": "The host holds up the result, quietly impressed.",
+        "headline": {
+          "text": "1X NEO: remote human help",
+          "lines": [
+            "1X NEO: remote",
+            "human help"
+          ],
+          "size": 84,
+          "placement": "top_safe",
+          "layer": "above_all"
+        },
+        "fact_basis": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "image_prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. SET LOCK — one consistent modern apartment at blue hour in every shot: deep midnight-navy walls, dark walnut and graphite furniture, warm amber practical lamps, electric-cyan shelf and under-cabinet strip lights, vibrant-blue city glow through a tall window, glossy floor reflections, detailed lived-in objects. BRAND LOOK — rich, detailed 3D environment with cinematic lighting: midnight-navy (#0B1020) shadows, electric-cyan (#13D8E8) and vibrant-blue (#4169FF) rim and practical lights, warm-amber (#FFB547) accents, clean-white (#F6F8FC) highlights, subtle depth of field. Animated holographic 3D elements may glow and move but never contain text, letters or symbols. No beige or flat backgrounds, no slides, no floating text cards. SHOT — Low-angle medium shot. The result, finished and clear. The host holds up the result, quietly impressed. FRAME RULE — 4:5 carousel still: keep clean negative space in the top 25% with every head and face below it; keep the bottom 15% free of key detail. Cinematic film still captured mid-motion: natural motion blur on moving parts, shallow depth of field, motivated light. No pointing, thumbs-up or waving. No readable text, letters, numbers or logos anywhere.",
+        "alt_text": "Payoff: The result, finished and clear. The host holds up the result, quietly impressed.",
+        "reference_assets": [
+          "brand/character-reference.png"
+        ]
+      },
+      {
+        "index": 6,
+        "role": "Question",
+        "frame": "Medium close-up, host facing the reader",
+        "moment": "The host asks the reader, the subject finishing behind him",
+        "character_action": "The host turns to camera with a raised eyebrow.",
+        "headline": {
+          "text": "So who's really home?",
+          "lines": [
+            "So who's really",
+            "home?"
+          ],
+          "size": 84,
+          "placement": "top_safe",
+          "layer": "above_all"
+        },
+        "fact_basis": "illustrative: question staging; no new claim",
+        "image_prompt": "CHARACTER LOCK — the BrewIQ host: the man in the reference image, about 30, warm light-brown South Asian skin, short dark wavy hair, dark brown eyes, strong dark eyebrows, light stubble, friendly confident half-smile; plain black quilted jacket with no logo or brand mark; no glasses. Identical face, hair, outfit and proportions to the reference image; never change clothing or colors; natural weight and follow-through in every movement. SET LOCK — one consistent modern apartment at blue hour in every shot: deep midnight-navy walls, dark walnut and graphite furniture, warm amber practical lamps, electric-cyan shelf and under-cabinet strip lights, vibrant-blue city glow through a tall window, glossy floor reflections, detailed lived-in objects. BRAND LOOK — rich, detailed 3D environment with cinematic lighting: midnight-navy (#0B1020) shadows, electric-cyan (#13D8E8) and vibrant-blue (#4169FF) rim and practical lights, warm-amber (#FFB547) accents, clean-white (#F6F8FC) highlights, subtle depth of field. Animated holographic 3D elements may glow and move but never contain text, letters or symbols. No beige or flat backgrounds, no slides, no floating text cards. SHOT — Medium close-up, host facing the reader. The host asks the reader, the subject finishing behind him. The host turns to camera with a raised eyebrow. FRAME RULE — 4:5 carousel still: keep clean negative space in the top 25% with every head and face below it; keep the bottom 15% free of key detail. Cinematic film still captured mid-motion: natural motion blur on moving parts, shallow depth of field, motivated light. No pointing, thumbs-up or waving. No readable text, letters, numbers or logos anywhere.",
+        "alt_text": "Question: The host asks the reader, the subject finishing behind him. The host turns to camera with a raised eyebrow.",
+        "reference_assets": [
+          "brand/character-reference.png"
+        ]
+      }
+    ],
+    "caption": "Would you leave THIS robot home alone? Figure's 56% comes from Figure's own evaluation, not an independent test. 'Never seen' applies to the homes and objects; the three chores were trained on data collected elsewhere. 1X says NEO works autonomously by default; the remote 1X Expert is scheduled for chores NEO doesn't know. Figure's robot and 1X's NEO are different robots from different companies; the robot in this reel is an illustration of neither. Source: https://www.figure.ai/news/helix-2-5-zero-shot-30-home-generalization. Illustrative animation.",
+    "slide_problems": []
+  }
+}

@@ -1,8 +1,9 @@
 """Canvas, safe area, and caption limits for every surface BrewIQ can publish.
 
-One script can become several files. Each file is checked against the surface it
-is for. Numbers are the 2026 posting rules gathered on 2026-10-13. Where two
-sources disagreed, the stricter limit is the one enforced.
+One script becomes five files. Thirteen platforms share those files. The ratios
+are the one-post diagram: 4:5, 16:9, 1:1, 9:16, and 2:3. Caption limits are the
+2026 posting rules gathered on 2026-10-13. Where two sources disagreed, the
+stricter limit is the one enforced.
 
 Instagram feed and grid: https://posteverywhere.ai/blog/instagram-aspect-ratios
 Instagram carousel: https://carouselpost.io/guides/instagram-carousel-size
@@ -53,115 +54,96 @@ def _box(platform: str, name: str, kind: str, width: int, height: int,
     )
 
 
-# Reel playback covers the top 220px, the bottom 420px, and the right 120px.
-# The profile grid keeps the centre 1080×1440, which starts at y 240.
-# The box below is the overlap of those two, so a cover still reads on the grid.
-INSTAGRAM_REEL = _box(
-    "instagram", "reel", "video", 1080, 1920, 64, 250, 120, 420,
-    caption_limit=2200, caption_visible=125, max_seconds=90,
-    note="9:16. Hook and host inside the centre 3:4. Same master fits a Facebook Reel.",
-)
-INSTAGRAM_STORY = _box(
-    "instagram", "story", "video", 1080, 1920, 64, 250, 64, 250,
-    caption_limit=0, caption_visible=0, max_seconds=60,
-    note="Same canvas as a Reel. The reply bar covers the bottom 250px.",
-)
-INSTAGRAM_FEED = _box(
-    "instagram", "feed", "image", 1080, 1350, 64, 80, 64, 160,
-    caption_limit=2200, caption_visible=125, max_slides=20,
-    note="4:5 feed default. Every carousel slide uses this size. Slide 1 carries the hook.",
-)
-INSTAGRAM_GRID = _box(
-    "instagram", "grid", "image", 1080, 1440, 64, 72, 64, 120,
-    caption_limit=2200, caption_visible=125, max_slides=20,
-    note="3:4. This is the only feed ratio the profile grid shows without a crop.",
-)
-INSTAGRAM_SQUARE = _box(
-    "instagram", "square", "image", 1080, 1080, 64, 64, 64, 64,
-    caption_limit=2200, caption_visible=125,
-    note="1:1. Use when the same still is also the LinkedIn or Threads image.",
-)
-INSTAGRAM_LANDSCAPE = _box(
-    "instagram", "landscape", "image", 1080, 566, 48, 36, 48, 36,
-    caption_limit=2200, caption_visible=125,
-    note="1.91:1. Widest feed ratio. A 16:9 frame is cropped if it is posted here.",
-)
+def _assign(shape: Surface, platform: str, name: str, **changes) -> Surface:
+    """Same pixels and safe box as the shape. Caption limits belong to the platform."""
+    values = {
+        "id": f"{platform}.{name}",
+        "platform": platform,
+        "kind": shape.kind,
+        "width": shape.width,
+        "height": shape.height,
+        "safe_left": shape.safe_left,
+        "safe_top": shape.safe_top,
+        "safe_right": shape.safe_right,
+        "safe_bottom": shape.safe_bottom,
+        "caption_limit": shape.caption_limit,
+        "caption_visible": shape.caption_visible,
+        "max_seconds": shape.max_seconds,
+        "max_slides": shape.max_slides,
+        "note": shape.note,
+    }
+    values.update(changes)
+    return Surface(**values)
 
-LINKEDIN_FEED = _box(
-    "linkedin", "feed", "image", 1080, 1350, 64, 64, 64, 80,
-    caption_limit=3000, caption_visible=210, max_seconds=600,
-    note="4:5 is the recommended LinkedIn video ratio, and the feed autoplays muted, so the words are on the image.",
+
+# Five frames. Thirteen platforms share them. Ratios match the one-post diagram:
+# 4:5 Instagram, Facebook, Reddit. 16:9 YouTube, Google Business.
+# 1:1 LinkedIn, X, Telegram. 9:16 TikTok, Threads, Discord. 2:3 Pinterest, WhatsApp.
+SHAPE_4_5 = _box(
+    "shape", "4x5", "image", 1080, 1350, 64, 80, 64, 160,
+    caption_limit=2200, caption_visible=125, max_slides=20,
+    note="4:5. Instagram, Facebook, and Reddit.",
 )
-LINKEDIN_LINK = _box(
-    "linkedin", "link", "image", 1200, 627, 40, 36, 40, 36,
+SHAPE_16_9 = _box(
+    "shape", "16x9", "image", 1920, 1080, 64, 64, 64, 64,
+    caption_limit=5000, caption_visible=100,
+    note="16:9. YouTube and Google Business.",
+)
+SHAPE_1_1 = _box(
+    "shape", "1x1", "image", 1080, 1080, 64, 64, 64, 64,
     caption_limit=3000, caption_visible=210,
-    note="1.91:1 link preview. Not the explainer still.",
+    note="1:1. LinkedIn, X, and Telegram.",
 )
-
-X_POST = Surface(
-    id="x.post", platform="x", kind="text", width=0, height=0,
-    safe_left=0, safe_top=0, safe_right=0, safe_bottom=0,
-    caption_limit=280, caption_visible=280,
-    note="The whole post is visible. Keep one claim.",
+# Buttons cover the top, the right edge, and the bottom of a vertical video.
+SHAPE_9_16 = _box(
+    "shape", "9x16", "video", 1080, 1920, 64, 250, 120, 420,
+    caption_limit=2200, caption_visible=125, max_seconds=180,
+    note="9:16. TikTok, Threads, and Discord.",
 )
-X_IMAGE = _box(
-    "x", "image", "image", 1080, 1350, 48, 48, 48, 48,
-    caption_limit=280, caption_visible=280,
-    note="4:5 takes more of the feed than 16:9.",
-)
-X_VIDEO = _box(
-    "x", "video", "video", 1280, 720, 48, 48, 48, 48,
-    caption_limit=280, caption_visible=280, max_seconds=140,
-    note="1280×720 landscape. Portrait uploads use 720×1280.",
-)
-
-THREADS_POST = _box(
-    "threads", "post", "image", 1080, 1080, 64, 64, 64, 64,
-    caption_limit=500, caption_visible=500,
-    note="500 characters, shown in full. Square image.",
-)
-
-YOUTUBE_LONG = _box(
-    "youtube", "long", "video", 1920, 1080, 64, 64, 64, 64,
-    caption_limit=5000, caption_visible=100, max_seconds=0,
-    note="16:9. caption_visible is the title limit. The description limit is caption_limit.",
-)
-YOUTUBE_SHORT = _box(
-    "youtube", "short", "video", 1080, 1920, 64, 250, 120, 400,
-    caption_limit=100, caption_visible=100, max_seconds=180,
-    note="9:16, up to 3 minutes. The title sits over the lower part of the frame.",
-)
-
-TIKTOK = _box(
-    "tiktok", "video", "video", 1080, 1920, 64, 250, 120, 420,
-    caption_limit=2200, caption_visible=80, max_seconds=180,
-    note="Same safe box as an Instagram Reel, so one vertical master can be posted to both.",
-)
-FACEBOOK_REEL = _box(
-    "facebook", "reel", "video", 1080, 1920, 64, 250, 120, 420,
-    caption_limit=2200, caption_visible=125, max_seconds=90,
-    note="Meta's shared 9:16 safe zone. Same box as the Instagram Reel.",
-)
-FACEBOOK_FEED = _box(
-    "facebook", "feed", "image", 1080, 1350, 64, 64, 64, 80,
-    caption_limit=63206, caption_visible=477,
-    note="4:5 feed image. The preview cuts off near 477 characters.",
-)
-PINTEREST = _box(
-    "pinterest", "pin", "image", 1000, 1500, 40, 48, 40, 80,
+SHAPE_2_3 = _box(
+    "shape", "2x3", "image", 1080, 1620, 48, 64, 48, 120,
     caption_limit=800, caption_visible=100,
-    note="2:3 pin. The title has to fit on one line, so caption_visible is that line.",
+    note="2:3. Pinterest and WhatsApp.",
 )
+VERTICAL = SHAPE_9_16
 
-SURFACES = (
-    INSTAGRAM_REEL, INSTAGRAM_STORY, INSTAGRAM_FEED, INSTAGRAM_GRID, INSTAGRAM_SQUARE, INSTAGRAM_LANDSCAPE,
-    LINKEDIN_FEED, LINKEDIN_LINK, X_POST, X_IMAGE, X_VIDEO, THREADS_POST,
-    YOUTUBE_LONG, YOUTUBE_SHORT, TIKTOK, FACEBOOK_REEL, FACEBOOK_FEED, PINTEREST,
+INSTAGRAM_FEED = _assign(SHAPE_4_5, "instagram", "post", max_slides=20, caption_limit=2200, caption_visible=125,
+                         note="4:5. The Instagram file.")
+FACEBOOK = _assign(SHAPE_4_5, "facebook", "post", caption_limit=63206, caption_visible=477,
+                   note="4:5. Same picture as Instagram.")
+REDDIT = _assign(SHAPE_4_5, "reddit", "post", caption_limit=40000, caption_visible=300,
+                 note="4:5. Same picture as Instagram.")
+YOUTUBE = _assign(SHAPE_16_9, "youtube", "video", caption_limit=5000, caption_visible=100,
+                  note="16:9. caption_visible is the title.")
+GOOGLE_BUSINESS = _assign(SHAPE_16_9, "google_business", "post", caption_limit=1500, caption_visible=150,
+                          note="16:9. Same picture as YouTube.")
+LINKEDIN = _assign(SHAPE_1_1, "linkedin", "post", caption_limit=3000, caption_visible=210,
+                   note="1:1. The feed shows about 210 characters.")
+X_POST = _assign(SHAPE_1_1, "x", "post", caption_limit=280, caption_visible=280,
+                 note="1:1. The whole post is visible.")
+TELEGRAM = _assign(SHAPE_1_1, "telegram", "post", caption_limit=1024, caption_visible=200,
+                   note="1:1. Same picture as LinkedIn and X.")
+TIKTOK = _assign(SHAPE_9_16, "tiktok", "video", caption_limit=2200, caption_visible=80,
+                 note="9:16.")
+THREADS = _assign(SHAPE_9_16, "threads", "post", caption_limit=500, caption_visible=500,
+                  note="9:16. 500 characters, shown in full.")
+DISCORD = _assign(SHAPE_9_16, "discord", "post", caption_limit=2000, caption_visible=200,
+                  note="9:16.")
+PINTEREST = _assign(SHAPE_2_3, "pinterest", "pin", caption_limit=800, caption_visible=100,
+                    note="2:3. The title fits on one line.")
+WHATSAPP = _assign(SHAPE_2_3, "whatsapp", "status", caption_limit=700, caption_visible=140,
+                   note="2:3. Same picture as Pinterest.")
+
+SHAPES = (SHAPE_4_5, SHAPE_16_9, SHAPE_1_1, SHAPE_9_16, SHAPE_2_3)
+PLATFORMS = (
+    INSTAGRAM_FEED, FACEBOOK, REDDIT,
+    YOUTUBE, GOOGLE_BUSINESS,
+    LINKEDIN, X_POST, TELEGRAM,
+    TIKTOK, THREADS, DISCORD,
+    PINTEREST, WHATSAPP,
 )
-
-# What one approved explainer produces first. Later surfaces stay in SURFACES
-# so a new file is checked before anyone posts it.
-PACK = (INSTAGRAM_REEL, INSTAGRAM_FEED, INSTAGRAM_SQUARE, INSTAGRAM_LANDSCAPE)
+SURFACES = SHAPES + PLATFORMS
+PACK = SHAPES
 
 BY_ID = {surface.id: surface for surface in SURFACES}
 

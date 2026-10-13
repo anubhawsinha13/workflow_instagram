@@ -24,7 +24,7 @@ from explainer_render import (  # noqa: E402
     FIGURE_WIDTH, MIN_SWATCH_CONTRAST, POSE_FILES, POSE_HEAD, TILE_GLYPHS, contrast_ratio, load_pose_library,
     render_explainer,
 )  # noqa: E402
-from platforms import INSTAGRAM_REEL, fit_host  # noqa: E402
+from platforms import VERTICAL, fit_host  # noqa: E402
 
 FORMATS = ("beat_explainer", "chapter_build", "workflow_reel", "product_shot")
 SHOT_MODES = ("graphics", "pose", "still")
@@ -47,13 +47,13 @@ ROLE_LABELS = {
     "cta": "Call to action",
 }
 
-W, H, FPS = INSTAGRAM_REEL.width, INSTAGRAM_REEL.height, 30
-# Playback buttons and the 3:4 profile-grid crop. See platforms.INSTAGRAM_REEL.
+W, H, FPS = VERTICAL.width, VERTICAL.height, 30
+# 9:16 safe box. TikTok, Threads, and Discord use this frame. See platforms.VERTICAL.
 SAFE = {
-    "left": INSTAGRAM_REEL.safe_left,
-    "right": INSTAGRAM_REEL.safe_right,
-    "top": INSTAGRAM_REEL.safe_top,
-    "bottom": INSTAGRAM_REEL.safe_bottom,
+    "left": VERTICAL.safe_left,
+    "right": VERTICAL.safe_right,
+    "top": VERTICAL.safe_top,
+    "bottom": VERTICAL.safe_bottom,
 }
 LOWER_THIRD_LEFT = SAFE["left"]
 BEAT_PAD = 0.35

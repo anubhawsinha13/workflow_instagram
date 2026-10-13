@@ -1,43 +1,45 @@
 # Platform surfaces
 
-One approved script can become more than one file. Each file is a surface in [`platforms.py`](platforms.py). The safe box is the part a viewer still sees after that platform's own buttons and its profile crop.
+One approved script becomes five files. Thirteen platforms share those files. Each file is composed for its own ratio. A 16:9 frame is not a crop of the 9:16 frame.
 
-Checked on 2026-10-13. Where two guides disagreed, the stricter number is the one in code.
+The ratios are the ones in the one-post diagram. Caption limits are the 2026 posting rules gathered on 2026-10-13. Where two guides disagreed, the stricter number is the one in [`platforms.py`](platforms.py).
 
-## Instagram
-
-| Surface | File | Safe box | Why |
+| Shape | File | Platforms | Safe box |
 |---|---|---|---|
-| Reel | 1080×1920 | x 64–960, y 250–1500 | Buttons cover the top 220px, the right 120px, and the bottom 420px. The profile grid keeps the centre 1080×1440, which starts at y 240. |
-| Story | 1080×1920 | inset 250px top and bottom | The reply bar is not the Reel caption. |
-| Feed carousel | 1080×1350 | x 64–1016, y 80–1190 | 4:5 is the feed default. Slide 1 sets the ratio for every later slide, up to 20. The grid trims about 36px off each side of a 4:5 frame. |
-| Grid-native | 1080×1440 | inset as in code | 3:4 is the only feed ratio the profile grid shows without a crop. |
-| Square | 1080×1080 | 64px inset | Cross-posts to Threads and a LinkedIn still. |
-| Landscape | 1080×566 | 48px and 36px inset | 1.91:1. A 16:9 frame is not this size and gets cropped. |
+| 4:5 | 1080×1350 | Instagram, Facebook, Reddit | x 64–1016, y 80–1190 |
+| 16:9 | 1920×1080 | YouTube, Google Business | 64px inset |
+| 1:1 | 1080×1080 | LinkedIn, X, Telegram | 64px inset |
+| 9:16 | 1080×1920 | TikTok, Threads, Discord | x 64–960, y 250–1500 |
+| 2:3 | 1080×1620 | Pinterest, WhatsApp | x 48–1032, y 64–1500 |
 
-Caption limit is 2,200 characters. The feed shows about the first 125, so the first sentence has to land inside those 125. Hashtags stay at five.
+`PACK` is these five shapes. `post it` names the piece. The Instagram file is the 4:5 frame.
 
-Reels that run past about 90 seconds stop being pushed to people who do not follow the account. The practical length for a hook is under 30 seconds.
+## Why the vertical safe box is smaller
 
-## Other surfaces
+Buttons cover the top of a 9:16 video, the right edge, and the bottom. The host and the hook stay inside x 64–960 and y 250–1500. `reel_spec.py` and `explainer_render.py` still draw the motion explainer on this canvas. The surface is `VERTICAL`. It is the TikTok, Threads, and Discord file. It is not the Instagram file.
 
-These are checked before a file is posted. The Slack agent does not publish them yet.
+## Captions
 
-| Surface | File | Text |
+| Platform | Limit | What the viewer sees first |
 |---|---|---|
-| LinkedIn feed | 1080×1350 | 3,000 characters, about 210 visible. Video autoplays muted, so the words are on the picture. |
-| LinkedIn link | 1200×627 | Link-preview shape, not an explainer. |
-| X | 1080×1350 image, or 1280×720 video | 280 characters, all of them visible. |
-| Threads | 1080×1080 | 500 characters, all visible. |
-| YouTube | 1920×1080 | Title 100 characters. Description 5,000. |
-| YouTube Short | 1080×1920 | Up to 3 minutes. Title over the lower frame, so type stays above y 1520. |
-| TikTok | 1080×1920 | Same safe box as the Reel, so one vertical master can go to both. Caption cap 2,200. |
-| Facebook Reel | 1080×1920 | Same safe box as the Instagram Reel. |
-| Facebook feed | 1080×1350 | Preview cuts off near 477 characters. |
-| Pinterest | 1000×1500 | 2:3. Description 800. The title fits on one line. |
+| Instagram | 2,200 | about 125 characters, so the first sentence lands inside that |
+| Facebook | 63,206 | about 477 |
+| Reddit | 40,000 | about 300 |
+| YouTube | 5,000 | the title, about 100 |
+| Google Business | 1,500 | about 150 |
+| LinkedIn | 3,000 | about 210 |
+| X | 280 | all of it |
+| Telegram | 1,024 | about 200 |
+| TikTok | 2,200 | about 80 |
+| Threads | 500 | all of it |
+| Discord | 2,000 | about 200 |
+| Pinterest | 800 | the title, about 100 |
+| WhatsApp | 700 | about 140 |
+
+Hashtags on the Instagram caption stay at five. The feed carousel uses the 4:5 file, up to 20 slides, and slide 1 sets the ratio.
 
 ## What the code does with this
 
-`reel_spec.py` places the Reel inside `INSTAGRAM_REEL`. The host is scaled so the opaque pixels of every standing pose stay between the safe left edge and the text column. `explainer_render.py` uses the same fit, so a wide pose is not pushed off the left edge. `caption.py` takes the 2,200 limit from the feed surface.
+`shape_pack.py` draws the five stills from one script and rejects a frame whose ink leaves the safe box or the outer 24px. `caption.py` takes the 2,200 limit from the Instagram 4:5 surface. `text_problems` rejects a caption whose first visible characters do not finish a sentence. `carousel_problems` rejects a set of slides that are not all the 4:5 size.
 
-`text_problems` rejects a caption whose first visible characters do not finish a sentence. `carousel_problems` rejects a set of slides that are not all the feed size.
+The host on the motion explainer is scaled so the opaque pixels of every standing pose stay between the safe left edge and the text column.

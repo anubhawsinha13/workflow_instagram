@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from platforms import INSTAGRAM_REEL, fit_host  # noqa: E402
+from platforms import VERTICAL, fit_host  # noqa: E402
 from reel import ffmpeg_bin  # noqa: E402
 
 FONT_FILE = "/System/Library/Fonts/Avenir Next.ttc"
@@ -56,12 +56,12 @@ HOST_FOOT = 1460
 HOST_WIDTH = 400
 TEXT_COLUMN = {"x": 580, "y": 470, "w": 350, "h": 780}
 RAIL_BOX = {
-    "x": INSTAGRAM_REEL.safe_left, "y": INSTAGRAM_REEL.safe_top,
-    "w": INSTAGRAM_REEL.safe_right - INSTAGRAM_REEL.safe_left, "h": 100,
+    "x": VERTICAL.safe_left, "y": VERTICAL.safe_top,
+    "w": VERTICAL.safe_right - VERTICAL.safe_left, "h": 100,
 }
 LOWER_BOX = {
-    "x": INSTAGRAM_REEL.safe_left, "y": 1330,
-    "w": INSTAGRAM_REEL.safe_right - INSTAGRAM_REEL.safe_left, "h": 170,
+    "x": VERTICAL.safe_left, "y": 1330,
+    "w": VERTICAL.safe_right - VERTICAL.safe_left, "h": 170,
 }
 STAGE_TYPES = ("card", "text", "bubble", "slots", "token", "lens", "title", "prompt_card")
 
@@ -80,7 +80,7 @@ def _fitted_host() -> tuple[int, int]:
     if right <= left:
         return HOST_LEFT, HOST_WIDTH
     host_w, origin = fit_host(
-        [(left, right)], INSTAGRAM_REEL.safe_left, TEXT_COLUMN["x"] - 16, FIGURE_WIDTH, HOST_WIDTH,
+        [(left, right)], VERTICAL.safe_left, TEXT_COLUMN["x"] - 16, FIGURE_WIDTH, HOST_WIDTH,
     )
     scale = host_w / FIGURE_WIDTH
     anchor = round(origin + (POSE_HEAD[0] - FIGURE_WIDTH / 2) * scale)

@@ -582,6 +582,36 @@ class RendererElementTests(unittest.TestCase):
             first_cell = (20, 40, 120, 140)
             self.assertNotEqual(settled.crop(first_cell).tobytes(), focused.crop(first_cell).tobytes(), "other tiles dim")
 
+    def test_an_explainer_opens_with_the_host_on_the_left_and_words_on_the_right(self):
+        scene = {
+            "start_seconds": 0, "duration_seconds": 4.0, "camera": "steady", "purpose": "compare",
+            "caption": "AI can sound sure and still be wrong.",
+            "elements": [
+                {"id": "left", "type": "card", "label": "AI checklist (illustration)",
+                 "box": {"x": 80, "y": 520, "w": 420, "h": 360}, "enter_at": 0.2, "enter_duration": 0.4,
+                 "enter_motion": "fade_in", "exit_motion": "hold"},
+                {"id": "right", "type": "card", "label": "Official wording (illustration)",
+                 "box": {"x": 540, "y": 520, "w": 420, "h": 360}, "enter_at": 0.2, "enter_duration": 0.4,
+                 "enter_motion": "fade_in", "exit_motion": "hold"},
+                {"id": "host", "type": "character", "label": "", "box": {"x": 64, "y": 900, "w": 540, "h": 580},
+                 "enter_at": 0.0, "enter_duration": 0.8, "enter_motion": "walk_in", "exit_motion": "hold",
+                 "pose": "think"},
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            result = render_explainer({
+                "renderer": {"format": "brewiq-motion-explainer",
+                             "canvas": {"width": 1080, "height": 1920, "fps": 6}, "scenes": [scene]},
+                "output": str(folder / "out.mp4"),
+                "preview": {"folder": str(folder), "times": [0.0, 1.5]},
+            })
+            self.assertTrue(result["ok"], result.get("error"))
+            first = Image.open(result["previews"][0]).convert("RGB")
+            later = Image.open(result["previews"][1]).convert("RGB")
+        self.assertNotEqual(first.getpixel((540, 40)), first.getpixel((540, 960)), "the first still must not be a blank stage")
+        self.assertNotEqual(first.tobytes(), later.tobytes())
+
     def test_chrome_stays_still_while_the_camera_pushes_in(self):
         with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp)

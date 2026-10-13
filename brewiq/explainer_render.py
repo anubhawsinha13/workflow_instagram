@@ -49,6 +49,83 @@ HOST_PROMPT = (
     "Plain warm off-white studio background, soft light. No text, no logos."
 )
 
+# Standing composition, matching the reference reel: host on the left, type on the right.
+HOST_LEFT = 8
+HOST_FOOT = 1460
+HOST_WIDTH = 400
+TEXT_COLUMN = {"x": 580, "y": 470, "w": 350, "h": 780}
+WIDE_POSES = {"present", "reach", "point", "point_viewer", "push", "pinch", "toss"}
+RAIL_BOX = {"x": 64, "y": 190, "w": 866, "h": 100}
+LOWER_BOX = {"x": 40, "y": 1330, "w": 890, "h": 170}
+STAGE_TYPES = ("card", "text", "bubble", "slots", "token", "lens", "title", "prompt_card")
+
+
+def _stage_explainer(scenes: list) -> list:
+    """Put the host on the left and every word on the right, and keep the opening frame filled.
+
+    Slack explainers used to let the model pick coordinates, so cards sat on the host's head
+    and scene 1 walked him in from off-screen, which left the first still blank.
+    """
+    chips = []
+    for scene in scenes:
+        label = str(scene.get("purpose") or "").replace("_", " ").strip()
+        if label and label.upper() not in chips:
+            chips.append(label.upper())
+    staged = []
+    for index, scene in enumerate(scenes):
+        elements = [dict(element) for element in (scene.get("elements") or [])]
+        host = next((element for element in elements if element.get("type") == "character"), None)
+        words = [element for element in elements if element.get("type") in STAGE_TYPES]
+        extras = [element for element in elements
+                  if element.get("type") not in ("character", "rail", "lower_third") and element not in words]
+        if host:
+            host = dict(host)
+            left = HOST_LEFT - (90 if (host.get("pose") or "neutral") in WIDE_POSES else 0)
+            host["box"] = {"x": left, "y": 0, "w": HOST_WIDTH, "h": 900}
+            host["foot_y"] = HOST_FOOT
+            host["enter_at"] = 0.0
+            host["enter_duration"] = 0.01
+            host["enter_motion"] = "none"
+            host["exit_motion"] = "hold"
+            host["settle"] = index > 0
+        gap = 24
+        count = max(1, len(words))
+        cell_h = (TEXT_COLUMN["h"] - gap * (count - 1)) // count
+        placed = []
+        for order, element in enumerate(words):
+            item = dict(element)
+            item["box"] = {
+                "x": TEXT_COLUMN["x"],
+                "y": TEXT_COLUMN["y"] + order * (cell_h + gap),
+                "w": TEXT_COLUMN["w"],
+                "h": cell_h,
+            }
+            if count == 1 and item.get("type") == "card" and len(str(item.get("label") or "").split()) <= 10:
+                item["type"] = "title"
+            item["enter_at"] = 0.0
+            item["enter_duration"] = 0.01
+            item["enter_motion"] = "none"
+            placed.append(item)
+        rail = {
+            "id": f"rail-{index + 1}", "type": "rail", "box": dict(RAIL_BOX),
+            "enter_at": 0.0, "enter_duration": 0.01, "enter_motion": "none", "exit_motion": "hold",
+            "label": str(scene.get("rail_label") or "BrewIQ"),
+            "chips": chips, "active": min(index, max(0, len(chips) - 1)),
+            "timer": "remaining", "timeline": False, "chrome": True,
+        }
+        lower = {
+            "id": f"lower-{index + 1}", "type": "lower_third", "box": dict(LOWER_BOX),
+            "enter_at": 0.0, "enter_duration": 0.01, "enter_motion": "none", "exit_motion": "hold",
+            "label": str(scene.get("caption") or scene.get("narration") or "").strip(), "chrome": True,
+        }
+        next_elements = [rail, *placed, *extras]
+        if host:
+            next_elements.append(host)
+        if lower["label"]:
+            next_elements.append(lower)
+        staged.append({**scene, "elements": next_elements})
+    return staged
+
 
 def render_explainer(payload: dict, make_host=None) -> dict:
     data = payload.get("renderer") if isinstance(payload.get("renderer"), dict) else {}
@@ -81,6 +158,11 @@ def render_explainer(payload: dict, make_host=None) -> dict:
     if not library and any(element.get("type") == "character" for scene in scenes for element in scene.get("elements") or []):
         host = _host_image(payload, out.parent, make_host)
 
+    kinds = {element.get("type") for scene in scenes for element in scene.get("elements") or []}
+    if data.get("format") == "brewiq-motion-explainer" or (
+        "character" in kinds and "rail" not in kinds
+    ):
+        scenes = _stage_explainer(scenes)
     background = _background(width, height, colors)
     total = sum(float(scene.get("duration_seconds") or 0) for scene in scenes)
     prepared = []
@@ -110,12 +192,13 @@ def render_explainer(payload: dict, make_host=None) -> dict:
         for start, duration, sprites, camera, focus in prepared:
             if start <= t < start + duration or (last and start <= t):
                 local = t - start
+                # Host first, then cards and titles, then the camera, then the rail and lower third.
+                # That keeps type readable and the chrome still while the stage moves.
                 for element, sprite in sprites:
-                    if _is_chrome(element):
-                        continue
                     if sprite is None:
                         _draw_character(frame, element, library, local, duration, colors)
-                    else:
+                for element, sprite in sprites:
+                    if sprite is not None and not _is_chrome(element):
                         _place(frame, element, sprite, local, duration, colors)
                 frame = _camera(frame, camera, focus, local / max(0.01, duration))
                 for element, sprite in sprites:
@@ -339,7 +422,8 @@ def _sprite(element: dict, colors: dict, radius: int, host: Image.Image | None) 
         ImageDraw.Draw(sprite).rounded_rectangle(
             (pad + 28, pad + 28, pad + 28 + 56, pad + 28 + 8), 4, fill=accent + (255,)
         )
-        _write(sprite, label, (pad + 44, pad + 52, pad + w - 44, pad + h - 36), text, weight="Demi Bold", max_size=104)
+        _write(sprite, label, (pad + 36, pad + 48, pad + w - 36, pad + h - 32), text, weight="Bold",
+               max_size=72, serif=True)
     elif kind == "text":
         color = accent if element.get("tone") == "warning" else text
         _write(sprite, label, inner, color, weight="Bold", max_size=120)
@@ -474,7 +558,8 @@ def _motion(element: dict, t: float, duration: float) -> dict | None:
     elif enter_motion == "snap":
         state["alpha"], state["scale"] = min(1.0, raw * 3), _back(raw) * 0.4 + 0.6
     elif enter_motion == "walk_in":
-        state["dx"], state["walking"] = -(1 - _ease_io(raw)) * 760, raw < 1
+        # Stay mostly on screen so the opening still is not an empty stage.
+        state["dx"], state["walking"] = -(1 - _ease_io(raw)) * 160, raw < 1
     elif enter_motion in ("draw", "fill"):
         state["reveal"] = p
         state["alpha"] = min(1.0, p * 3)
@@ -606,6 +691,8 @@ def _draw_character(frame: Image.Image, element: dict, library: dict, t: float, 
     box = element.get("box") or {}
     s = max(0.2, float(box.get("w") or FIGURE_WIDTH) / FIGURE_WIDTH)
     foot_y = element.get("foot_y")
+    if foot_y is None:
+        foot_y = HOST_FOOT
     key = (pose, round(s, 3), foot_y is not None)
     if key not in _SIZED:
         resized = image.resize((round(image.width * s), round(image.height * s)), Image.LANCZOS)
@@ -682,27 +769,19 @@ def _progress(sprite: Image.Image, element: dict, fraction: float) -> Image.Imag
 
 
 def _write(sprite: Image.Image, label: str, area: tuple, color: tuple, *, weight: str, max_size: int,
-           center: bool = False) -> None:
+           center: bool = False, serif: bool = False) -> None:
     if not label:
         return
     left, top, right, bottom = area
     width, height = right - left, bottom - top
+    make = (lambda size: _serif(size, weight != "Medium")) if serif else (lambda size: _font(size, weight))
+    font, lines, line_height, _size = _fit_lines(label, width, height, make, max_size, 22, leading=1.12)
     draw = ImageDraw.Draw(sprite)
-    for size in range(max_size, 27, -4):
-        font = _font(size, weight)
-        chars = max(6, int(width / (size * 0.52)))
-        lines = textwrap.wrap(label, chars, break_long_words=False, break_on_hyphens=False) or [label]
-        line_height = round(size * 1.18)
-        widest = max(draw.textlength(line, font=font) for line in lines)
-        if widest <= width and line_height * len(lines) <= height:
-            y = top + (height - line_height * len(lines)) // 2
-            for line in lines:
-                x = left + (width - draw.textlength(line, font=font)) / 2 if center else left
-                draw.text((x, y), line, font=font, fill=color + (255,))
-                y += line_height
-            return
-    font = _font(28, weight)
-    draw.text((left, top), textwrap.shorten(label, 60), font=font, fill=color + (255,))
+    y = top + max(0, (height - line_height * len(lines)) // 2)
+    for line in lines:
+        x = left + (width - draw.textlength(line, font=font)) / 2 if center else left
+        draw.text((x, y), line, font=font, fill=color + (255,))
+        y += line_height
 
 
 SERIF_BOLD = "/System/Library/Fonts/Supplemental/Georgia Bold.ttf"

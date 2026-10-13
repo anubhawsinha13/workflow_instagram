@@ -22,6 +22,44 @@ from run import resolve_research  # noqa: E402
 
 def verified_facts(topic: str) -> dict:
     records, history_available = load_history(ROOT)
+    avoid = [str(record.get("title") or "").strip() for record in records if str(record.get("title") or "").strip()]
+    brief = _call_research_agent(topic, avoid)
+    if brief is None:
+        return _legacy_facts(topic, records, history_available)
+    if not brief.get("ok"):
+        return {"ok": False, "error": _public(brief.get("error") or "Research did not return verified facts.")}
+    return _facts_from_brief(brief)
+
+
+def _call_research_agent(topic: str, avoid: list[str]) -> dict | None:
+    """The shared research agent. None means the package is not installed."""
+    try:
+        from aegis_research import research_brief
+    except ImportError:
+        return None
+    return research_brief(topic, profile="instagram", avoid=avoid)
+
+
+def _facts_from_brief(brief: dict) -> dict:
+    lines = [
+        str(brief.get("summary") or "").strip(),
+        str(brief.get("limitations") or "").strip(),
+        str(brief.get("availability") or "").strip(),
+    ]
+    sources = []
+    for claim in brief.get("claims") or []:
+        text = str(claim.get("text") or "").strip()
+        url = str(claim.get("source_url") or "").strip()
+        if text and url:
+            lines.append(f"{text} Source: {url}")
+            sources.append(url)
+    facts = "\n".join(line for line in lines if line)
+    if not facts or not sources:
+        return {"ok": False, "error": "Research did not return verified facts."}
+    return {"ok": True, "facts": facts, "sources": sources}
+
+
+def _legacy_facts(topic: str, records: list[dict], history_available: bool) -> dict:
     category = next_category(records, history_available)
     resolved = resolve_research(topic, None, category, records)
     if not resolved.get("ok") or not resolved.get("research"):

@@ -40,12 +40,31 @@ def _call_research_agent(topic: str, avoid: list[str]) -> dict | None:
     return research_brief(topic, profile="instagram", avoid=avoid)
 
 
+def _labeled(label: str, value: object) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    return f"{label}: {text}"
+
+
 def _facts_from_brief(brief: dict) -> dict:
     lines = [
         str(brief.get("summary") or "").strip(),
+        _labeled("Situation", brief.get("situation")),
+        _labeled("Hook", brief.get("selected_hook")),
         str(brief.get("limitations") or "").strip(),
         str(brief.get("availability") or "").strip(),
     ]
+    demonstration = brief.get("demonstration") if isinstance(brief.get("demonstration"), dict) else {}
+    lines.extend(
+        [
+            _labeled("Sample input", demonstration.get("sample_input")),
+            _labeled("Instruction", demonstration.get("instruction")),
+            _labeled(f"Result ({demonstration.get('result_kind') or 'illustrative'})", demonstration.get("result")),
+            _labeled("On screen", demonstration.get("visible_change")),
+            _labeled("Opening", brief.get("opening_visual")),
+        ]
+    )
     sources = []
     for claim in brief.get("claims") or []:
         text = str(claim.get("text") or "").strip()

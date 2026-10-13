@@ -33,6 +33,30 @@ class FactsTests(unittest.TestCase):
         self.assertIn("https://openai.com/privacy", result["facts"])
         self.assertEqual(result["sources"], ["https://openai.com/privacy"])
 
+    def test_handoff_reaches_the_scriptwriter(self):
+        brief = {
+            "ok": True,
+            "summary": "A long letter can become two tasks.",
+            "situation": "This letter is three pages long.",
+            "selected_hook": "What do you actually need to do?",
+            "limitations": "",
+            "availability": "",
+            "demonstration": {
+                "sample_input": "A three-page letter.",
+                "instruction": "List the actions.",
+                "result": "Pay the bill.",
+                "result_kind": "illustrative",
+                "visible_change": "The letter becomes two tasks.",
+            },
+            "opening_visual": "The letter is already on the table.",
+            "claims": [{"text": "The help page shows the step.", "source_url": "https://help.openai.com/privacy"}],
+        }
+        with mock.patch("facts._call_research_agent", return_value=brief):
+            result = facts.verified_facts("long letter")
+        self.assertIn("Situation: This letter is three pages long.", result["facts"])
+        self.assertIn("Result (illustrative): Pay the bill.", result["facts"])
+        self.assertIn("Opening: The letter is already on the table.", result["facts"])
+
     def test_a_failed_brief_does_not_reach_the_old_researcher(self):
         with mock.patch("facts._call_research_agent", return_value={"ok": False, "error": "No primary source URL was returned."}):
             with mock.patch("facts._legacy_facts") as legacy:

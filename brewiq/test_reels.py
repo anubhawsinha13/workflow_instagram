@@ -284,9 +284,9 @@ class LayoutTests(unittest.TestCase):
         for pose in reel_spec.POSES:
             beats = [{"pose": pose}]
             left = reel_spec.host_left(beats)
-            right = reel_spec._pose_right(pose, left)
-            self.assertLessEqual(right, reel_spec.COLUMN["x"], f"{pose} reaches {right}")
-            self.assertGreaterEqual(left, reel_spec.HOST_LEFT - reel_spec.MAX_HOST_SHIFT)
+            edge_left, edge_right = reel_spec._pose_edges(pose, left)
+            self.assertGreaterEqual(edge_left, reel_spec.SAFE["left"] - 1, f"{pose} starts at {edge_left}")
+            self.assertLessEqual(edge_right, reel_spec.COLUMN["x"], f"{pose} reaches {edge_right}")
 
     def test_a_narrow_pose_set_keeps_the_host_in_place(self):
         self.assertEqual(reel_spec.host_left([{"pose": "neutral"}, {"pose": "reach"}]), reel_spec.HOST_LEFT)

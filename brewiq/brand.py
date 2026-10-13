@@ -14,7 +14,7 @@ MUTED = "#C5CDD6"
 WIDTH = 1080
 HEIGHT = 1350
 MARGIN_X = 86  # about 8% of 1080
-MARGIN_Y = 108  # about 8% of 1350
+MARGIN_Y = 162  # bottom 12% of 1350, clear of carousel dots and the caption preview
 SLIDE_COUNT = 6
 
 CATEGORIES = {

@@ -1,0 +1,120 @@
+{
+  "format": "beat_explainer",
+  "topic": "Color pairs that set the mood of a design",
+  "title": "One color sets the mood",
+  "timer": "none",
+  "hook": "One color sets the mood",
+  "caption": "One color can change the mood of a design. Here are three simple pairs: a background color, and a text color that reads clearly on it. Each one comes with a name and a hex code you can copy.\n\nSave this for your next design.\n\nFollow @_brewiq.",
+  "beats": [
+    {
+      "id": "intro",
+      "role": "intro",
+      "voice": "One color can change the whole mood of a design. Here are three pairs to try.",
+      "lower_third": "One color can change the mood.",
+      "on_screen": {
+        "headline": "One color sets the mood",
+        "swatch": {
+          "top": {
+            "name": "Royal Blue",
+            "hex": "#1D4FB8"
+          },
+          "bottom": {
+            "name": "Light Cream",
+            "hex": "#F8F3F0"
+          }
+        }
+      },
+      "shot": {
+        "mode": "graphics"
+      }
+    },
+    {
+      "id": "wine",
+      "role": "use_case",
+      "voice": "Wine red with warm cream often feels elegant and calm.",
+      "lower_third": "Wine red and cream feel elegant.",
+      "on_screen": {
+        "headline": "Elegant and calm",
+        "swatch": {
+          "top": {
+            "name": "Wine Red",
+            "hex": "#722F37"
+          },
+          "bottom": {
+            "name": "Warm Cream",
+            "hex": "#F6EFE6"
+          }
+        }
+      },
+      "shot": {
+        "mode": "graphics"
+      }
+    },
+    {
+      "id": "forest",
+      "role": "use_case",
+      "voice": "Forest green with soft sand often feels fresh and natural.",
+      "lower_third": "Forest green and sand feel fresh.",
+      "on_screen": {
+        "headline": "Fresh and natural",
+        "swatch": {
+          "top": {
+            "name": "Forest Green",
+            "hex": "#1F6B3A"
+          },
+          "bottom": {
+            "name": "Soft Sand",
+            "hex": "#EFE6D2"
+          }
+        }
+      },
+      "shot": {
+        "mode": "graphics"
+      }
+    },
+    {
+      "id": "plum",
+      "role": "use_case",
+      "voice": "Deep plum with pale blush often feels rich and gentle.",
+      "lower_third": "Plum and blush feel rich and gentle.",
+      "on_screen": {
+        "headline": "Rich and gentle",
+        "swatch": {
+          "top": {
+            "name": "Deep Plum",
+            "hex": "#4B2A57"
+          },
+          "bottom": {
+            "name": "Pale Blush",
+            "hex": "#F6E3EA"
+          }
+        }
+      },
+      "shot": {
+        "mode": "graphics"
+      }
+    },
+    {
+      "id": "recap",
+      "role": "recap",
+      "voice": "Pick one pair, like this blue and cream, and use one color behind and one on top.",
+      "lower_third": "One color behind, one color on top.",
+      "on_screen": {
+        "headline": "One behind, one on top",
+        "swatch": {
+          "top": {
+            "name": "Royal Blue",
+            "hex": "#1D4FB8"
+          },
+          "bottom": {
+            "name": "Light Cream",
+            "hex": "#F8F3F0"
+          }
+        }
+      },
+      "shot": {
+        "mode": "graphics"
+      }
+    }
+  ]
+}

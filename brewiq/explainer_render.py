@@ -9,7 +9,7 @@ import sys
 import textwrap
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
@@ -70,6 +70,7 @@ def render_explainer(payload: dict, make_host=None) -> dict:
         "background": canvas.get("background") or "#F7F3EC",
         "text": canvas.get("text") or "#2B2B2B",
         "accent": canvas.get("accent") or "#22C3D6",
+        "accent_dark": canvas.get("accent_dark") or "#107886",
         "warning": canvas.get("warning") or "#D6623E",
         "card": canvas.get("card") or "#FFFFFF",
     }
@@ -81,10 +82,14 @@ def render_explainer(payload: dict, make_host=None) -> dict:
         host = _host_image(payload, out.parent, make_host)
 
     background = _background(width, height, colors)
+    total = sum(float(scene.get("duration_seconds") or 0) for scene in scenes)
     prepared = []
     for scene in scenes:
         sprites = []
+        scene_start = float(scene.get("start_seconds") or 0)
         for element in scene.get("elements") or []:
+            element["_scene_start"] = scene_start
+            element["_total"] = total
             if element.get("type") == "character" and library:
                 sprites.append((element, None))
                 continue
@@ -92,14 +97,42 @@ def render_explainer(payload: dict, make_host=None) -> dict:
             if sprite is not None:
                 sprites.append((element, sprite))
         prepared.append((
-            float(scene.get("start_seconds") or 0),
+            scene_start,
             float(scene.get("duration_seconds") or 0),
             sprites,
             str(scene.get("camera") or "steady"),
             _focus(scene.get("elements") or [], width, height),
         ))
-    total = sum(item[1] for item in prepared)
     frames = max(1, round(total * fps))
+
+    def compose(t: float, last: bool = False) -> Image.Image:
+        frame = background.copy()
+        for start, duration, sprites, camera, focus in prepared:
+            if start <= t < start + duration or (last and start <= t):
+                local = t - start
+                for element, sprite in sprites:
+                    if _is_chrome(element):
+                        continue
+                    if sprite is None:
+                        _draw_character(frame, element, library, local, duration, colors)
+                    else:
+                        _place(frame, element, sprite, local, duration, colors)
+                frame = _camera(frame, camera, focus, local / max(0.01, duration))
+                for element, sprite in sprites:
+                    if sprite is not None and _is_chrome(element):
+                        _place(frame, element, sprite, local, duration, colors)
+        return frame
+
+    preview = payload.get("preview") if isinstance(payload.get("preview"), dict) else None
+    if preview:
+        # Stills for layout review. No video is encoded.
+        folder = Path(str(preview.get("folder") or out.parent))
+        paths = []
+        for index, moment in enumerate(preview.get("times") or []):
+            dest = folder / f"preview-{index + 1:02d}.png"
+            compose(min(max(0.0, float(moment)), max(0.0, total - 0.001))).convert("RGB").save(dest)
+            paths.append(str(dest))
+        return {"ok": True, "previews": paths, "seconds": round(total, 2), "error": ""}
 
     audio = Path(str(payload.get("voiceover") or ""))
     command = [
@@ -115,17 +148,7 @@ def render_explainer(payload: dict, make_host=None) -> dict:
     process = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
         for index in range(frames):
-            t = index / fps
-            frame = background.copy()
-            for start, duration, sprites, camera, focus in prepared:
-                if start <= t < start + duration or (index == frames - 1 and start <= t):
-                    local = t - start
-                    for element, sprite in sprites:
-                        if sprite is None:
-                            _draw_character(frame, element, library, local, duration, colors)
-                        else:
-                            _place(frame, element, sprite, local, duration, colors)
-                    frame = _camera(frame, camera, focus, local / max(0.01, duration))
+            frame = compose(index / fps, last=index == frames - 1)
             process.stdin.write(frame.convert("RGB").tobytes())
         process.stdin.close()
     except BrokenPipeError:
@@ -256,8 +279,17 @@ def _background(width: int, height: int, colors: dict) -> Image.Image:
     return textured.convert("RGBA")
 
 
+CHROME_TYPES = ("rail", "lower_third")
+
+
+def _is_chrome(element: dict) -> bool:
+    """Chrome stays still while the camera moves the stage."""
+    return bool(element.get("chrome")) or element.get("type") in CHROME_TYPES
+
+
 def _focus(elements: list, width: int, height: int) -> tuple:
-    boxes = [element.get("box") or {} for element in elements if element.get("type") != "character"]
+    boxes = [element.get("box") or {} for element in elements
+             if element.get("type") != "character" and not _is_chrome(element)]
     boxes = [box for box in boxes if all(isinstance(box.get(key), (int, float)) for key in ("x", "y", "w", "h"))]
     if not boxes:
         return (width / 2, height / 2)
@@ -375,6 +407,25 @@ def _sprite(element: dict, colors: dict, radius: int, host: Image.Image | None) 
         ImageDraw.Draw(mask).rounded_rectangle((0, 0, w, h), radius, fill=255)
         _shadow(sprite, inner, radius)
         sprite.paste(portrait, (pad, pad), mask)
+    elif kind == "rail":
+        _draw_rail(sprite, element, colors, pad, w, h)
+    elif kind == "title":
+        _draw_title(sprite, element, colors, pad, w, h)
+    elif kind == "lower_third":
+        _draw_lower_third(sprite, element, colors, pad, w, h)
+    elif kind == "prompt_card":
+        _draw_prompt_card(sprite, element, colors, pad, w, h, radius)
+    elif kind == "sheet":
+        _draw_sheet(sprite, element, colors, pad, w, h, radius)
+    elif kind == "image":
+        if not _prepare_image(element, w, h, pad, radius):
+            return None
+        return _image_sprite(element, 0.0, 0.0)
+    elif kind == "tiles":
+        if not _prepare_tiles(element, w, h, pad, colors):
+            return None
+    elif kind == "swatch":
+        _draw_swatch(sprite, element, pad, w, h, radius)
     else:
         return None
     return sprite
@@ -455,6 +506,12 @@ def _place(frame: Image.Image, element: dict, sprite: Image.Image, t: float, dur
         image = _progress(sprite, element, state["reveal"])
     elif element.get("type") == "slots":
         image = _spin(sprite, element, t)
+    elif element.get("type") == "rail":
+        image = _rail_frame(sprite, element, colors, float(element.get("_scene_start") or 0) + t)
+    elif element.get("type") == "image":
+        image = _image_sprite(element, t / max(0.01, duration), t)
+    elif element.get("type") == "tiles" and element.get("_cells"):
+        image = _tiles_sprite(element, t)
     elif state["reveal"] < 1:
         cut = max(1, round(sprite.width * state["reveal"]))
         image = sprite.copy()
@@ -548,16 +605,25 @@ def _draw_character(frame: Image.Image, element: dict, library: dict, t: float, 
     image, anchors = library.get(pose) or library["neutral"]
     box = element.get("box") or {}
     s = max(0.2, float(box.get("w") or FIGURE_WIDTH) / FIGURE_WIDTH)
-    key = (pose, round(s, 3))
+    foot_y = element.get("foot_y")
+    key = (pose, round(s, 3), foot_y is not None)
     if key not in _SIZED:
-        _SIZED[key] = image.resize((round(image.width * s), round(image.height * s)), Image.LANCZOS)
+        resized = image.resize((round(image.width * s), round(image.height * s)), Image.LANCZOS)
+        if foot_y is not None:
+            resized = _fade_feet(resized, round(150 * s))
+        _SIZED[key] = resized
     sized = _SIZED[key]
-    settle = (1 - _ease(since / 0.35)) * 14 * s
+    settle = (1 - _ease(since / 0.35)) * 14 * s if element.get("settle", True) else 0.0
     breathe = math.sin(t * 2 * math.pi / 3.4) * 4 * s
     if state["walking"]:
         settle = -abs(math.sin(t * math.pi / 0.22)) * 10 * s
     x = float(box.get("x") or 0) - (POSE_HEAD[0] - FIGURE_WIDTH / 2) * s + state["dx"]
-    y = max(float(box.get("y") or 0), frame.height + 40 - sized.height) + state["dy"] + settle + breathe
+    if foot_y is not None:
+        # The pose stills are cut off below the knees. Standing the figure on foot_y puts that edge
+        # behind the lower third, and the fade softens it where the bar is not opaque.
+        y = float(foot_y) - sized.height + state["dy"] + settle + breathe
+    else:
+        y = max(float(box.get("y") or 0), frame.height + 40 - sized.height) + state["dy"] + settle + breathe
     lens = anchors.get("lens")
     if lens and prop:
         _lens_view(frame, prop, [x + value * s if index % 2 == 0 else y + value * s for index, value in enumerate(lens)],
@@ -637,6 +703,619 @@ def _write(sprite: Image.Image, label: str, area: tuple, color: tuple, *, weight
             return
     font = _font(28, weight)
     draw.text((left, top), textwrap.shorten(label, 60), font=font, fill=color + (255,))
+
+
+SERIF_BOLD = "/System/Library/Fonts/Supplemental/Georgia Bold.ttf"
+SERIF = "/System/Library/Fonts/Supplemental/Georgia.ttf"
+_SERIFS: dict = {}
+
+
+def _serif(size: int, bold: bool = True) -> ImageFont.FreeTypeFont:
+    key = (size, bold)
+    if key not in _SERIFS:
+        chosen = None
+        for path in ((SERIF_BOLD, SERIF) if bold else (SERIF, SERIF_BOLD)):
+            try:
+                chosen = ImageFont.truetype(path, size)
+                break
+            except OSError:
+                continue
+        _SERIFS[key] = chosen or _font(size, "Bold")
+    return _SERIFS[key]
+
+
+def _spaced(draw: ImageDraw.ImageDraw, xy: tuple, text: str, font, fill: tuple, spacing: float) -> float:
+    """Draw letter-spaced text and return the x where it ended."""
+    x, y = xy
+    for char in text:
+        draw.text((x, y), char, font=font, fill=fill)
+        x += draw.textlength(char, font=font) + spacing
+    return x - spacing
+
+
+def _spaced_width(draw: ImageDraw.ImageDraw, text: str, font, spacing: float) -> float:
+    return sum(draw.textlength(char, font=font) for char in text) + spacing * max(0, len(text) - 1)
+
+
+def _wrap_pixels(draw: ImageDraw.ImageDraw, text: str, font, width: float) -> list:
+    lines: list = []
+    current = ""
+    for word in text.split():
+        trial = f"{current} {word}".strip()
+        if current and draw.textlength(trial, font=font) > width:
+            lines.append(current)
+            current = word
+        else:
+            current = trial
+    if current:
+        lines.append(current)
+    return lines or [""]
+
+
+def _fit_lines(text: str, width: float, height: float, make_font, max_size: int, min_size: int,
+               max_lines: int | None = None, leading: float = 1.14) -> tuple:
+    """Largest font that wraps the text inside the box. Returns font, lines, line height, size."""
+    measure = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+    for size in range(max_size, min_size - 1, -2):
+        font = make_font(size)
+        lines = _wrap_pixels(measure, text, font, width)
+        line_height = round(size * leading)
+        if max_lines and len(lines) > max_lines:
+            continue
+        if line_height * len(lines) <= height and max(measure.textlength(line, font=font) for line in lines) <= width:
+            return font, lines, line_height, size
+    font = make_font(min_size)
+    lines = _wrap_pixels(measure, text, font, width)
+    line_height = round(min_size * leading)
+    room = max(1, int(height // line_height))
+    if len(lines) > room:
+        lines = lines[:room]
+        lines[-1] = textwrap.shorten(lines[-1] + " ...", width=max(8, len(lines[-1])), placeholder="...")
+    return font, lines, line_height, min_size
+
+
+def _centered_y(draw: ImageDraw.ImageDraw, font, top: float, height: float) -> float:
+    box = draw.textbbox((0, 0), "Hg", font=font)
+    return top + (height - (box[3] - box[1])) / 2 - box[1]
+
+
+def _draw_rail(sprite: Image.Image, element: dict, colors: dict, pad: int, w: int, h: int) -> None:
+    """Section label, optional countdown, and a row of chapter chips that shows done, active, and next."""
+    draw = ImageDraw.Draw(sprite)
+    ink = _rgb(colors["text"])
+    label = str(element.get("label") or "").upper()
+    label_font = _font(24, "Demi Bold")
+    top = pad
+    if label or element.get("timer"):
+        if label:
+            _spaced(draw, (pad, _centered_y(draw, label_font, pad, 30)), label, label_font, ink + (200,), 3)
+        top = pad + 50
+    chips = [str(chip).upper() for chip in (element.get("chips") or [])]
+    chip_h = 46
+    if chips:
+        active = max(0, min(len(chips) - 1, int(element.get("active") or 0)))
+        gap = 8
+        chip_w = (w - gap * (len(chips) - 1)) / len(chips)
+        size = 22
+        while size > 15 and max(_spaced_width(draw, chip, _font(size, "Demi Bold"), 1.5) for chip in chips) > chip_w - 14:
+            size -= 1
+        chip_font = _font(size, "Demi Bold")
+        for index, chip in enumerate(chips):
+            left = pad + index * (chip_w + gap)
+            box = (left, top, left + chip_w, top + chip_h)
+            if index == active:
+                draw.rounded_rectangle(box, 10, fill=ink + (255,))
+                color = (255, 255, 255, 255)
+            elif index < active:
+                draw.rounded_rectangle(box, 10, fill=ink + (26,))
+                color = ink + (150,)
+            else:
+                draw.rounded_rectangle(box, 10, outline=ink + (90,), width=2)
+                color = ink + (140,)
+            width = _spaced_width(draw, chip, chip_font, 1.5)
+            _spaced(draw, (left + (chip_w - width) / 2, _centered_y(draw, chip_font, top, chip_h)), chip, chip_font, color, 1.5)
+    line_y = top + (chip_h + 18 if chips else 0)
+    element["_rail"] = {
+        "timer_y": pad, "right": pad + w,
+        "line": (pad, line_y, pad + w, line_y + 6) if element.get("timeline") else None,
+    }
+
+
+def _rail_frame(sprite: Image.Image, element: dict, colors: dict, t: float) -> Image.Image:
+    geometry = element.get("_rail") or {}
+    total = float(element.get("_total") or 0)
+    if not total or not (element.get("timer") or geometry.get("line")):
+        return sprite
+    image = sprite.copy()
+    draw = ImageDraw.Draw(image)
+    ink = _rgb(colors["text"])
+    if element.get("timer") == "remaining":
+        seconds = max(0, math.ceil(total - t))
+        text = f"{seconds // 60}:{seconds % 60:02d} LEFT"
+        font = _font(24, "Demi Bold")
+        width = _spaced_width(draw, text, font, 3)
+        _spaced(draw, (geometry["right"] - width, _centered_y(draw, font, geometry["timer_y"], 30)), text, font,
+                ink + (200,), 3)
+    line = geometry.get("line")
+    if line:
+        left, top, right, bottom = line
+        draw.rounded_rectangle(line, 3, fill=ink + (34,))
+        filled = left + (right - left) * max(0.0, min(1.0, t / total))
+        if filled - left >= 6:
+            draw.rounded_rectangle((left, top, filled, bottom), 3, fill=_rgb(colors["accent_dark"]) + (255,))
+    return image
+
+
+def _draw_title(sprite: Image.Image, element: dict, colors: dict, pad: int, w: int, h: int) -> None:
+    """Serif headline with an optional big number and unit, like '30 MINUTES'."""
+    draw = ImageDraw.Draw(sprite)
+    ink = _rgb(colors["text"])
+    headline = str(element.get("label") or "").strip()
+    stat = element.get("stat") if isinstance(element.get("stat"), dict) else {}
+    value, unit = str(stat.get("value") or "").strip(), str(stat.get("unit") or "").strip().upper()
+    value_size = min(176, int(h * 0.34)) if value else 0
+    stat_height = round(value_size * 1.12) + 22 if value else 0
+    font, lines, line_height, _size = _fit_lines(
+        headline, w, max(60, h - stat_height), lambda size: _serif(size, True), 104, 46, max_lines=4, leading=1.08
+    )
+    y = pad
+    for line in lines:
+        draw.text((pad, y), line, font=font, fill=ink + (255,))
+        y += line_height
+    if value:
+        y += 22
+        value_font = _serif(value_size, True)
+        draw.text((pad, y), value, font=value_font, fill=_rgb(colors["accent_dark"]) + (255,))
+        if unit:
+            value_box = draw.textbbox((pad, y), value, font=value_font)
+            room = pad + w - (value_box[2] + 18)
+            # The unit sits beside the number when it fits. Otherwise it drops below at the same size.
+            size, spacing = 34, 5
+            while size > 22 and _spaced_width(draw, unit, _font(size, "Demi Bold"), spacing) > room:
+                size, spacing = size - 2, max(2, spacing - 0.5)
+            unit_font = _font(size, "Demi Bold")
+            unit_box = draw.textbbox((0, 0), unit, font=unit_font)
+            if _spaced_width(draw, unit, unit_font, spacing) <= room:
+                unit_y = value_box[3] - (unit_box[3] - unit_box[1]) - unit_box[1] - 6
+                _spaced(draw, (value_box[2] + 18, unit_y), unit, unit_font, ink + (210,), spacing)
+            else:
+                _spaced(draw, (pad + 4, value_box[3] + 8), unit, _font(30, "Demi Bold"), ink + (210,), 4)
+
+
+def _draw_lower_third(sprite: Image.Image, element: dict, colors: dict, pad: int, w: int, h: int) -> None:
+    inner = (pad, pad, pad + w, pad + h)
+    _shadow(sprite, inner, 26)
+    draw = ImageDraw.Draw(sprite)
+    draw.rounded_rectangle(inner, 26, fill=_rgb(colors["card"]) + (240,))
+    draw.rounded_rectangle((pad + 20, pad + 24, pad + 30, pad + h - 24), 5, fill=_rgb(colors["accent_dark"]) + (255,))
+    area = (pad + 54, pad + 16, pad + w - 32, pad + h - 16)
+    font, lines, line_height, _size = _fit_lines(
+        str(element.get("label") or "").strip(), area[2] - area[0], area[3] - area[1],
+        lambda size: _font(size, "Bold"), 50, 28, max_lines=2, leading=1.16,
+    )
+    y = area[1] + ((area[3] - area[1]) - line_height * len(lines)) / 2
+    for line in lines:
+        draw.text((area[0], y), line, font=font, fill=_rgb(colors["text"]) + (255,))
+        y += line_height
+
+
+def _draw_prompt_card(sprite: Image.Image, element: dict, colors: dict, pad: int, w: int, h: int, radius: int) -> None:
+    inner = (pad, pad, pad + w, pad + h)
+    _shadow(sprite, inner, radius)
+    draw = ImageDraw.Draw(sprite)
+    draw.rounded_rectangle(inner, radius, fill=_rgb(colors["card"]) + (255,))
+    ink = _rgb(colors["text"])
+    head = _font(26, "Demi Bold")
+    _spaced(draw, (pad + 34, pad + 26), str(element.get("label") or "PROMPT").upper(), head,
+            _rgb(colors["accent_dark"]) + (255,), 4)
+    meta = str(element.get("meta") or "").strip()
+    if meta:
+        meta_font = _font(24, "Medium")
+        draw.text((pad + w - 34 - draw.textlength(meta, font=meta_font), pad + 28), meta, font=meta_font,
+                  fill=(122, 118, 112, 255))
+    draw.line((pad + 34, pad + 74, pad + w - 34, pad + 74), fill=ink + (40,), width=2)
+    area = (pad + 34, pad + 92, pad + w - 34, pad + h - 26)
+    font, lines, line_height, _size = _fit_lines(
+        str(element.get("text") or "").strip(), area[2] - area[0], area[3] - area[1],
+        lambda size: _font(size, "Medium"), 40, 22, leading=1.3,
+    )
+    y = area[1]
+    for line in lines:
+        draw.text((area[0], y), line, font=font, fill=ink + (255,))
+        y += line_height
+
+
+def _draw_sheet(sprite: Image.Image, element: dict, colors: dict, pad: int, w: int, h: int, radius: int) -> None:
+    """Character sheet: the same host in several poses, taken straight from the pose library."""
+    inner = (pad, pad, pad + w, pad + h)
+    _shadow(sprite, inner, radius)
+    draw = ImageDraw.Draw(sprite)
+    draw.rounded_rectangle(inner, radius, fill=_rgb(colors["card"]) + (255,))
+    head = _font(26, "Demi Bold")
+    _spaced(draw, (pad + 34, pad + 26), str(element.get("label") or "CHARACTER").upper(), head,
+            _rgb(colors["accent_dark"]) + (255,), 4)
+    library = load_pose_library()
+    names = [name for name in (element.get("poses") or []) if name in library][:4]
+    captions = element.get("captions") or []
+    if not names:
+        return
+    gap = 18
+    cell_w = (w - 68 - gap * (len(names) - 1)) / len(names)
+    top, bottom = pad + 84, pad + h - 66
+    caption_font = _font(22, "Demi Bold")
+    for index, name in enumerate(names):
+        figure = library[name][0]
+        bounds = figure.getchannel("A").point(lambda v: 255 if v > 40 else 0).getbbox()
+        if bounds:
+            figure = figure.crop(bounds)
+        scale = min(cell_w / figure.width, (bottom - top) / figure.height)
+        figure = figure.resize((max(1, round(figure.width * scale)), max(1, round(figure.height * scale))), Image.LANCZOS)
+        left = pad + 34 + index * (cell_w + gap)
+        sprite.alpha_composite(figure, (round(left + (cell_w - figure.width) / 2), round(bottom - figure.height)))
+        caption = str(captions[index] if index < len(captions) else name.replace("_", " ")).upper()
+        width = _spaced_width(draw, caption, caption_font, 2)
+        _spaced(draw, (left + (cell_w - width) / 2, bottom + 18), caption, caption_font, _rgb(colors["text"]) + (200,), 2)
+
+
+def _linear(channel: int) -> float:
+    value = channel / 255
+    return value / 12.92 if value <= 0.03928 else ((value + 0.055) / 1.055) ** 2.4
+
+
+def luminance(color: tuple) -> float:
+    red, green, blue = (_linear(part) for part in color[:3])
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+
+
+def contrast_ratio(first: tuple, second: tuple) -> float:
+    """WCAG contrast between two colors, from 1 (identical) to 21 (black on white)."""
+    high, low = sorted((luminance(first), luminance(second)), reverse=True)
+    return (high + 0.05) / (low + 0.05)
+
+
+MIN_SWATCH_CONTRAST = 3.0
+
+
+def _swatch_ink(background: tuple, partner: tuple) -> tuple:
+    """The partner color is the text color when it can be read; otherwise plain white or near-black."""
+    if contrast_ratio(background, partner) >= MIN_SWATCH_CONTRAST:
+        return partner
+    return (255, 255, 255) if luminance(background) < 0.4 else (30, 30, 30)
+
+
+def _draw_swatch(sprite: Image.Image, element: dict, pad: int, w: int, h: int, radius: int) -> None:
+    """A color pair, stacked. Each half is one color, with its name in big type and its hex in a pill,
+    and the text takes the other color of the pair."""
+    pair = [dict(item) for item in (element.get("swatch") or []) if isinstance(item, dict)][:2]
+    if len(pair) < 2:
+        return
+    rgb = [_rgb(str(item.get("hex") or "#888888")) for item in pair]
+    inner = (pad, pad, pad + w, pad + h)
+    _shadow(sprite, inner, radius)
+    body = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(body)
+    half = h // 2
+    for index, (item, fill) in enumerate(zip(pair, rgb)):
+        top = index * half
+        bottom = h if index == 1 else half
+        draw.rectangle((0, top, w, bottom), fill=fill + (255,))
+        ink = _swatch_ink(fill, rgb[1 - index])
+        name = str(item.get("name") or "").strip().upper()
+        _write(body, name, (28, top + round(half * 0.16), w - 28, top + round(half * 0.60)), ink, weight="Bold",
+               max_size=170, center=True)
+        hex_text = f"HEX : {str(item.get('hex') or '').upper()}"
+        font = _font(max(22, round(half * 0.075)), "Medium")
+        text_w = draw.textlength(hex_text, font=font)
+        pill_h = round(font.size * 2.1)
+        pill_w = round(text_w + font.size * 2.2)
+        left, pill_top = (w - pill_w) // 2, top + round(half * 0.66)
+        overlay = Image.new("RGBA", body.size, (0, 0, 0, 0))
+        layer = ImageDraw.Draw(overlay)
+        layer.rounded_rectangle((left, pill_top, left + pill_w, pill_top + pill_h), pill_h // 2,
+                                fill=ink + (34,), outline=ink + (110,), width=2)
+        layer.text((left + (pill_w - text_w) / 2, _centered_y(layer, font, pill_top, pill_h)), hex_text, font=font,
+                   fill=ink + (255,))
+        body.alpha_composite(overlay)
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, w, h), radius, fill=255)
+    sprite.paste(body, (pad, pad), mask)
+
+
+TILE_GLYPHS = ("bars", "ring", "arrow", "dots", "line", "check", "pin", "card", "toggle")
+TILE_TINTS = ((232, 245, 247), (247, 238, 224), (238, 235, 247), (229, 242, 233))
+TILE_POP = 0.32
+TILE_MARGIN = 16
+
+
+def _tile_grid(count: int) -> tuple:
+    columns = 2 if count <= 4 else 3 if count <= 9 else 4
+    return columns, -(-count // columns)
+
+
+def _draw_glyph(name: str, size: tuple, accent: tuple, ink: tuple, warning: tuple) -> Image.Image:
+    """A small flat graphic for a tile. Drawn at twice the size and scaled down so the edges stay smooth."""
+    width, height = size
+    scale = 2
+    layer = Image.new("RGBA", (width * scale, height * scale), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    w, h = layer.size
+    unit = min(w, h)
+    cx, cy = w / 2, h / 2
+    solid = accent + (255,)
+    if name == "bars":
+        heights = (0.32, 0.5, 0.42, 0.72, 0.95)
+        gap = unit * 0.06
+        bar = (min(w * 0.8, unit * 1.1) - gap * 4) / 5
+        left = cx - (bar * 5 + gap * 4) / 2
+        base = cy + unit * 0.42
+        for index, rise in enumerate(heights):
+            x = left + index * (bar + gap)
+            draw.rounded_rectangle((x, base - unit * 0.84 * rise, x + bar, base), bar * 0.3, fill=solid)
+    elif name == "ring":
+        r = unit * 0.40
+        thickness = round(unit * 0.12)
+        draw.ellipse((cx - r, cy - r, cx + r, cy + r), outline=accent + (60,), width=thickness)
+        draw.arc((cx - r, cy - r, cx + r, cy + r), -90, 190, fill=solid, width=thickness)
+    elif name == "arrow":
+        r = unit * 0.40
+        draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=solid)
+        stroke = round(unit * 0.07)
+        draw.line((cx, cy + r * 0.45, cx, cy - r * 0.40), fill=(255, 255, 255, 255), width=stroke)
+        draw.line((cx - r * 0.34, cy - r * 0.08, cx, cy - r * 0.45, cx + r * 0.34, cy - r * 0.08),
+                  fill=(255, 255, 255, 255), width=stroke, joint="curve")
+    elif name == "dots":
+        count = 6
+        step = unit * 0.78 / count
+        left, top = cx - step * count / 2, cy - step * count / 2
+        for row in range(count):
+            for col in range(count):
+                fade = 255 - ((row * 7 + col * 13) % 5) * 38
+                r = step * 0.34
+                x, y = left + step * (col + 0.5), top + step * (row + 0.5)
+                draw.ellipse((x - r, y - r, x + r, y + r), fill=accent + (fade,))
+    elif name == "line":
+        points = [(cx - unit * 0.38, cy + unit * 0.30), (cx - unit * 0.16, cy + unit * 0.05),
+                  (cx + unit * 0.02, cy + unit * 0.16), (cx + unit * 0.36, cy - unit * 0.30)]
+        draw.line(points, fill=solid, width=round(unit * 0.07), joint="curve")
+        r = unit * 0.07
+        x, y = points[-1]
+        draw.ellipse((x - r * 1.4, y - r * 1.4, x + r * 1.4, y + r * 1.4), fill=solid)
+    elif name == "check":
+        r = unit * 0.40
+        draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(47, 166, 106, 255))
+        draw.line((cx - r * 0.42, cy + r * 0.02, cx - r * 0.1, cy + r * 0.34, cx + r * 0.46, cy - r * 0.30),
+                  fill=(255, 255, 255, 255), width=round(unit * 0.08), joint="curve")
+    elif name == "pin":
+        r = unit * 0.24
+        top = cy - unit * 0.18
+        draw.polygon([(cx - r * 0.86, top + r * 0.5), (cx + r * 0.86, top + r * 0.5), (cx, cy + unit * 0.40)],
+                     fill=warning + (255,))
+        draw.ellipse((cx - r, top - r, cx + r, top + r), fill=warning + (255,))
+        draw.ellipse((cx - r * 0.4, top - r * 0.4, cx + r * 0.4, top + r * 0.4), fill=(255, 255, 255, 255))
+    elif name == "card":
+        cw, ch = min(w * 0.82, unit * 1.3), unit * 0.62
+        draw.rounded_rectangle((cx - cw / 2, cy - ch / 2, cx + cw / 2, cy + ch / 2), ch * 0.14, fill=solid)
+        draw.rectangle((cx - cw / 2, cy - ch * 0.26, cx + cw / 2, cy - ch * 0.06), fill=(255, 255, 255, 70))
+        draw.rounded_rectangle((cx - cw * 0.40, cy + ch * 0.18, cx - cw * 0.08, cy + ch * 0.26), 4, fill=(255, 255, 255, 190))
+    elif name == "toggle":
+        tw, th = min(w * 0.70, unit * 1.0), unit * 0.40
+        draw.rounded_rectangle((cx - tw / 2, cy - th / 2, cx + tw / 2, cy + th / 2), th / 2, fill=solid)
+        r = th * 0.40
+        draw.ellipse((cx + tw / 2 - th / 2 - r, cy - r, cx + tw / 2 - th / 2 + r, cy + r), fill=(255, 255, 255, 255))
+    return layer.resize((width, height), Image.LANCZOS)
+
+
+def _tile_caption(cell: Image.Image, text: str, area: tuple, color: tuple, max_size: int, min_size: int = 12) -> None:
+    """One line, shrunk until it fits. An arrow in the text ("A → B") is drawn as a shape, so it never depends on the font."""
+    if not text:
+        return
+    left, top, right, bottom = area
+    draw = ImageDraw.Draw(cell)
+    parts = [part.strip() for part in text.split("→")]
+    for size in range(max_size, min_size - 1, -1):
+        font = _font(size, "Demi Bold")
+        arrow = size * 0.95 if len(parts) > 1 else 0
+        gap = size * 0.32 if len(parts) > 1 else 0
+        widths = [draw.textlength(part, font=font) for part in parts]
+        total = sum(widths) + (len(parts) - 1) * (arrow + gap * 2)
+        if total <= right - left or size == min_size:
+            break
+    y = _centered_y(draw, font, top, bottom - top)
+    x = left
+    for index, part in enumerate(parts):
+        draw.text((x, y), part, font=font, fill=color + (255,))
+        x += widths[index]
+        if index < len(parts) - 1:
+            bounds = font.getbbox("x")
+            mid = y + (bounds[1] + bounds[3]) / 2
+            stroke = max(2, round(size / 9))
+            start, end = x + gap, x + gap + arrow
+            draw.line((start, mid, end - stroke / 2, mid), fill=color + (255,), width=stroke)
+            head = size * 0.26
+            draw.line((end - head, mid - head, end, mid, end - head, mid + head), fill=color + (255,), width=stroke, joint="curve")
+            x = end + gap
+
+
+def _tile_cell(tile: dict, index: int, size: tuple, card_h: int, caption_h: int, colors: dict, focused: bool) -> Image.Image:
+    cell_w, cell_h = size
+    margin = TILE_MARGIN
+    cell = Image.new("RGBA", (cell_w + margin * 2, cell_h + margin * 2), (0, 0, 0, 0))
+    radius = max(10, round(card_h * 0.14))
+    card = (margin, margin, margin + cell_w, margin + card_h)
+    _shadow(cell, card, radius)
+    tint = TILE_TINTS[index % len(TILE_TINTS)]
+    body = Image.new("RGBA", (cell_w, card_h), (255, 255, 255, 255))
+    wash = Image.linear_gradient("L").resize((cell_w, card_h)).point(lambda v: round(255 - v * 0.55))
+    body.paste(tint + (255,), mask=wash)
+    mask = Image.new("L", (cell_w, card_h), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, cell_w, card_h), radius, fill=255)
+    cell.paste(body, (margin, margin), mask)
+    accent = _rgb(colors["accent_dark"])
+    ink = _rgb(colors["text"])
+    warning = _rgb(colors["warning"])
+    glyph = str(tile.get("glyph") or "").strip().lower()
+    value = str(tile.get("value") or "").strip()
+    if glyph not in TILE_GLYPHS:
+        glyph = "" if value else TILE_GLYPHS[index % len(TILE_GLYPHS)]
+    inset = round(card_h * 0.12)
+    area = (margin + inset, margin + inset, margin + cell_w - inset, margin + card_h - inset)
+    area_w, area_h = area[2] - area[0], area[3] - area[1]
+    if glyph and value:
+        art_h = round(area_h * 0.58)
+        art = _draw_glyph(glyph, (area_w, art_h), accent, ink, warning)
+        cell.alpha_composite(art, (area[0], area[1]))
+        _write(cell, value, (area[0], area[1] + art_h, area[2], area[3]), ink, weight="Bold", max_size=90, center=True)
+    elif glyph:
+        art = _draw_glyph(glyph, (area_w, area_h), accent, ink, warning)
+        cell.alpha_composite(art, (area[0], area[1]))
+    else:
+        _write(cell, value, area, ink, weight="Bold", max_size=140, center=True)
+    if focused:
+        ImageDraw.Draw(cell).rounded_rectangle(card, radius, outline=accent + (255,), width=max(4, round(card_h * 0.03)))
+    # Caption under the card: a number, then the label.
+    draw = ImageDraw.Draw(cell)
+    number = f"{index + 1:02d}"
+    number_font = _font(max(12, round(caption_h * 0.46)), "Demi Bold")
+    top = margin + card_h
+    y = _centered_y(draw, number_font, top, caption_h)
+    end = _spaced(draw, (margin + 4, y), number, number_font, accent + (255,), 1.5)
+    label_area = (round(end) + 10, top, margin + cell_w, top + caption_h)
+    _tile_caption(cell, str(tile.get("label") or "").strip(), label_area, ink, max(14, round(caption_h * 0.56)))
+    return cell
+
+
+def _prepare_tiles(element: dict, w: int, h: int, pad: int, colors: dict) -> bool:
+    tiles = [tile for tile in (element.get("tiles") or []) if isinstance(tile, dict)][:16]
+    if not tiles:
+        return False
+    columns, rows = _tile_grid(len(tiles))
+    gap = max(6, min(16, w // 40))
+    cell_w = (w - gap * (columns - 1)) // columns
+    caption_h = max(24, min(44, round(cell_w * 0.19)))
+    card_h = round(min(cell_w * 1.0, (h - gap * (rows - 1)) / rows - caption_h))
+    cell_h = card_h + caption_h
+    grid_h = rows * cell_h + (rows - 1) * gap
+    top = pad + max(0, (h - grid_h) // 2)
+    focus = element.get("focus")
+    cells = []
+    for index, tile in enumerate(tiles):
+        col, row = index % columns, index // columns
+        cells.append({
+            "x": pad + col * (cell_w + gap) - TILE_MARGIN,
+            "y": top + row * (cell_h + gap) - TILE_MARGIN,
+            "plain": _tile_cell(tile, index, (cell_w, cell_h), card_h, caption_h, colors, False),
+            "ring": _tile_cell(tile, index, (cell_w, cell_h), card_h, caption_h, colors, True)
+            if isinstance(focus, int) and focus == index + 1 else None,
+        })
+    element["_cells"] = cells
+    element["_canvas"] = (w + pad * 2, h + pad * 2)
+    return True
+
+
+def _tiles_sprite(element: dict, t: float) -> Image.Image:
+    """One frame of the grid: tiles pop in one after another, then every tile but the focused one dims."""
+    canvas = Image.new("RGBA", element["_canvas"], (0, 0, 0, 0))
+    cells = element["_cells"]
+    enter_at = float(element.get("enter_at") or 0)
+    stagger = float(element.get("stagger") if element.get("stagger") is not None else 0.08)
+    since = t - enter_at
+    focus = element.get("focus") if isinstance(element.get("focus"), int) else None
+    focus_at = float(element.get("focus_at") or 0)
+    dim = _ease((since - focus_at) / 0.35) if focus else 0.0
+    late = None
+    for index, cell in enumerate(cells):
+        pop = _ease((since - index * stagger) / TILE_POP)
+        if pop <= 0:
+            continue
+        if focus and index + 1 == focus:
+            late = (cell, pop)
+            continue
+        _paste(canvas, cell["plain"], cell["x"], cell["y"], 0.86 + 0.14 * pop, pop * (1 - 0.66 * dim))
+    if late:
+        cell, pop = late
+        scale = (0.86 + 0.14 * pop) * (1 + 0.14 * dim)
+        _paste(canvas, cell["plain"], cell["x"], cell["y"], scale, pop)
+        if cell["ring"] is not None and dim > 0:
+            _paste(canvas, cell["ring"], cell["x"], cell["y"], scale, dim)
+    return canvas
+
+
+def _fade_feet(image: Image.Image, length: int) -> Image.Image:
+    """Fade the bottom edge of a cut-off figure to transparent."""
+    length = max(8, min(length, image.height))
+    faded = image.copy()
+    alpha = faded.getchannel("A")
+    ramp = Image.linear_gradient("L").resize((image.width, length)).transpose(Image.FLIP_TOP_BOTTOM)
+    mask = Image.new("L", image.size, 255)
+    mask.paste(ramp, (0, image.height - length))
+    faded.putalpha(ImageChops.multiply(alpha, mask))
+    return faded
+
+
+def _prepare_image(element: dict, w: int, h: int, pad: int, radius: int) -> bool:
+    path = Path(str(element.get("path") or ""))
+    if not path.is_file():
+        return False
+    with Image.open(path) as source:
+        picture = source.convert("RGB")
+    zoom = max(0.0, float(element.get("zoom") or 0))
+    scale = 1 + zoom + 0.04
+    big_w, big_h = round(w * scale), round(h * scale)
+    ratio = max(big_w / picture.width, big_h / picture.height)
+    resized = picture.resize((max(big_w, round(picture.width * ratio)), max(big_h, round(picture.height * ratio))), Image.LANCZOS)
+    left, top = (resized.width - big_w) // 2, (resized.height - big_h) // 2
+    element["_pic"] = resized.crop((left, top, left + big_w, top + big_h))
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, w, h), radius, fill=255)
+    element["_mask"] = mask
+    shadow = Image.new("RGBA", (w + pad * 2, h + pad * 2), (0, 0, 0, 0))
+    _shadow(shadow, (pad, pad, pad + w, pad + h), radius)
+    element["_shadow"] = shadow
+    element["_pad"] = pad
+    if element.get("sweep"):
+        element["_band"] = _sweep_layer(w, h)
+    return True
+
+
+def _sweep_layer(w: int, h: int) -> Image.Image:
+    """A soft slanted band of light, wider than the picture, that slides across it."""
+    band_w = max(80, round(w * 0.3))
+    strip = Image.linear_gradient("L").rotate(90)
+    triangle = ImageChops.darker(strip, ImageOps.mirror(strip)).point(lambda v: min(255, v * 2))
+    triangle = triangle.resize((band_w, h), Image.BILINEAR)
+    slant = round(h * 0.28)
+    layer = Image.new("L", (w + band_w * 2 + slant, h), 0)
+    layer.paste(triangle, (band_w, 0))
+    return layer.transform(layer.size, Image.AFFINE, (1, 0.28, -slant / 2, 0, 1, 0), Image.BILINEAR)
+
+
+def _image_sprite(element: dict, progress: float, t: float) -> Image.Image:
+    pic, mask, shadow = element["_pic"], element["_mask"], element["_shadow"]
+    pad = element["_pad"]
+    w, h = mask.size
+    zoom_gain = float(element.get("zoom") or 0)
+    z = 1 + zoom_gain * _ease_io(max(0.0, min(1.0, progress)))
+    # The stored picture is larger than the frame, so the centred window shrinks as the push-in deepens.
+    window_w, window_h = pic.width / z, pic.height / z
+    left, top = (pic.width - window_w) / 2, (pic.height - window_h) / 2
+    frame = pic.crop((round(left), round(top), round(left + window_w), round(top + window_h))).resize((w, h), Image.BILINEAR)
+    band = element.get("_band")
+    if band is not None and progress > 0:
+        sweep = _ease_io(min(1.0, progress / 0.8))
+        offset = round(sweep * (band.width - w))
+        light = band.crop((offset, 0, offset + w, h)).point(lambda v: round(v * 0.30))
+        frame.paste((255, 255, 255), mask=light)
+    sprite = shadow.copy()
+    sprite.paste(frame, (pad, pad), mask)
+    tag = str(element.get("tag") or "").strip()
+    if tag:
+        draw = ImageDraw.Draw(sprite)
+        font = _font(22, "Demi Bold")
+        width = _spaced_width(draw, tag.upper(), font, 3)
+        box = (pad + 24, pad + 24, pad + 24 + width + 36, pad + 24 + 42)
+        draw.rounded_rectangle(box, 21, fill=(255, 255, 255, 235))
+        _spaced(draw, (box[0] + 18, _centered_y(draw, font, box[1], 42)), tag.upper(), font, (43, 43, 43, 255), 3)
+    return sprite
 
 
 _FONTS: dict = {}

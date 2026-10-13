@@ -80,6 +80,32 @@ def append_history(root: Path, record: dict) -> None:
         handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
+def withdraw_record(root: Path, date: str, title: str, reason: str) -> bool:
+    """Mark one history record as withdrawn and not posted. Returns False when no record matched.
+
+    A "ready" record only means a draft was built. Withdrawing one keeps it in the file, so the
+    topic still counts as seen, but it no longer reads as a post that is ready to go out.
+    """
+    path = history_path(root)
+    if not path.exists():
+        return False
+    changed = False
+    lines = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        record = json.loads(line)
+        if record.get("date") == date and record.get("title") == title and record.get("carousel_status") != "withdrawn":
+            record["carousel_status"] = "withdrawn"
+            record["posted_to_instagram"] = False
+            record["withdrawn_reason"] = reason
+            changed = True
+        lines.append(json.dumps(record, ensure_ascii=False))
+    if changed:
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return changed
+
+
 def history_note(available: bool) -> str:
     if not available:
         return "Project history was not available. This run did not check earlier topics."

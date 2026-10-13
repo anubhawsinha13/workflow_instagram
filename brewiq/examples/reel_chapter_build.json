@@ -1,0 +1,62 @@
+{
+  "format": "chapter_build",
+  "topic": "Check an AI answer before you share it",
+  "title": "Is that AI answer right?",
+  "stat": { "value": "30", "unit": "seconds" },
+  "rail_label": "The check",
+  "timer": "remaining",
+  "hook": "Confident is not correct",
+  "caption": "An AI answer can sound sure and still be wrong. Here is the 30-second check: find the claim, open the source, compare, fix, then share.\n\nSave this for the next time an answer sounds too confident.\n\nFollow @_brewiq.",
+  "beats": [
+    {
+      "id": "claim",
+      "role": "intro",
+      "chapter": "Claim",
+      "voice": "This AI answer sounds sure. But confident isn't the same as correct.",
+      "lower_third": "AI can sound sure and still be wrong.",
+      "pose": "present",
+      "on_screen": {},
+      "shot": { "mode": "graphics" }
+    },
+    {
+      "id": "source",
+      "role": "problem",
+      "chapter": "Source",
+      "voice": "Let's check. Here's the claim, and here's the source it should come from.",
+      "lower_third": "Find the source behind the claim.",
+      "pose": "reach",
+      "on_screen": { "card": "Open the original source" },
+      "shot": { "mode": "graphics" }
+    },
+    {
+      "id": "match",
+      "role": "problem",
+      "chapter": "Match",
+      "voice": "They don't match. AI predicts likely words, and without a source it can fill gaps with guesses.",
+      "lower_third": "Compare the claim with the source.",
+      "pose": "magnify_doubt",
+      "on_screen": { "card": "Claim and source do not match" },
+      "shot": { "mode": "graphics" }
+    },
+    {
+      "id": "fix",
+      "role": "solution",
+      "chapter": "Fix",
+      "voice": "So check, compare, and correct. It takes less than a minute.",
+      "lower_third": "Check, compare, correct.",
+      "pose": "thumbs_up",
+      "on_screen": { "card": "Correct it before you share" },
+      "shot": { "mode": "graphics" }
+    },
+    {
+      "id": "share",
+      "role": "cta",
+      "chapter": "Share",
+      "voice": "Before you share a confident answer, check the source.",
+      "lower_third": "Check the source before you share.",
+      "pose": "point_viewer",
+      "on_screen": { "card": "Try this prompt", "prompt_text": "Give me the source for each claim in your answer, then tell me which claims you could not verify." },
+      "shot": { "mode": "graphics" }
+    }
+  ]
+}

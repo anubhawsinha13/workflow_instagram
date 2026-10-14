@@ -51,7 +51,7 @@ def _facts_from_brief(brief: dict) -> dict:
     lines = [
         str(brief.get("summary") or "").strip(),
         _labeled("Situation", brief.get("situation")),
-        _labeled("Hook", brief.get("selected_hook")),
+        _labeled("Hook idea (shorten it to 8 words or fewer)", brief.get("selected_hook")),
         str(brief.get("limitations") or "").strip(),
         str(brief.get("availability") or "").strip(),
     ]

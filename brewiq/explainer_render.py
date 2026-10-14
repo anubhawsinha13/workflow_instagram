@@ -17,7 +17,24 @@ if str(ROOT) not in sys.path:
 
 from reel import ffmpeg_bin  # noqa: E402
 
-FONT_FILE = "/System/Library/Fonts/Avenir Next.ttc"
+FONT_DIR = ROOT / "brand" / "fonts"
+FONT_FILE = str(FONT_DIR / "Archivo-Variable.ttf")
+DISPLAY_FONT = str(FONT_DIR / "ArchivoBlack-Regular.ttf")
+FALLBACK_FONT_FILE = "/System/Library/Fonts/Avenir Next.ttc"
+FONT_WEIGHTS = {"Regular": 400, "Medium": 500, "Demi Bold": 600, "Bold": 700, "Heavy": 800}
+
+# The Highlighter look: white page, near-black heavy type, a yellow marker behind key words.
+BRAND_COLORS = {
+    "background": "#FFFFFF",
+    "text": "#111111",
+    "accent": "#2F6BFF",
+    "accent_dark": "#1B3FB8",
+    "warning": "#E5484D",
+    "card": "#FFFFFF",
+    "highlight": "#FFE14D",
+    "grid": "#E6E6E1",
+}
+WORDMARK = "BrewIQ"
 SLIDE = 70
 SPIN_SECONDS = 1.4
 POSE_DIR = ROOT / "brand" / "poses"
@@ -52,10 +69,10 @@ HOST_PROMPT = (
 # Standing composition, matching the reference reel: host on the left, type on the right.
 HOST_LEFT = 8
 HOST_FOOT = 1460
-HOST_WIDTH = 400
-TEXT_COLUMN = {"x": 580, "y": 470, "w": 350, "h": 780}
+HOST_WIDTH = 280  # About 30% of the frame, so the words lead.
+TEXT_COLUMN = {"x": 440, "y": 470, "w": 490, "h": 780}
 WIDE_POSES = {"present", "reach", "point", "point_viewer", "push", "pinch", "toss"}
-RAIL_BOX = {"x": 64, "y": 190, "w": 866, "h": 100}
+RAIL_BOX = {"x": 64, "y": 190, "w": 640, "h": 100}  # The wordmark takes the top-right corner.
 LOWER_BOX = {"x": 40, "y": 1330, "w": 890, "h": 170}
 STAGE_TYPES = ("card", "text", "bubble", "slots", "token", "lens", "title", "prompt_card")
 HOOK_TYPES = ("card", "text", "bubble", "title")
@@ -88,7 +105,7 @@ def _stage_explainer(scenes: list) -> list:
                   if element.get("type") not in ("character", "rail", "lower_third") and element not in words]
         if host:
             host = dict(host)
-            left = HOST_LEFT - (90 if (host.get("pose") or "neutral") in WIDE_POSES else 0)
+            left = HOST_LEFT - (60 if (host.get("pose") or "neutral") in WIDE_POSES else 0)
             host["box"] = {"x": left, "y": 0, "w": HOST_WIDTH, "h": 900}
             host["foot_y"] = HOST_FOOT
             host["enter_at"] = 0.0
@@ -138,9 +155,9 @@ def _stage_explainer(scenes: list) -> list:
         rail = {
             "id": f"rail-{index + 1}", "type": "rail", "box": dict(RAIL_BOX),
             "enter_at": 0.0, "enter_duration": 0.01, "enter_motion": "none", "exit_motion": "hold",
-            "label": str(scene.get("rail_label") or "BrewIQ"),
+            "label": str(scene.get("rail_label") or ""),
             "chips": chips, "active": min(index, max(0, len(chips) - 1)),
-            "timer": "remaining", "timeline": False, "chrome": True,
+            "timer": None, "timeline": False, "chrome": True,
         }
         lower = {
             "id": f"lower-{index + 1}", "type": "lower_third", "box": dict(LOWER_BOX),
@@ -172,14 +189,8 @@ def render_explainer(payload: dict, make_host=None) -> dict:
     width = int(canvas.get("width") or 1080)
     height = int(canvas.get("height") or 1920)
     fps = int(canvas.get("fps") or 30)
-    colors = {
-        "background": canvas.get("background") or "#F7F3EC",
-        "text": canvas.get("text") or "#2B2B2B",
-        "accent": canvas.get("accent") or "#22C3D6",
-        "accent_dark": canvas.get("accent_dark") or "#107886",
-        "warning": canvas.get("warning") or "#D6623E",
-        "card": canvas.get("card") or "#FFFFFF",
-    }
+    # Every reel uses the brand palette, whatever colors the plan asks for.
+    colors = dict(BRAND_COLORS)
     radius = int(canvas.get("corner_radius") or 32)
 
     host = None
@@ -193,6 +204,7 @@ def render_explainer(payload: dict, make_host=None) -> dict:
     ):
         scenes = _stage_explainer(scenes)
     background = _background(width, height, colors)
+    wordmark = _wordmark_layer(width, height, colors)
     total = sum(float(scene.get("duration_seconds") or 0) for scene in scenes)
     prepared = []
     for scene in scenes:
@@ -233,6 +245,7 @@ def render_explainer(payload: dict, make_host=None) -> dict:
                 for element, sprite in sprites:
                     if sprite is not None and _is_chrome(element):
                         _place(frame, element, sprite, local, duration, colors)
+        frame.alpha_composite(wordmark)
         return frame
 
     preview = payload.get("preview") if isinstance(payload.get("preview"), dict) else None
@@ -326,6 +339,7 @@ def _opening_still(width: int, height: int, colors: dict, radius: int, sprites: 
         if sprite is None:
             continue
         _place(frame, element, sprite, draw_at, duration, colors)
+    frame.alpha_composite(_wordmark_layer(width, height, colors))
     return frame
 
 
@@ -333,13 +347,7 @@ def opening_still(canvas: dict, elements: list) -> Image.Image:
     """The cover frame: the hook label is visible even when its entrance is later than 0."""
     width = int(canvas.get("width") or 1080)
     height = int(canvas.get("height") or 1920)
-    colors = {
-        "background": canvas.get("background") or "#F7F3EC",
-        "text": canvas.get("text") or "#2B2B2B",
-        "accent": canvas.get("accent") or "#22C3D6",
-        "warning": canvas.get("warning") or "#D6623E",
-        "card": canvas.get("card") or "#FFFFFF",
-    }
+    colors = dict(BRAND_COLORS)
     radius = int(canvas.get("corner_radius") or 32)
     sprites = []
     for element in elements:
@@ -459,16 +467,34 @@ def _host_image(payload: dict, folder: Path, make_host) -> Image.Image | None:
 
 
 def _background(width: int, height: int, colors: dict) -> Image.Image:
+    """A white page with a faint dot grid, like a notebook, so white cards still read as objects."""
     image = Image.new("RGBA", (width, height), colors["background"])
-    glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(glow)
-    accent = _rgb(colors["accent"])
-    draw.ellipse((-260, -200, 520, 560), fill=accent + (34,))
-    draw.ellipse((width - 420, height - 760, width + 260, height - 80), fill=accent + (26,))
-    image.alpha_composite(glow.filter(ImageFilter.GaussianBlur(120)))
-    grain = Image.effect_noise((width, height), 22).convert("RGB")
-    textured = Image.blend(image.convert("RGB"), grain, 0.035)
-    return textured.convert("RGBA")
+    draw = ImageDraw.Draw(image)
+    dot = _rgb(colors.get("grid") or "#E6E6E1") + (255,)
+    step = 48
+    for y in range(step // 2, height, step):
+        for x in range(step // 2, width, step):
+            draw.ellipse((x - 2, y - 2, x + 2, y + 2), fill=dot)
+    return image
+
+
+def _wordmark_layer(width: int, height: int, colors: dict) -> Image.Image:
+    """BrewIQ wordmark with a small cup, top right, below Instagram's top controls."""
+    layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    font = _serif(40)
+    ink = _rgb(colors["text"]) + (255,)
+    text_w = draw.textlength(WORDMARK, font=font)
+    cup_w, cup_h, gap = 34, 30, 12
+    right, top = 930, 196
+    left = right - text_w - gap - cup_w - 10
+    # Cup: a yellow body with a dark outline and handle.
+    body = (left, top + 8, left + cup_w, top + 8 + cup_h)
+    draw.rounded_rectangle(body, 7, fill=_rgb(colors["highlight"]) + (255,), outline=ink, width=4)
+    draw.arc((left + cup_w - 8, top + 14, left + cup_w + 12, top + 32), -90, 90, fill=ink, width=4)
+    box = draw.textbbox((0, 0), WORDMARK, font=font)
+    draw.text((right - text_w, top + 8 + cup_h / 2 - (box[1] + box[3]) / 2), WORDMARK, font=font, fill=ink)
+    return layer
 
 
 CHROME_TYPES = ("rail", "lower_third")
@@ -816,9 +842,9 @@ def _sprite(element: dict, colors: dict, radius: int, host: Image.Image | None) 
 
     if kind == "card":
         _shadow(sprite, inner, radius)
-        ImageDraw.Draw(sprite).rounded_rectangle(inner, radius, fill=card + (255,))
+        ImageDraw.Draw(sprite).rounded_rectangle(inner, radius, fill=card + (255,), outline=text + (255,), width=4)
         ImageDraw.Draw(sprite).rounded_rectangle(
-            (pad + 28, pad + 28, pad + 28 + 56, pad + 28 + 8), 4, fill=accent + (255,)
+            (pad + 28, pad + 26, pad + 28 + 64, pad + 26 + 12), 4, fill=_rgb(BRAND_COLORS["highlight"]) + (255,)
         )
         _write(sprite, label, (pad + 36, pad + 48, pad + w - 36, pad + h - 32), text, weight="Bold",
                max_size=72, serif=True)
@@ -1202,10 +1228,11 @@ _SERIFS: dict = {}
 
 
 def _serif(size: int, bold: bool = True) -> ImageFont.FreeTypeFont:
+    """The display face for headlines: Archivo Black, falling back to Georgia. The name is kept for callers."""
     key = (size, bold)
     if key not in _SERIFS:
         chosen = None
-        for path in ((SERIF_BOLD, SERIF) if bold else (SERIF, SERIF_BOLD)):
+        for path in (DISPLAY_FONT, SERIF_BOLD, SERIF):
             try:
                 chosen = ImageFont.truetype(path, size)
                 break
@@ -1320,7 +1347,8 @@ def _rail_frame(sprite: Image.Image, element: dict, colors: dict, t: float) -> I
     image = sprite.copy()
     draw = ImageDraw.Draw(image)
     ink = _rgb(colors["text"])
-    if element.get("timer") == "remaining":
+    if element.get("timer") == "remaining" and "right" in geometry:
+        # Only the chapter-chip rail lays out a countdown. A step rail has no timer geometry.
         seconds = max(0, math.ceil(total - t))
         text = f"{seconds // 60}:{seconds % 60:02d} LEFT"
         font = _font(24, "Demi Bold")
@@ -1350,7 +1378,14 @@ def _draw_title(sprite: Image.Image, element: dict, colors: dict, pad: int, w: i
         headline, w, max(60, h - stat_height), lambda size: _serif(size, True), 104, 46, max_lines=4, leading=1.08
     )
     y = pad
-    for line in lines:
+    marker = _rgb(colors.get("highlight") or "#FFE14D") + (255,)
+    for index, line in enumerate(lines):
+        if index == len(lines) - 1 and line.strip():
+            # The marker swipe sits on the lower half of the last line, like a highlighter pen.
+            box = draw.textbbox((pad, y), line, font=font)
+            draw.rounded_rectangle(
+                (box[0] - 10, box[1] + (box[3] - box[1]) * 0.42, box[2] + 12, box[3] + 8), 6, fill=marker
+            )
         draw.text((pad, y), line, font=font, fill=ink + (255,))
         y += line_height
     if value:
@@ -1375,10 +1410,10 @@ def _draw_title(sprite: Image.Image, element: dict, colors: dict, pad: int, w: i
 
 def _draw_lower_third(sprite: Image.Image, element: dict, colors: dict, pad: int, w: int, h: int) -> None:
     inner = (pad, pad, pad + w, pad + h)
-    _shadow(sprite, inner, 26)
     draw = ImageDraw.Draw(sprite)
-    draw.rounded_rectangle(inner, 26, fill=_rgb(colors["card"]) + (240,))
-    draw.rounded_rectangle((pad + 20, pad + 24, pad + 30, pad + h - 24), 5, fill=_rgb(colors["accent_dark"]) + (255,))
+    ink = _rgb(colors["text"]) + (255,)
+    draw.rounded_rectangle(inner, 22, fill=_rgb(colors["card"]) + (255,), outline=ink, width=4)
+    draw.rounded_rectangle((pad + 20, pad + 24, pad + 34, pad + h - 24), 5, fill=_rgb(colors.get("highlight") or "#FFE14D") + (255,), outline=ink, width=2)
     area = (pad + 54, pad + 16, pad + w - 32, pad + h - 16)
     font, lines, line_height, _size = _fit_lines(
         str(element.get("label") or "").strip(), area[2] - area[0], area[3] - area[1],
@@ -1813,20 +1848,27 @@ _FONTS: dict = {}
 
 
 def _font(size: int, weight: str) -> ImageFont.FreeTypeFont:
+    """Archivo at the named weight, or Avenir Next when the brand font is missing."""
     key = (size, weight)
     if key in _FONTS:
         return _FONTS[key]
     chosen = None
     try:
-        for index in range(16):
-            candidate = ImageFont.truetype(FONT_FILE, size, index=index)
-            if candidate.getname()[1] == weight:
-                chosen = candidate
-                break
-            if chosen is None and candidate.getname()[1] in ("Bold", "Demi Bold"):
-                chosen = candidate
-    except OSError:
-        pass
+        chosen = ImageFont.truetype(FONT_FILE, size)
+        chosen.set_variation_by_axes([FONT_WEIGHTS.get(weight, 600), 100])
+    except (OSError, AttributeError):
+        chosen = None
+    if chosen is None:
+        try:
+            for index in range(16):
+                candidate = ImageFont.truetype(FALLBACK_FONT_FILE, size, index=index)
+                if candidate.getname()[1] == weight:
+                    chosen = candidate
+                    break
+                if chosen is None and candidate.getname()[1] in ("Bold", "Demi Bold"):
+                    chosen = candidate
+        except OSError:
+            pass
     _FONTS[key] = chosen or ImageFont.load_default(size)
     return _FONTS[key]
 
@@ -1834,8 +1876,9 @@ def _font(size: int, weight: str) -> ImageFont.FreeTypeFont:
 def _shadow(sprite: Image.Image, box: tuple, radius: int) -> None:
     layer = Image.new("RGBA", sprite.size, (0, 0, 0, 0))
     left, top, right, bottom = box
-    ImageDraw.Draw(layer).rounded_rectangle((left, top + 12, right, bottom + 12), radius, fill=(43, 43, 43, 40))
-    sprite.alpha_composite(layer.filter(ImageFilter.GaussianBlur(16)))
+    # A hard offset shadow, like a sticker on paper. Soft gray glows disappear on a white page.
+    ImageDraw.Draw(layer).rounded_rectangle((left + 8, top + 8, right + 8, bottom + 8), radius, fill=(17, 17, 17, 255))
+    sprite.alpha_composite(layer)
 
 
 def _cover(image: Image.Image, w: int, h: int) -> Image.Image:

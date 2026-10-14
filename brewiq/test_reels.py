@@ -609,7 +609,9 @@ class RendererElementTests(unittest.TestCase):
             self.assertTrue(result["ok"], result.get("error"))
             first = Image.open(result["previews"][0]).convert("RGB")
             later = Image.open(result["previews"][1]).convert("RGB")
-        self.assertNotEqual(first.getpixel((540, 40)), first.getpixel((540, 960)), "the first still must not be a blank stage")
+        # The page is white, so a filled stage shows up as many dark ink pixels across the middle of the frame.
+        ink = sum(1 for pixel in first.crop((0, 400, 1080, 1500)).resize((270, 275)).getdata() if max(pixel) < 80)
+        self.assertGreater(ink, 500, "the first still must not be a blank stage")
         self.assertNotEqual(first.tobytes(), later.tobytes())
 
     def test_chrome_stays_still_while_the_camera_pushes_in(self):

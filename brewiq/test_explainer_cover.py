@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from explainer_render import _hook_time, opening_still
+from explainer_render import BRAND_COLORS, _hook_time, opening_still
 
 
 class ExplainerCoverTests(unittest.TestCase):
@@ -62,7 +62,7 @@ class ExplainerCoverTests(unittest.TestCase):
 
     def test_step_rail_marks_one_step_and_split_shows_both_sides(self) -> None:
         rail = _still("rail", "Plan | *Connect | Build | Check", {"x": 40, "y": 40, "w": 640, "h": 140})
-        accent = _count_near(rail.crop((200, 20, 420, 120)), (34, 195, 214))
+        accent = _count_near(rail.crop((200, 20, 420, 120)), _hex_rgb(BRAND_COLORS["accent"]))
         self.assertGreater(accent, 30, "the current step on the rail should be filled")
         split = _still("split", "Checks the date | Ask before you send", {"x": 20, "y": 20, "w": 680, "h": 280})
         self.assertGreater(_count_near(split, (255, 255, 255)), 200, "the result and the prompt each need a card")
@@ -100,6 +100,10 @@ def _icon_frame(label: str):
     }
     frame = opening_still({"width": 280, "height": 280, "background": "#F7F3EC"}, [element])
     return frame.crop((40, 40, 200, 200)).convert("RGB")
+
+
+def _hex_rgb(value: str) -> tuple:
+    return tuple(int(value[index:index + 2], 16) for index in (1, 3, 5))
 
 
 def _count_near(image, color: tuple, tolerance: int = 18) -> int:

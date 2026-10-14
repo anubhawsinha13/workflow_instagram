@@ -21,7 +21,7 @@ if str(ROOT) not in sys.path:
 
 import voice as voice_module  # noqa: E402
 from explainer_render import (  # noqa: E402
-    FIGURE_WIDTH, MIN_SWATCH_CONTRAST, POSE_FILES, POSE_HEAD, TILE_GLYPHS, contrast_ratio, load_pose_library,
+    BRAND_COLORS, FIGURE_WIDTH, MIN_SWATCH_CONTRAST, POSE_FILES, POSE_HEAD, TILE_GLYPHS, contrast_ratio, load_pose_library,
     render_explainer,
 )  # noqa: E402
 
@@ -54,25 +54,18 @@ BEAT_PAD = 0.35
 MIN_BEAT = 2.4
 MAX_TOTAL = 75.0
 
-COLORS = {
-    "background": "#F6F0E6",
-    "text": "#2B2B2B",
-    "accent": "#22C3D6",
-    "accent_dark": "#107886",
-    "warning": "#D6623E",
-    "card": "#FFFFFF",
-}
+COLORS = dict(BRAND_COLORS)
 
 # Layout regions. The host stands on the left with the cut-off edge hidden behind the lower third.
 LOWER = {"x": LOWER_THIRD_LEFT, "y": 1330, "w": 890, "h": 170}
-HOST_SCALE = 0.7
+HOST_SCALE = 0.48  # About 30% of the frame, so the words lead.
 HOST_FOOT = 1460
 HOST_LEFT = 36
 MAX_HOST_SHIFT = 150
 HOST = {"x": HOST_LEFT, "y": 0, "w": round(620 * HOST_SCALE), "h": 900}
 HOST_ZONE_Y = (540, 1330)
-COLUMN = {"x": 560, "y": 470, "w": 370, "h": 780}
-RAIL_ROW = {"x": 64, "y": 190, "w": 866, "h": 100}
+COLUMN = {"x": 440, "y": 470, "w": 490, "h": 780}
+RAIL_ROW = {"x": 64, "y": 190, "w": 640, "h": 100}  # The wordmark takes the top-right corner.
 HERO = {"x": 64, "y": 230, "w": 866, "h": 780}
 CHIPS_ROW = {"x": 64, "y": 1030, "w": 866, "h": 74}
 HEADLINE_ROW = {"x": 64, "y": 1130, "w": 866, "h": 180}
@@ -350,7 +343,12 @@ def layout(spec: dict, timing: list, plates: dict) -> dict:
         elif fmt == "product_shot":
             elements = _product_scene(spec, beat, on_screen, key, plate, shot)
         previous_tiles = on_screen.get("tiles") or None
-        elements.append(_element(f"{key}-lower", "lower_third", dict(LOWER), label=_text(beat.get("lower_third")),
+        caption = _text(beat.get("lower_third"))
+        headline = next((_text(e.get("label")) for e in elements if e.get("type") == "title"), "")
+        if caption == headline and 0 < len(_text(beat.get("voice"))) <= 90:
+            # The headline already shows these words, so the caption carries the full spoken sentence.
+            caption = _text(beat.get("voice"))
+        elements.append(_element(f"{key}-lower", "lower_third", dict(LOWER), label=caption,
                                  motion="slide_up", at=0.15, length=0.4))
         scenes.append({
             "start_seconds": slot["start"], "duration_seconds": slot["duration"],
@@ -360,7 +358,7 @@ def layout(spec: dict, timing: list, plates: dict) -> dict:
 
 
 def _rail(spec: dict, beats: list, key: str, active: int, region: dict, *, chips: list, label: str, timeline: bool) -> dict:
-    timer = "remaining" if spec.get("timer") == "remaining" else None
+    timer = None  # The wordmark sits where the countdown was.
     box = dict(region)
     box["h"] = (50 if label or timer else 0) + (46 if chips else 0) + (24 if timeline and chips else 0) + 4
     return _element(f"{key}-rail", "rail", box, persist=True, label=label, chips=chips, active=active,
@@ -398,7 +396,7 @@ def _host(key: str, beat: dict, previous_pose, left: int) -> dict:
 def _chapter_scene(spec, beat, on_screen, key, index, plate, shot, previous_pose, left) -> list:
     chips = _chapters(spec["beats"])
     active = chips.index(_text(beat.get("chapter")).upper()) if _text(beat.get("chapter")).upper() in chips else 0
-    label = _text(spec.get("rail_label")) or "BrewIQ"
+    label = _text(spec.get("rail_label"))
     elements = [_rail(spec, spec["beats"], key, active, RAIL_ROW, chips=chips, label=label, timeline=False)]
     if shot.get("mode") == "still" and plate:
         elements.append(_element(f"{key}-image", "image", _box(COLUMN, y=520, h=560), path=plate, zoom=0.08,
@@ -413,6 +411,10 @@ def _chapter_scene(spec, beat, on_screen, key, index, plate, shot, previous_pose
     elif on_screen.get("card"):
         elements.append(_element(f"{key}-card", "card", _box(COLUMN, y=560, h=340), label=_text(on_screen.get("card")),
                                  motion="snap", at=0.2, length=0.4))
+    elif _text(beat.get("lower_third")):
+        # A beat with nothing on screen left half the frame empty. Show its words as the headline.
+        elements.append(_element(f"{key}-title", "title", _box(COLUMN, h=600), label=_text(beat.get("lower_third")),
+                                 motion="slide_up", at=0.1, length=0.55))
     elements.append(_host(key, beat, previous_pose, left))
     return elements
 
@@ -483,7 +485,7 @@ def _workflow_scene(spec, beat, on_screen, key, index, plate, shot, slot, previo
                              text=_text(on_screen.get("prompt_text")), motion="slide_up", at=0.2))
     elements.insert(0, _element(f"{key}-rail", "rail", _box(RAIL_ROW, y=190, h=48), persist=True,
                                 label=_text(spec.get("rail_label")) or "Workflow",
-                                timer="remaining" if spec.get("timer") == "remaining" else None, chips=[], active=0,
+                                timer=None, chips=[], active=0,
                                 timeline=False))
     return elements
 

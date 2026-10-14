@@ -58,6 +58,14 @@ WIDE_POSES = {"present", "reach", "point", "point_viewer", "push", "pinch", "tos
 RAIL_BOX = {"x": 64, "y": 190, "w": 866, "h": 100}
 LOWER_BOX = {"x": 40, "y": 1330, "w": 890, "h": 170}
 STAGE_TYPES = ("card", "text", "bubble", "slots", "token", "lens", "title", "prompt_card")
+HOOK_TYPES = ("card", "text", "bubble", "title")
+# Between the chapter rail and the top of the host's head.
+HOOK_BAND = {"x": 64, "y": 310, "w": 866, "h": 330}
+
+
+def _overlaps(box: dict, other: dict) -> bool:
+    x, y, w, h = (float(box.get(key) or 0) for key in ("x", "y", "w", "h"))
+    return x < other["x"] + other["w"] and other["x"] < x + w and y < other["y"] + other["h"] and other["y"] < y + h
 
 
 def _stage_explainer(scenes: list) -> list:
@@ -89,22 +97,43 @@ def _stage_explainer(scenes: list) -> list:
             host["exit_motion"] = "hold"
             host["settle"] = index > 0
         gap = 24
-        count = max(1, len(words))
-        cell_h = (TEXT_COLUMN["h"] - gap * (count - 1)) // count
         placed = []
-        for order, element in enumerate(words):
-            item = dict(element)
-            item["box"] = {
-                "x": TEXT_COLUMN["x"],
-                "y": TEXT_COLUMN["y"] + order * (cell_h + gap),
-                "w": TEXT_COLUMN["w"],
-                "h": cell_h,
-            }
-            if count == 1 and item.get("type") == "card" and len(str(item.get("label") or "").split()) <= 10:
-                item["type"] = "title"
+        # Scene 1 sets the hook large across the top, above the host, so it reads in the first second.
+        hook = words[0] if index == 0 and host and words and words[0].get("type") in HOOK_TYPES else None
+        column = TEXT_COLUMN
+        if hook:
+            item = dict(hook)
+            item["box"] = dict(HOOK_BAND)
+            item["type"] = "title"
             item["enter_at"] = 0.0
             item["enter_duration"] = 0.01
             item["enter_motion"] = "none"
+            placed.append(item)
+            words = words[1:]
+            top = HOOK_BAND["y"] + HOOK_BAND["h"] + gap
+            column = {**TEXT_COLUMN, "y": top, "h": TEXT_COLUMN["y"] + TEXT_COLUMN["h"] - top}
+            for extra in extras:
+                if _overlaps(extra.get("box") or {}, HOOK_BAND):
+                    extra["box"] = {**(extra.get("box") or {}), "x": column["x"], "y": top}
+                    column = {**column, "y": top + 64 + gap, "h": column["h"] - 64 - gap}
+        count = max(1, len(words))
+        cell_h = (column["h"] - gap * (count - 1)) // count
+        for order, element in enumerate(words):
+            item = dict(element)
+            item["box"] = {
+                "x": column["x"],
+                "y": column["y"] + order * (cell_h + gap),
+                "w": column["w"],
+                "h": cell_h,
+            }
+            if count == 1 and not hook and item.get("type") == "card" and len(str(item.get("label") or "").split()) <= 10:
+                item["type"] = "title"
+            # Only the first words on screen are pinned to frame 0 so the stage is never empty.
+            # Later words keep the planner's entrance, so the snaps that carry the story still move.
+            if order == 0 and not hook:
+                item["enter_at"] = 0.0
+                item["enter_duration"] = 0.01
+                item["enter_motion"] = "none"
             placed.append(item)
         rail = {
             "id": f"rail-{index + 1}", "type": "rail", "box": dict(RAIL_BOX),
@@ -242,11 +271,12 @@ def render_explainer(payload: dict, make_host=None) -> dict:
         detail = stderr.strip().splitlines()
         return {"ok": False, "error": (detail[-1] if detail else "ffmpeg could not render the explainer.")[:240]}
     cover = out.with_name("cover.jpg")
+    hook_element = _first_hook(prepared[0][2] if prepared else [])
     try:
         cover_frame = _opening_still(
             width, height, colors, radius,
             prepared[0][2] if prepared else [],
-            prepared[0][5] if prepared else None,
+            None,  # The video frames draw no backdrop behind the host, so the cover matches them.
             hook_element,
         )
         cover_frame.convert("RGB").save(cover, quality=90)
@@ -800,7 +830,8 @@ def _sprite(element: dict, colors: dict, radius: int, host: Image.Image | None) 
         left, top = pad + (w - size) // 2, pad + (h - size) // 2
         _shadow(sprite, (left, top, left + size, top + size), size // 5)
         _paint_tile(sprite, (left, top, left + size, top + size), _icon_kind(label))
-    elif kind == "rail":
+    elif kind == "rail" and not element.get("chrome"):
+        # The planner's step rail. The layout's chapter-chip rail is drawn by _draw_rail below.
         _shadow(sprite, inner, radius)
         ImageDraw.Draw(sprite).rounded_rectangle(inner, radius, fill=card + (255,))
         _draw_step_rail(sprite, inner, label, text, accent)

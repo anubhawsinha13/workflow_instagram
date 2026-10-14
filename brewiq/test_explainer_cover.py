@@ -4,10 +4,27 @@ from __future__ import annotations
 
 import unittest
 
-from explainer_render import BRAND_COLORS, _hook_time, opening_still
+from explainer_render import BRAND_COLORS, _sprite, _hook_time, opening_still
 
 
 class ExplainerCoverTests(unittest.TestCase):
+    def test_sample_screen_draws_rows_button_and_summary(self) -> None:
+        screen = {
+            "app": "chat",
+            "title": "#launch-plan · 48 replies",
+            "lines": [{"who": "Priya", "text": "Can we move the review?"}, {"who": "Marcus", "text": "Friday works"}],
+            "action": "Summarize",
+        }
+        box = {"x": 0, "y": 0, "w": 866, "h": 754}
+        drawn = _sprite({"type": "screen", "box": box, "screen": screen}, dict(BRAND_COLORS), 28, None).convert("RGB")
+        self.assertGreater(_count_near(drawn, _hex_rgb(BRAND_COLORS["highlight"])), 500, "the action button should be marked")
+        self.assertGreater(_count_near(drawn, _hex_rgb("#2F6BFF")), 200, "the first avatar should be drawn")
+        panel = _sprite(
+            {"type": "summary", "box": {"x": 0, "y": 0, "w": 786, "h": 360}, "label": "Summary", "items": ["Review moved to Friday"]},
+            dict(BRAND_COLORS), 28, None,
+        ).convert("RGB")
+        self.assertGreater(_count_near(panel, (17, 17, 17), 40), 800, "the summary text and outline should be drawn")
+
     def test_hook_is_fully_drawn_before_its_entrance(self) -> None:
         element = {"enter_at": 0.8, "enter_duration": 0.4}
         self.assertAlmostEqual(_hook_time(element, 0.0), 1.2)

@@ -943,6 +943,10 @@ def _sprite(element: dict, colors: dict, radius: int, host: Image.Image | None) 
         if not _prepare_image(element, w, h, pad, radius):
             return None
         return _image_sprite(element, 0.0, 0.0)
+    elif kind == "screen":
+        _draw_screen(sprite, element, colors, pad, w, h)
+    elif kind == "summary":
+        _draw_summary(sprite, element, colors, pad, w, h)
     elif kind == "tiles":
         if not _prepare_tiles(element, w, h, pad, colors):
             return None
@@ -1903,6 +1907,97 @@ def _back(value: float) -> float:
     value = max(0.0, min(1.0, value))
     c = 1.70158
     return 1 + (c + 1) * (value - 1) ** 3 + c * (value - 1) ** 2
+
+
+AVATAR_COLORS = ("#2F6BFF", "#E5484D", "#16A34A", "#F59E0B", "#8B5CF6")
+
+
+def _clip_line(draw: ImageDraw.ImageDraw, text: str, font, width: float) -> str:
+    """One line of text, cut with an ellipsis when it is wider than the room."""
+    if draw.textlength(text, font=font) <= width:
+        return text
+    while text and draw.textlength(text + "…", font=font) > width:
+        text = text[:-1]
+    return text.rstrip() + "…"
+
+
+def _draw_screen(sprite: Image.Image, element: dict, colors: dict, pad: int, w: int, h: int) -> None:
+    """A sample app screen drawn from the research: a header, message rows, and an optional action button.
+
+    Original drawing only. No company logo or real product screenshot.
+    """
+    screen = element.get("screen") if isinstance(element.get("screen"), dict) else {}
+    draw = ImageDraw.Draw(sprite)
+    ink = _rgb(colors["text"]) + (255,)
+    inner = (pad, pad, pad + w, pad + h)
+    _shadow(sprite, inner, 28)
+    draw.rounded_rectangle(inner, 28, fill=_rgb(colors["card"]) + (255,), outline=ink, width=4)
+    header_h = 104
+    draw.rounded_rectangle((pad + 4, pad + 4, pad + w - 4, pad + header_h), 24, fill=(243, 243, 240, 255))
+    draw.rectangle((pad + 4, pad + header_h - 24, pad + w - 4, pad + header_h), fill=(243, 243, 240, 255))
+    draw.line((pad + 4, pad + header_h, pad + w - 4, pad + header_h), fill=ink, width=3)
+    app = str(screen.get("app") or "chat")
+    _paint_tile(sprite, (pad + 28, pad + 24, pad + 84, pad + 80), _icon_kind(app))
+    title_font = _font(36, "Bold")
+    draw.text((pad + 104, pad + 32), _clip_line(draw, str(screen.get("title") or ""), title_font, w - 140),
+              font=title_font, fill=ink)
+
+    action = str(screen.get("action") or "").strip()
+    action_h = 112 if action else 0
+    rows = [row for row in (screen.get("lines") or []) if isinstance(row, dict) and str(row.get("text") or "").strip()][:5]
+    room = h - header_h - action_h - 24
+    row_h = min(132, room // max(1, len(rows)))
+    name_font, text_font = _font(28, "Bold"), _font(32, "Medium")
+    y = pad + header_h + 16
+    for index, row in enumerate(rows):
+        who = str(row.get("who") or "").strip() or "Team"
+        avatar = 64
+        cy = y + (row_h - avatar) / 2
+        color = _rgb(AVATAR_COLORS[index % len(AVATAR_COLORS)]) + (255,)
+        draw.ellipse((pad + 28, cy, pad + 28 + avatar, cy + avatar), fill=color)
+        initial = who[:1].upper()
+        initial_font = _font(30, "Bold")
+        box = draw.textbbox((0, 0), initial, font=initial_font)
+        draw.text((pad + 28 + (avatar - (box[2] - box[0])) / 2 - box[0], cy + (avatar - (box[3] - box[1])) / 2 - box[1]),
+                  initial, font=initial_font, fill=(255, 255, 255, 255))
+        text_left = pad + 28 + avatar + 22
+        draw.text((text_left, cy - 6), _clip_line(draw, who, name_font, w - 160), font=name_font, fill=ink)
+        draw.text((text_left, cy + 30), _clip_line(draw, str(row.get("text")).strip(), text_font, w - (text_left - pad) - 28),
+                  font=text_font, fill=_rgb(colors["text"]) + (215,))
+        y += row_h
+    if action:
+        button_font = _font(34, "Bold")
+        label_w = draw.textlength(action, font=button_font)
+        right, bottom = pad + w - 28, pad + h - 26
+        button = (right - label_w - 72, bottom - 72, right, bottom)
+        draw.rounded_rectangle((button[0] + 6, button[1] + 6, button[2] + 6, button[3] + 6), 36, fill=ink)
+        draw.rounded_rectangle(button, 36, fill=_rgb(colors["highlight"]) + (255,), outline=ink, width=4)
+        box = draw.textbbox((0, 0), action, font=button_font)
+        draw.text((button[0] + 36 - box[0], button[1] + (72 - (box[3] - box[1])) / 2 - box[1]), action,
+                  font=button_font, fill=ink)
+
+
+def _draw_summary(sprite: Image.Image, element: dict, colors: dict, pad: int, w: int, h: int) -> None:
+    """The after state of a sample screen: a short summary panel with a highlighted header."""
+    items = [str(item).strip() for item in (element.get("items") or []) if str(item).strip()][:3]
+    draw = ImageDraw.Draw(sprite)
+    ink = _rgb(colors["text"]) + (255,)
+    inner = (pad, pad, pad + w, pad + h)
+    _shadow(sprite, inner, 24)
+    draw.rounded_rectangle(inner, 24, fill=_rgb(colors["card"]) + (255,), outline=ink, width=4)
+    head_font = _serif(44)
+    label = str(element.get("label") or "Summary")
+    box = draw.textbbox((pad + 36, pad + 30), label, font=head_font)
+    draw.rounded_rectangle((box[0] - 8, box[1] + (box[3] - box[1]) * 0.45, box[2] + 10, box[3] + 6), 6,
+                           fill=_rgb(colors["highlight"]) + (255,))
+    draw.text((pad + 36, pad + 30), label, font=head_font, fill=ink)
+    item_font = _font(31, "Bold")
+    y = box[3] + 34
+    step = (pad + h - 24 - y) / max(1, len(items))
+    for item in items:
+        draw.ellipse((pad + 40, y + 14, pad + 56, y + 30), fill=_rgb(colors["accent"]) + (255,))
+        draw.text((pad + 76, y), _clip_line(draw, item, item_font, w - 112), font=item_font, fill=ink)
+        y += min(step, 72)
 
 
 def _rgb(value: str) -> tuple:

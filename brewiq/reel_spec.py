@@ -66,7 +66,7 @@ HOST = {"x": HOST_LEFT, "y": 0, "w": round(620 * HOST_SCALE), "h": 900}
 HOST_ZONE_Y = (540, 1330)
 COLUMN = {"x": 440, "y": 470, "w": 490, "h": 780}
 RAIL_ROW = {"x": 64, "y": 190, "w": 640, "h": 100}  # The wordmark takes the top-right corner.
-HERO = {"x": 64, "y": 230, "w": 866, "h": 780}
+HERO = {"x": 64, "y": 256, "w": 866, "h": 754}  # Starts below the wordmark.
 CHIPS_ROW = {"x": 64, "y": 1030, "w": 866, "h": 74}
 HEADLINE_ROW = {"x": 64, "y": 1130, "w": 866, "h": 180}
 WORKFLOW_IMAGE = {"x": 64, "y": 250, "w": 866, "h": 680}
@@ -419,6 +419,18 @@ def _chapter_scene(spec, beat, on_screen, key, index, plate, shot, previous_pose
     return elements
 
 
+def _screen_elements(key: str, region: dict, screen: dict) -> list:
+    """A sample app screen, and its summary panel when the beat shows the after state."""
+    elements = [_element(f"{key}-screen", "screen", dict(region), motion="scale_in", at=0.0, length=0.45, screen=screen)]
+    result = [_text(item) for item in (screen.get("result") or []) if _text(item)][:3]
+    if result:
+        # The panel covers the lower rows and the action button, like a summary sheet sliding up.
+        panel = {"x": region["x"] + 28, "y": region["y"] + region["h"] - 392, "w": region["w"] - 56, "h": 372}
+        elements.append(_element(f"{key}-summary", "summary", panel, motion="snap", at=1.1, length=0.35,
+                                 label=_text(screen.get("result_label")) or "Summary", items=result))
+    return elements
+
+
 def _swatch_element(key: str, region: dict, on_screen: dict) -> dict:
     swatch = on_screen["swatch"]
     pair = [{"name": _text(swatch[side].get("name")), "hex": _text(swatch[side].get("hex")).upper()}
@@ -450,9 +462,11 @@ def _explainer_scene(spec, beat, on_screen, key, index, plate, shot, previous_ti
     elif shot.get("mode") == "still" and plate:
         elements.append(_element(f"{key}-hero", "image", dict(HERO), path=plate, zoom=0.1, sweep=True,
                                  tag="Illustration", motion="scale_in", at=0.0, length=0.5))
-    else:
-        elements.append(_element(f"{key}-hero", "card", dict(HERO),
-                                 label=_text(on_screen.get("card")) or _text(on_screen.get("headline")),
+    elif isinstance(on_screen.get("screen"), dict):
+        elements.extend(_screen_elements(key, HERO, on_screen["screen"]))
+    elif _text(on_screen.get("card")):
+        # Only a card with its own words. Repeating the headline here showed it twice.
+        elements.append(_element(f"{key}-hero", "card", dict(HERO), label=_text(on_screen.get("card")),
                                  motion="scale_in", at=0.0, length=0.5))
     elements.append(_rail(spec, spec["beats"], key, active, CHIPS_ROW, chips=chips, label="", timeline=True))
     headline = _text(on_screen.get("headline")) or _text(spec.get("title")) if index == 0 else _text(on_screen.get("headline"))
@@ -527,6 +541,8 @@ def layout_problems(renderer: dict) -> list:
             for id_b, kind_b, box_b in boxes[i + 1:]:
                 if "character" in (kind_a, kind_b) and "lower_third" in (kind_a, kind_b):
                     continue
+                if {kind_a, kind_b} == {"screen", "summary"}:
+                    continue  # The summary panel sits on its screen on purpose: it is the after state.
                 if _intersects(box_a, box_b):
                     problems.append(f"Scene {number}: {id_a} overlaps {id_b}.")
     return problems

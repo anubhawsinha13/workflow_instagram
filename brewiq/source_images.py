@@ -15,7 +15,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
-from PIL import Image
+from PIL import Image, ImageChops
 
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
 MIN_WIDTH = 480
@@ -116,7 +116,7 @@ def collect(source_urls: list[str], folder: Path, *, fetch=_get, limit: int = MA
             if width < MIN_WIDTH:
                 path.unlink(missing_ok=True)
                 continue
-            images.append({**item, "path": str(path), "animated": animated})
+            images.append({**item, "path": str(path), "animated": animated, "crop": content_box(path)})
     index.write_text(json.dumps(images, indent=2), encoding="utf-8")
     return images
 
@@ -126,31 +126,80 @@ def _words(text: str) -> set[str]:
 
 
 def assign(beats: list[dict], images: list[dict]) -> list[dict | None]:
-    """Pick the screenshot whose description best matches each beat's words.
+    """Pick the screenshot whose description matches each beat's words.
 
-    Beats with their own still, tiles, or swatch get None. A beat that matches nothing gets the next
-    unused image, so every open beat shows a real screen while images last.
+    A screenshot that shares no words with the beat would show the wrong step, so a beat without a match
+    keeps the previous beat's screenshot, or borrows the next one at the start. Beats with their own still,
+    tiles, or swatch get None.
     """
-    chosen: list[dict | None] = []
-    used: list[str] = []
-    # The product name is in every description, so it cannot tell two screenshots apart.
     hosts = {image.get("credit", "").split(".")[-2] for image in images if "." in image.get("credit", "")}
     product = {word[:5] for word in hosts}
+    open_beats: list[bool] = []
+    matched: list[dict | None] = []
+    used: list[str] = []
     for beat in beats:
         on_screen = beat.get("on_screen") if isinstance(beat.get("on_screen"), dict) else {}
         shot = beat.get("shot") if isinstance(beat.get("shot"), dict) else {}
-        if not images or shot.get("mode") == "still" or on_screen.get("tiles") or on_screen.get("swatch"):
-            chosen.append(None)
+        is_open = bool(images) and shot.get("mode") != "still" and not on_screen.get("tiles") and not on_screen.get("swatch")
+        open_beats.append(is_open)
+        if not is_open:
+            matched.append(None)
             continue
         said = _words(" ".join([str(beat.get("voice") or ""), str(on_screen.get("headline") or "")])) - product
-        scored = sorted(
-            images,
-            key=lambda image: (-len(said & _words(image["alt"])), used.count(image["src"]), images.index(image)),
+        scored = [(len(said & (_words(image["alt"]) - product)), image) for image in images]
+        best_score = max(score for score, _ in scored)
+        if best_score == 0:
+            matched.append(None)
+            continue
+        best = min(
+            (image for score, image in scored if score == best_score),
+            key=lambda image: (used.count(image["src"]), images.index(image)),
         )
-        best = scored[0]
         used.append(best["src"])
-        chosen.append(best)
+        matched.append(best)
+    chosen: list[dict | None] = []
+    for index, is_open in enumerate(open_beats):
+        if not is_open:
+            chosen.append(None)
+            continue
+        pick = matched[index]
+        if pick is None:
+            earlier = next((item for item in reversed(chosen) if item is not None), None)
+            later = next((item for item in matched[index + 1:] if item is not None), None)
+            pick = earlier or later
+        chosen.append(pick)
     return chosen
+
+
+def content_box(path: Path) -> list[int] | None:
+    """The app window inside a screenshot: everything that differs from the background around it.
+
+    Looks at a few frames of an animated screenshot so moving parts stay inside the box.
+    """
+    try:
+        with Image.open(path) as picture:
+            count = int(getattr(picture, "n_frames", 1))
+            box = None
+            for index in sorted({0, count // 2, count - 1}):
+                picture.seek(index)
+                frame = picture.convert("RGBA")
+                corner = frame.getpixel((2, 2))
+                backdrop = Image.new("RGBA", frame.size, corner)
+                diff = ImageChops.difference(frame, backdrop).convert("L").point(lambda value: 255 if value > 24 else 0)
+                found = diff.getbbox()
+                if found:
+                    box = found if box is None else (min(box[0], found[0]), min(box[1], found[1]),
+                                                     max(box[2], found[2]), max(box[3], found[3]))
+            width, height = picture.size
+    except Exception:  # noqa: BLE001 - a crop is an improvement, never a requirement.
+        return None
+    if not box:
+        return None
+    pad = 12
+    left, top, right, bottom = max(0, box[0] - pad), max(0, box[1] - pad), min(width, box[2] + pad), min(height, box[3] + pad)
+    if (right - left) * (bottom - top) > width * height * 0.92:
+        return None  # Nothing worth cutting.
+    return [left, top, right, bottom]
 
 
 def trim(picture: Image.Image) -> Image.Image:

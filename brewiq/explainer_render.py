@@ -856,7 +856,7 @@ def _sprite(element: dict, colors: dict, radius: int, host: Image.Image | None) 
         left, top = pad + (w - size) // 2, pad + (h - size) // 2
         _shadow(sprite, (left, top, left + size, top + size), size // 5)
         _paint_tile(sprite, (left, top, left + size, top + size), _icon_kind(label))
-    elif kind == "rail" and not element.get("chrome"):
+    elif kind == "rail" and not element.get("chrome") and not element.get("chips"):
         # The planner's step rail. The layout's chapter-chip rail is drawn by _draw_rail below.
         _shadow(sprite, inner, radius)
         ImageDraw.Draw(sprite).rounded_rectangle(inner, radius, fill=card + (255,))
@@ -1830,12 +1830,17 @@ def _contain(picture: Image.Image, w: int, h: int) -> Image.Image:
 def _prepare_screenshot(element: dict, path: Path, w: int, h: int, pad: int, radius: int) -> bool:
     """A product screenshot, shown whole. An animated one keeps its frames and plays across the beat."""
     frames: list[Image.Image] = []
+    crop = element.get("crop")
     with Image.open(path) as source:
         count = int(getattr(source, "n_frames", 1))
         step = max(1, count // MAX_GIF_FRAMES)
         for index in range(0, count, step):
             source.seek(index)
-            frames.append(_contain(source.convert("RGBA"), w, h))
+            frame = source.convert("RGBA")
+            if isinstance(crop, list) and len(crop) == 4:
+                # Empty margins around the app are cut, so the interface fills the frame and stays readable.
+                frame = frame.crop(tuple(int(value) for value in crop))
+            frames.append(_contain(frame, w, h))
     element["_pic"] = frames[0]
     if len(frames) > 1:
         element["_frames"] = frames

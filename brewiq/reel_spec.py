@@ -58,13 +58,18 @@ COLORS = dict(BRAND_COLORS)
 
 # Layout regions. The host stands on the left with the cut-off edge hidden behind the lower third.
 LOWER = {"x": LOWER_THIRD_LEFT, "y": 1330, "w": 890, "h": 170}
-HOST_SCALE = 0.48  # About 30% of the frame, so the words lead.
+HOST_SCALE = 0.34  # About a quarter of the frame, bottom left, so the screen and words lead.
 HOST_FOOT = 1460
 HOST_LEFT = 36
 MAX_HOST_SHIFT = 150
 HOST = {"x": HOST_LEFT, "y": 0, "w": round(620 * HOST_SCALE), "h": 900}
-HOST_ZONE_Y = (540, 1330)
-COLUMN = {"x": 440, "y": 470, "w": 490, "h": 780}
+HOST_ZONE_Y = (1030, 1460)
+# The host stands bottom left. Everything else in a chapter reel stays right of COLUMN["x"] or above the host.
+COLUMN = {"x": 330, "y": 1060, "w": 600, "h": 260}
+# Chapter reel: step chips, a full-width headline, the screenshot, then the caption beside the host.
+CHAPTER_HEADLINE = {"x": 64, "y": 304, "w": 866, "h": 222}  # Below the rail, which is 100 px with a label.
+CHAPTER_SHOT = {"x": 64, "y": 544, "w": 866, "h": 472}
+CHAPTER_CAPTION = {"x": 330, "y": 1080, "w": 600, "h": 230}
 RAIL_ROW = {"x": 64, "y": 190, "w": 640, "h": 100}  # The wordmark takes the top-right corner.
 HERO = {"x": 64, "y": 256, "w": 866, "h": 754}  # Starts below the wordmark.
 CHIPS_ROW = {"x": 64, "y": 1030, "w": 866, "h": 74}
@@ -345,11 +350,17 @@ def layout(spec: dict, timing: list, plates: dict) -> dict:
         previous_tiles = on_screen.get("tiles") or None
         caption = _text(beat.get("lower_third"))
         headline = next((_text(e.get("label")) for e in elements if e.get("type") == "title"), "")
-        if caption == headline and 0 < len(_text(beat.get("voice"))) <= 90:
+        if caption == headline and 0 < len(_text(beat.get("voice"))) <= 70:
             # The headline already shows these words, so the caption carries the full spoken sentence.
             caption = _text(beat.get("voice"))
-        elements.append(_element(f"{key}-lower", "lower_third", dict(LOWER), label=caption,
-                                 motion="slide_up", at=0.15, length=0.4))
+        region = CHAPTER_CAPTION if fmt == "chapter_build" else LOWER
+        elements.append(_element(f"{key}-lower", "lower_third", dict(region), label=caption,
+                                 motion="slide_up", at=0.1, length=0.3))
+        if index == 0:
+            # The first frame is what a scroller judges and what the cover shows, so beat 1 starts fully drawn.
+            for element in elements:
+                if element.get("type") != "character":
+                    element["enter_at"], element["enter_duration"], element["enter_motion"] = 0.0, 0.01, "none"
         scenes.append({
             "start_seconds": slot["start"], "duration_seconds": slot["duration"],
             "camera": shot.get("camera") or "steady", "elements": elements,
@@ -387,6 +398,9 @@ def host_left(beats: list) -> int:
 
 def _host(key: str, beat: dict, previous_pose, left: int) -> dict:
     pose = beat.get("pose") or "neutral"
+    if pose in ("present", "neutral") and (isinstance(beat.get("_source"), dict) or pose == previous_pose):
+        # With a screen above him, he points at it. That also breaks up a run of the same pose.
+        pose = "point"
     box = dict(HOST, x=left)
     zone = {"x": min(left, 0), "y": HOST_ZONE_Y[0], "w": COLUMN["x"] - 20 - min(left, 0), "h": HOST_ZONE_Y[1] - HOST_ZONE_Y[0]}
     return _element(f"{key}-host", "character", box, persist=True, pose=pose, foot_y=HOST_FOOT,
@@ -398,28 +412,22 @@ def _chapter_scene(spec, beat, on_screen, key, index, plate, shot, previous_pose
     active = chips.index(_text(beat.get("chapter")).upper()) if _text(beat.get("chapter")).upper() in chips else 0
     label = _text(spec.get("rail_label"))
     elements = [_rail(spec, spec["beats"], key, active, RAIL_ROW, chips=chips, label=label, timeline=False)]
+    headline = _text(on_screen.get("headline")) or _text(beat.get("lower_third"))
+    if headline:
+        elements.append(_element(f"{key}-title", "title", dict(CHAPTER_HEADLINE), label=headline, stat=None,
+                                 motion="slide_up", at=0.0, length=0.35))
     if shot.get("mode") == "still" and plate:
-        elements.append(_element(f"{key}-image", "image", _box(COLUMN, y=520, h=560), path=plate, zoom=0.08,
-                                 sweep=True, tag="Illustration", motion="scale_in"))
-    elif on_screen.get("headline") and isinstance(beat.get("_source"), dict):
-        # Headline on top, the real screenshot under it.
-        elements.append(_element(f"{key}-title", "title", _box(COLUMN, h=300), label=_text(on_screen.get("headline")),
-                                 stat=None, motion="slide_up", at=0.1, length=0.55))
-        elements.append(_source_element(key, _box(COLUMN, y=COLUMN["y"] + 330, h=COLUMN["h"] - 330), beat["_source"]))
-    elif on_screen.get("headline"):
-        elements.append(_element(f"{key}-title", "title", _box(COLUMN, h=600), label=_text(on_screen.get("headline")),
-                                 stat=on_screen.get("stat"), motion="slide_up", at=0.1, length=0.55))
+        elements.append(_element(f"{key}-image", "image", dict(CHAPTER_SHOT), path=plate, zoom=0.1,
+                                 sweep=True, tag="Illustration", motion="scale_in", at=0.0, length=0.35))
+    elif isinstance(beat.get("_source"), dict):
+        elements.append(_source_element(key, dict(CHAPTER_SHOT), beat["_source"]))
     elif on_screen.get("prompt_text"):
-        elements.append(_element(f"{key}-prompt", "prompt_card", _box(COLUMN, y=520, h=520),
+        elements.append(_element(f"{key}-prompt", "prompt_card", dict(CHAPTER_SHOT),
                                  label=_text(on_screen.get("card")) or "PROMPT", text=_text(on_screen.get("prompt_text")),
                                  motion="slide_up"))
-    elif on_screen.get("card"):
-        elements.append(_element(f"{key}-card", "card", _box(COLUMN, y=560, h=340), label=_text(on_screen.get("card")),
-                                 motion="snap", at=0.2, length=0.4))
-    elif _text(beat.get("lower_third")):
-        # A beat with nothing on screen left half the frame empty. Show its words as the headline.
-        elements.append(_element(f"{key}-title", "title", _box(COLUMN, h=600), label=_text(beat.get("lower_third")),
-                                 motion="slide_up", at=0.1, length=0.55))
+    elif _text(on_screen.get("card")):
+        elements.append(_element(f"{key}-card", "card", dict(CHAPTER_SHOT), label=_text(on_screen.get("card")),
+                                 motion="snap", at=0.1, length=0.35))
     elements.append(_host(key, beat, previous_pose, left))
     return elements
 
@@ -588,8 +596,8 @@ def attach_source_pictures(spec: dict, folder: Path, *, edit: bool = True, colle
 
 def _source_element(key: str, region: dict, source: dict) -> dict:
     credit = f"Source: {source.get('credit')}" + (" · names changed" if source.get("edited") else "")
-    return _element(f"{key}-source", "image", dict(region), path=source["path"], fit="contain", zoom=0.03,
-                    tag=credit, motion="scale_in", at=0.0, length=0.45)
+    return _element(f"{key}-source", "image", dict(region), path=source["path"], fit="contain", zoom=0.08,
+                    crop=source.get("crop"), tag=credit, motion="scale_in", at=0.0, length=0.35)
 
 
 def build_reel(spec: dict, folder: Path, *, speak=None, plates: dict | None = None, make_plates=None,

@@ -1786,6 +1786,8 @@ def _prepare_image(element: dict, w: int, h: int, pad: int, radius: int) -> bool
     path = Path(str(element.get("path") or ""))
     if not path.is_file():
         return False
+    if element.get("fit") == "contain":
+        return _prepare_screenshot(element, path, w, h, pad, radius)
     with Image.open(path) as source:
         picture = source.convert("RGB")
     zoom = max(0.0, float(element.get("zoom") or 0))
@@ -1807,6 +1809,47 @@ def _prepare_image(element: dict, w: int, h: int, pad: int, radius: int) -> bool
     return True
 
 
+MAX_GIF_FRAMES = 90
+
+
+def _contain(picture: Image.Image, w: int, h: int) -> Image.Image:
+    """The whole picture on a white page, scaled to fit, so no part of a screenshot is cropped."""
+    page = Image.new("RGB", (w, h), (255, 255, 255))
+    if picture.mode in ("RGBA", "LA", "P"):
+        # Transparent margins become white page, not black.
+        rgba = picture.convert("RGBA")
+        flat = Image.new("RGB", rgba.size, (255, 255, 255))
+        flat.paste(rgba, mask=rgba.getchannel("A"))
+        picture = flat
+    scale = min(w / picture.width, h / picture.height)
+    fitted = picture.convert("RGB").resize((max(1, round(picture.width * scale)), max(1, round(picture.height * scale))), Image.LANCZOS)
+    page.paste(fitted, ((w - fitted.width) // 2, (h - fitted.height) // 2))
+    return page
+
+
+def _prepare_screenshot(element: dict, path: Path, w: int, h: int, pad: int, radius: int) -> bool:
+    """A product screenshot, shown whole. An animated one keeps its frames and plays across the beat."""
+    frames: list[Image.Image] = []
+    with Image.open(path) as source:
+        count = int(getattr(source, "n_frames", 1))
+        step = max(1, count // MAX_GIF_FRAMES)
+        for index in range(0, count, step):
+            source.seek(index)
+            frames.append(_contain(source.convert("RGBA"), w, h))
+    element["_pic"] = frames[0]
+    if len(frames) > 1:
+        element["_frames"] = frames
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, w, h), radius, fill=255)
+    element["_mask"] = mask
+    shadow = Image.new("RGBA", (w + pad * 2, h + pad * 2), (0, 0, 0, 0))
+    _shadow(shadow, (pad, pad, pad + w, pad + h), radius)
+    ImageDraw.Draw(shadow).rounded_rectangle((pad - 3, pad - 3, pad + w + 3, pad + h + 3), radius + 3, fill=(17, 17, 17, 255))
+    element["_shadow"] = shadow
+    element["_pad"] = pad
+    return True
+
+
 def _sweep_layer(w: int, h: int) -> Image.Image:
     """A soft slanted band of light, wider than the picture, that slides across it."""
     band_w = max(80, round(w * 0.3))
@@ -1823,6 +1866,10 @@ def _image_sprite(element: dict, progress: float, t: float) -> Image.Image:
     pic, mask, shadow = element["_pic"], element["_mask"], element["_shadow"]
     pad = element["_pad"]
     w, h = mask.size
+    frames = element.get("_frames")
+    if frames:
+        # An animated screenshot plays once across the beat, then holds its last frame.
+        pic = frames[min(len(frames) - 1, int(max(0.0, min(1.0, progress)) * len(frames)))]
     zoom_gain = float(element.get("zoom") or 0)
     z = 1 + zoom_gain * _ease_io(max(0.0, min(1.0, progress)))
     # The stored picture is larger than the frame, so the centred window shrinks as the push-in deepens.
@@ -1842,9 +1889,15 @@ def _image_sprite(element: dict, progress: float, t: float) -> Image.Image:
         draw = ImageDraw.Draw(sprite)
         font = _font(22, "Demi Bold")
         width = _spaced_width(draw, tag.upper(), font, 3)
-        box = (pad + 24, pad + 24, pad + 24 + width + 36, pad + 24 + 42)
-        draw.rounded_rectangle(box, 21, fill=(255, 255, 255, 235))
-        _spaced(draw, (box[0] + 18, _centered_y(draw, font, box[1], 42)), tag.upper(), font, (43, 43, 43, 255), 3)
+        if element.get("fit") == "contain":
+            # A source credit sits bottom left, clear of the app's own header.
+            box = (pad + 20, pad + h - 20 - 42, pad + 20 + width + 36, pad + h - 20)
+            draw.rounded_rectangle(box, 21, fill=(17, 17, 17, 230))
+            _spaced(draw, (box[0] + 18, _centered_y(draw, font, box[1], 42)), tag.upper(), font, (255, 255, 255, 255), 3)
+        else:
+            box = (pad + 24, pad + 24, pad + 24 + width + 36, pad + 24 + 42)
+            draw.rounded_rectangle(box, 21, fill=(255, 255, 255, 235))
+            _spaced(draw, (box[0] + 18, _centered_y(draw, font, box[1], 42)), tag.upper(), font, (43, 43, 43, 255), 3)
     return sprite
 
 

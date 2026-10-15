@@ -401,6 +401,11 @@ def _chapter_scene(spec, beat, on_screen, key, index, plate, shot, previous_pose
     if shot.get("mode") == "still" and plate:
         elements.append(_element(f"{key}-image", "image", _box(COLUMN, y=520, h=560), path=plate, zoom=0.08,
                                  sweep=True, tag="Illustration", motion="scale_in"))
+    elif on_screen.get("headline") and isinstance(beat.get("_source"), dict):
+        # Headline on top, the real screenshot under it.
+        elements.append(_element(f"{key}-title", "title", _box(COLUMN, h=300), label=_text(on_screen.get("headline")),
+                                 stat=None, motion="slide_up", at=0.1, length=0.55))
+        elements.append(_source_element(key, _box(COLUMN, y=COLUMN["y"] + 330, h=COLUMN["h"] - 330), beat["_source"]))
     elif on_screen.get("headline"):
         elements.append(_element(f"{key}-title", "title", _box(COLUMN, h=600), label=_text(on_screen.get("headline")),
                                  stat=on_screen.get("stat"), motion="slide_up", at=0.1, length=0.55))
@@ -462,6 +467,8 @@ def _explainer_scene(spec, beat, on_screen, key, index, plate, shot, previous_ti
     elif shot.get("mode") == "still" and plate:
         elements.append(_element(f"{key}-hero", "image", dict(HERO), path=plate, zoom=0.1, sweep=True,
                                  tag="Illustration", motion="scale_in", at=0.0, length=0.5))
+    elif isinstance(beat.get("_source"), dict):
+        elements.append(_source_element(key, HERO, beat["_source"]))
     elif isinstance(on_screen.get("screen"), dict):
         elements.extend(_screen_elements(key, HERO, on_screen["screen"]))
     elif _text(on_screen.get("card")):
@@ -485,6 +492,8 @@ def _workflow_scene(spec, beat, on_screen, key, index, plate, shot, slot, previo
     elif shot.get("mode") == "still" and plate:
         elements.append(_element(f"{key}-image", "image", dict(WORKFLOW_IMAGE), path=plate, zoom=0.08, sweep=True,
                                  motion="scale_in", at=0.0, length=0.5))
+    elif isinstance(beat.get("_source"), dict):
+        elements.append(_source_element(key, WORKFLOW_IMAGE, beat["_source"]))
     elif on_screen.get("poses"):
         elements.append(_element(f"{key}-sheet", "sheet", dict(WORKFLOW_IMAGE),
                                  label=_text(on_screen.get("card")) or "Character", poses=on_screen.get("poses"),
@@ -548,6 +557,41 @@ def layout_problems(renderer: dict) -> list:
     return problems
 
 
+def attach_source_pictures(spec: dict, folder: Path, *, edit: bool = True, collect=None, rewrite=None) -> list:
+    """Give each open beat a screenshot from the research's official source pages, with the reel's names.
+
+    The picture rides on the beat as `_source`. Nothing changes when the spec has no source URLs or the
+    pages have no usable screenshots, so the drawn screen stays as the fallback.
+    """
+    import source_images  # noqa: PLC0415
+
+    urls = [str(url) for url in (spec.get("source_urls") or []) if str(url).startswith("http")]
+    if not urls:
+        return []
+    images = (collect or source_images.collect)(urls, folder / "sources")
+    if not images:
+        return ["No usable screenshots were found on the source pages, so the drawn screens were used."]
+    picks = source_images.assign(spec["beats"], images)
+    used = 0
+    for beat, pick in zip(spec["beats"], picks):
+        if pick is None:
+            continue
+        on_screen = beat.get("on_screen") if isinstance(beat.get("on_screen"), dict) else {}
+        if edit:
+            # Still screenshots always get invented names and initials instead of real people.
+            screen = on_screen.get("screen") if isinstance(on_screen.get("screen"), dict) else None
+            pick = (rewrite or source_images.rewrite)(pick, screen, folder / "sources")
+        beat["_source"] = pick
+        used += 1
+    return [f"Used {used} screenshots from {', '.join(sorted({image['credit'] for image in images}))}."]
+
+
+def _source_element(key: str, region: dict, source: dict) -> dict:
+    credit = f"Source: {source.get('credit')}" + (" · names changed" if source.get("edited") else "")
+    return _element(f"{key}-source", "image", dict(region), path=source["path"], fit="contain", zoom=0.03,
+                    tag=credit, motion="scale_in", at=0.0, length=0.45)
+
+
 def build_reel(spec: dict, folder: Path, *, speak=None, plates: dict | None = None, make_plates=None,
                preview: bool = False, require_voice: bool = True, render=None) -> dict:
     """Validate, narrate, make stills, lay out, and render one reel into folder. Never publishes."""
@@ -600,6 +644,7 @@ def build_reel(spec: dict, folder: Path, *, speak=None, plates: dict | None = No
         plates = made_plates["plates"]
         notes.extend(made_plates.get("notes") or [])
 
+    notes.extend(attach_source_pictures(spec, folder, edit=not preview))
     renderer = layout(spec, timing, plates)
     issues = layout_problems(renderer)
     if issues:

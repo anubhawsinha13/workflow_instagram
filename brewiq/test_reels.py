@@ -715,7 +715,7 @@ class QuickFixTests(unittest.TestCase):
 
     def test_story_reel_puts_the_character_behind_the_words(self) -> None:
         spec = self._spec()
-        spec["story"] = {"character": "a nurse in green scrubs", "setting": "a parked car",
+        spec["story"] = {"character": "a nurse in green scrubs", "setting": "a parked car", "alert": "Don't tap",
                          "moments": {"hook": "She frowns at a text.", "fix": "She checks.", "cta": "She smiles."}}
         spec["beats"][0]["on_screen"]["screen"] = {"app": "chat", "title": "Texts",
                                                    "lines": [{"who": "TOLL", "text": "Pay now", "mark": True}]}
@@ -723,19 +723,27 @@ class QuickFixTests(unittest.TestCase):
         payloads = []
         with tempfile.TemporaryDirectory() as directory:
             frames = {role: str(Path(directory) / f"{role}.png") for role in ("hook", "fix", "cta")}
-            made = lambda story, folder: {"ok": True, "kind": "stills", "frames": frames, "notes": ["Veo was out."]}
+            made = lambda story, folder, screens: {"ok": True, "kind": "stills", "frames": frames, "notes": ["Veo was out."],
+                                                   "keyed": {"hook": str(Path(directory) / "keyed.png")},
+                                                   "accents": {"hook": "#F2B33D", "insert": "#F2B33D", "fix": "#3D8BF2", "cta": "#F2B33D"}}
             quick = lambda text, dest: {"ok": True, "path": str(dest), "seconds": 1.8}
             result = reel_spec.build_reel(spec, Path(directory), speak=quick, make_story=made,
                                           render=lambda payload: payloads.append(payload) or {"ok": True},
                                           make_plates=lambda *a, **k: self.fail("a story reel draws no plates"))
             self.assertTrue(result["ok"], result.get("error"))
         payload = payloads[0]
-        self.assertEqual([item["path"] for item in payload["backdrop"]["stills"]], list(frames.values()))
+        shots = payload["backdrop"]["shots"]
+        self.assertEqual([shot["role"] for shot in shots], ["hook", "insert", "fix", "cta"], "the hook cuts to the phone close-up")
+        self.assertEqual(shots[0]["start"], 0.0)
+        self.assertEqual([item["color"] for item in payload["backdrop"]["accents"]], ["#F2B33D", "#3D8BF2", "#F2B33D"])
         scenes = payload["renderer"]["scenes"]
         self.assertEqual(reel_spec.layout_problems(payload["renderer"]), [])
-        self.assertFalse(any(e["type"] == "lower_third" for scene in scenes for e in scene["elements"]), "the picture stays clear")
-        self.assertTrue(all(e.get("panel") for scene in scenes for e in scene["elements"] if e["type"] == "title"))
+        kinds = [e["type"] for scene in scenes for e in scene["elements"]]
+        self.assertNotIn("lower_third", kinds, "the picture stays clear")
+        self.assertNotIn("title", kinds, "story words are kinetic")
+        self.assertNotIn("screen", [e["type"] for e in scenes[0]["elements"]], "a keyed hook needs no floating phone")
         self.assertIn("Veo was out.", result["notes"])
+        self.assertIn("alert", kinds, "the thumb over the link gets the alert")
         broken = self._spec()
         broken["story"] = {"character": "x", "moments": {}}
         self.assertTrue(any("setting" in problem for problem in reel_spec.validate_spec(broken)))

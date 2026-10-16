@@ -173,6 +173,147 @@ def _stage_explainer(scenes: list) -> list:
     return staged
 
 
+LIVE_TYPES = ("kinetic", "alert")
+WHITE = (255, 255, 255)
+ALERT_RED = (255, 59, 48)
+
+
+def _mix(a: tuple, b: tuple, amount: float) -> tuple:
+    amount = max(0.0, min(1.0, amount))
+    return tuple(round(x + (y - x) * amount) for x, y in zip(a, b))
+
+
+def _accent_at(accents: list, t: float) -> tuple:
+    """The scene color at time t. Each change blends over 0.4 seconds instead of jumping."""
+    if not accents:
+        return _rgb(BRAND_COLORS["highlight"])
+    color = _rgb(accents[0]["color"])
+    for item in accents[1:]:
+        start = float(item["start"])
+        if t >= start - 0.2:
+            color = _mix(color, _rgb(item["color"]), (t - start + 0.2) / 0.4)
+    return color
+
+
+def _glow_text(frame: Image.Image, xy: tuple, text: str, font, fill: tuple, alpha: float = 1.0, scale: float = 1.0) -> None:
+    """Type that reads on any picture: a soft dark shadow under it, the way phone captions do it."""
+    box = font.getbbox(text)
+    width, height = box[2] + 24, box[3] + 24
+    layer = Image.new("RGBA", (width + 24, height + 24), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    draw.text((12, 12), text, font=font, fill=(0, 0, 0, 170))
+    layer = layer.filter(ImageFilter.GaussianBlur(7))
+    ImageDraw.Draw(layer).text((12, 8), text, font=font, fill=fill + (255,), stroke_width=2, stroke_fill=(0, 0, 0, 90))
+    if scale != 1:
+        size = (max(1, round(layer.width * scale)), max(1, round(layer.height * scale)))
+        offset = ((layer.width - size[0]) / 2, (layer.height - size[1]) / 2)
+        layer = layer.resize(size, Image.BILINEAR)
+    else:
+        offset = (0, 0)
+    if alpha < 1:
+        layer.putalpha(layer.getchannel("A").point(lambda value: round(value * alpha)))
+    frame.alpha_composite(layer, (max(0, round(xy[0] - 12 + offset[0])), max(0, round(xy[1] - 12 + offset[1]))))
+
+
+def _kinetic_lines(text: str, width: int, height: int, top: int, low: int) -> tuple:
+    probe = ImageDraw.Draw(Image.new("RGB", (8, 8)))
+    for size in range(top, low - 1, -4):
+        font = _serif(size, True)
+        lines, line = [], []
+        for word in text.split():
+            trial = " ".join(line + [word])
+            if line and probe.textlength(trial, font=font) > width:
+                lines.append(line)
+                line = [word]
+            else:
+                line.append(word)
+        if line:
+            lines.append(line)
+        if len(lines) * size * 1.12 <= height and len(lines) <= 3:
+            return font, lines, round(size * 1.12)
+    font = _serif(low, True)
+    return font, [text.split()], round(low * 1.12)
+
+
+def _draw_live(frame: Image.Image, element: dict, t: float, duration: float, last: bool = False) -> None:
+    """Text drawn fresh each frame: words that pop in like iOS text effects, and an alert that shakes."""
+    box = element.get("box") or {}
+    x, y, w, h = (int(box.get(key) or 0) for key in ("x", "y", "w", "h"))
+    at = float(element.get("enter_at") or 0)
+    local = t - at
+    if local < 0:
+        return
+    # Fade out in the last moments of the beat so the next words take over smoothly.
+    fade = 1.0 if last else max(0.0, min(1.0, (duration - t) / 0.14))
+    if element.get("type") == "alert":
+        label = str(element.get("label") or "").strip().upper()
+        font = _serif(78, True)
+        probe = ImageDraw.Draw(Image.new("RGB", (8, 8)))
+        text_w = probe.textlength(label, font=font)
+        pill_w, pill_h = text_w + 170, 128
+        sprite = Image.new("RGBA", (round(pill_w) + 40, pill_h + 40), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(sprite)
+        draw.rounded_rectangle((26, 30, 26 + pill_w, 30 + pill_h), 64, fill=(0, 0, 0, 90))
+        sprite = sprite.filter(ImageFilter.GaussianBlur(8))
+        draw = ImageDraw.Draw(sprite)
+        draw.rounded_rectangle((20, 20, 20 + pill_w, 20 + pill_h), 64, fill=ALERT_RED + (255,))
+        # A warning triangle with an exclamation mark.
+        tx, ty = 60, 20 + pill_h / 2
+        draw.polygon(((tx, ty + 30), (tx + 34, ty - 32), (tx + 68, ty + 30)), fill=(255, 255, 255, 255))
+        draw.rectangle((tx + 31, ty - 10, tx + 37, ty + 12), fill=ALERT_RED + (255,))
+        draw.rectangle((tx + 31, ty + 17, tx + 37, ty + 23), fill=ALERT_RED + (255,))
+        bbox = draw.textbbox((0, 0), label, font=font)
+        draw.text((146, 20 + pill_h / 2 - (bbox[1] + bbox[3]) / 2), label, font=font, fill=(255, 255, 255, 255))
+        slam = 1 + 0.6 * (1 - _ease(local / 0.18))
+        # Jitter, like the iOS effect: fast at first, then a small tremble that stays.
+        shake = (14 * max(0.0, 1 - local / 0.5) + 3) * math.sin(local * 70)
+        tilt = (4 * max(0.0, 1 - local / 0.5) + 0.8) * math.sin(local * 55 + 1)
+        left = x + (w - sprite.width) / 2 + shake
+        _paste(frame, sprite, left, y + (h - sprite.height) / 2, slam, min(1.0, local / 0.08) * fade, tilt)
+        return
+    text = str(element.get("label") or "").strip()
+    if not text:
+        return
+    font, lines, line_h = _kinetic_lines(text, w, h, int(element.get("size") or 108), int(element.get("min_size") or 56))
+    accent = _accent_at(element.get("accents") or [], float(element.get("_scene_start") or 0) + t)
+    keys = {word.lower().strip(".,!?") for word in element.get("keywords") or []}
+    probe = ImageDraw.Draw(Image.new("RGB", (8, 8)))
+    space = probe.textlength(" ", font=font)
+    total_h = line_h * len(lines)
+    cursor_y = y + (h - total_h) * float(element.get("valign", 0.0))
+    index = 0
+    for line in lines:
+        line_w = probe.textlength(" ".join(line), font=font)
+        cursor_x = x + (w - line_w) / 2 if element.get("center") else x
+        for word in line:
+            start = index * 0.07
+            grow = _ease((local - start) / 0.22)
+            if grow > 0:
+                is_key = word.lower().strip(".,!?") in keys
+                # "Big": each word lands slightly oversized, then settles.
+                scale = 1 + 0.16 * (1 - _back((local - start) / 0.24)) if grow < 1 else 1.0
+                _glow_text(frame, (cursor_x, cursor_y), word, font, accent if is_key else WHITE, min(1.0, grow * 1.4) * fade,
+                           max(0.6, scale))
+            cursor_x += probe.textlength(word, font=font) + space
+            index += 1
+        cursor_y += line_h
+
+
+def _corner_mark(frame: Image.Image, accent: tuple) -> None:
+    """BrewIQ in the top-right corner, in white with a cup in the scene's color, so it sits in the picture."""
+    font = _serif(42, True)
+    probe = ImageDraw.Draw(frame)
+    text_w = probe.textlength(WORDMARK, font=font)
+    right, top = 1036, 104
+    cup = (right - text_w - 54, top + 8, right - text_w - 20, top + 38)
+    layer = Image.new("RGBA", frame.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    draw.rounded_rectangle(cup, 6, fill=accent + (235,), outline=(255, 255, 255, 230), width=3)
+    draw.arc((cup[2] - 6, cup[1] + 4, cup[2] + 10, cup[1] + 20), -90, 90, fill=(255, 255, 255, 230), width=3)
+    frame.alpha_composite(layer)
+    _glow_text(frame, (right - text_w, top - 4), WORDMARK, font, WHITE, 0.92)
+
+
 class _Backdrop:
     """The moving picture behind a story reel: frames of a clip, or stills with a slow push-in.
 
@@ -185,9 +326,12 @@ class _Backdrop:
         self.size, self.fps, self.ffmpeg = (width, height), fps, ffmpeg
         self.video = str(spec.get("video") or "")
         self.stills = []
-        for item in spec.get("stills") or []:
-            with Image.open(item["path"]) as picture:
-                image = ImageOps.fit(picture.convert("RGB"), (width, height), Image.LANCZOS)
+        for item in spec.get("stills") or spec.get("shots") or []:
+            image = None
+            if item.get("path"):
+                with Image.open(item["path"]) as picture:
+                    image = ImageOps.fit(picture.convert("RGB"), (width, height), Image.LANCZOS)
+            # A shot without a picture plays the clip at that moment.
             self.stills.append((float(item.get("start") or 0), float(item.get("duration") or 1), image))
         self.process = None
         self.index = -1
@@ -204,12 +348,14 @@ class _Backdrop:
         self.index = -1
 
     def frame(self, t: float) -> Image.Image:
-        if self.video:
+        if self.video and not self.stills:
             return self._video_frame(max(0, round(t * self.fps)))
         start, duration, image = self.stills[0]
         for item in self.stills:
             if item[0] <= t:
                 start, duration, image = item
+        if image is None:
+            return self._video_frame(max(0, round(t * self.fps)))
         progress = min(1.0, max(0.0, (t - start) / max(0.01, duration)))
         scale = 1 + self.PUSH * progress
         width, height = self.size
@@ -283,7 +429,7 @@ def render_explainer(payload: dict, make_host=None) -> dict:
         for element in scene.get("elements") or []:
             element["_scene_start"] = scene_start
             element["_total"] = total
-            if element.get("type") == "character" and library:
+            if (element.get("type") == "character" and library) or element.get("type") in LIVE_TYPES:
                 sprites.append((element, None))
                 continue
             sprite = _sprite(element, colors, radius, host)
@@ -306,16 +452,22 @@ def render_explainer(payload: dict, make_host=None) -> dict:
                 # Host first, then cards and titles, then the camera, then the rail and lower third.
                 # That keeps type readable and the chrome still while the stage moves.
                 for element, sprite in sprites:
-                    if sprite is None:
+                    if sprite is None and element.get("type") not in LIVE_TYPES:
                         _draw_character(frame, element, library, local, duration, colors)
                 for element, sprite in sprites:
                     if sprite is not None and not _is_chrome(element):
                         _place(frame, element, sprite, local, duration, colors)
+                for element, sprite in sprites:
+                    if element.get("type") in LIVE_TYPES:
+                        _draw_live(frame, element, local, duration, last)
                 frame = _camera(frame, camera, focus, local / max(0.01, duration))
                 for element, sprite in sprites:
                     if sprite is not None and _is_chrome(element):
                         _place(frame, element, sprite, local, duration, colors)
-        frame.alpha_composite(wordmark)
+        if backdrop is not None:
+            _corner_mark(frame, _accent_at(backdrop_spec.get("accents") or [], t))
+        else:
+            frame.alpha_composite(wordmark)
         return frame
 
     preview = payload.get("preview") if isinstance(payload.get("preview"), dict) else None
@@ -361,7 +513,7 @@ def render_explainer(payload: dict, make_host=None) -> dict:
     hook_element = _first_hook(prepared[0][2] if prepared else [])
     try:
         # A story reel's cover is its first frame: the picture with the hook on it.
-        cover_frame = compose(0.0) if backdrop is not None else _opening_still(
+        cover_frame = compose(min(0.8, total)) if backdrop is not None else _opening_still(
             width, height, colors, radius,
             prepared[0][2] if prepared else [],
             None,  # The video frames draw no backdrop behind the host, so the cover matches them.
@@ -2191,6 +2343,22 @@ def _draw_phone(sprite: Image.Image, element: dict, colors: dict, pad: int, w: i
                 draw.text((bubble[0] + 20, y + 12 + index * line_h), line, font=bubble_font, fill=label)
             y = bubble[3] + 14
 
+    result = [str(item).strip() for item in (screen.get("result") or []) if str(item).strip()][:3]
+    if result and element.get("show_result"):
+        # The after state as the phone shows it: a card with a green check on each line.
+        item_font, head_font = _phone_font(27), _phone_font(22, "Semibold")
+        wrapped = [_wrap(draw, item, item_font, right - left - 130, 2) for item in result]
+        card_h = 70 + sum(36 * len(lines) + 18 for lines in wrapped)
+        card = (left + 22, min(y + 10, bottom - 170 - card_h), right - 22, min(y + 10, bottom - 170 - card_h) + card_h)
+        draw.rounded_rectangle(card, 26, fill=(242, 242, 247, 255))
+        draw.text((card[0] + 24, card[1] + 20), str(screen.get("result_label") or "Checked").upper(), font=head_font, fill=gray)
+        cy = card[1] + 60
+        for lines in wrapped:
+            draw.ellipse((card[0] + 22, cy + 4, card[0] + 52, cy + 34), fill=(52, 199, 89, 255))
+            draw.line((card[0] + 30, cy + 19, card[0] + 36, cy + 26, card[0] + 45, cy + 12), fill=(255, 255, 255, 255), width=4)
+            for index, line in enumerate(lines):
+                draw.text((card[0] + 68, cy + index * 36), line, font=item_font, fill=label)
+            cy += 36 * len(lines) + 18
     action = str(screen.get("action") or "").strip()
     if action:
         button_font = _phone_font(26, "Semibold")
@@ -2208,6 +2376,18 @@ def _draw_phone(sprite: Image.Image, element: dict, colors: dict, pad: int, w: i
         draw.rounded_rectangle(bar, 22, outline=(209, 209, 214, 255), width=2)
         draw.text((bar[0] + 18, bar[1] + 9), "Text Message", font=_phone_font(22), fill=(180, 180, 186, 255))
     draw.rounded_rectangle((cx - 70, bottom - 14, cx + 70, bottom - 8), 3, fill=label)
+
+
+def phone_screen(screen: dict, size: tuple = (620, 1340)) -> Image.Image:
+    """Just the glass of the drawn phone, to lay onto the phone in a story picture."""
+    width, height = size
+    pad, bezel = 40, 16
+    sprite = Image.new("RGBA", (width + 2 * (bezel + pad), height + 2 * (bezel + pad)), (0, 0, 0, 0))
+    _draw_phone(sprite, {"screen": screen, "show_result": True}, dict(BRAND_COLORS), pad, width + 2 * bezel, height + 2 * bezel)
+    glass = sprite.crop((pad + bezel, pad + bezel, pad + bezel + width, pad + bezel + height))
+    flat = Image.new("RGBA", glass.size, (255, 255, 255, 255))
+    flat.alpha_composite(glass)
+    return flat
 
 
 def _draw_screen(sprite: Image.Image, element: dict, colors: dict, pad: int, w: int, h: int) -> None:

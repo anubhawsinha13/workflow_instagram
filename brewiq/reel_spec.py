@@ -46,10 +46,13 @@ QUICK_CTA = {"x": 64, "y": 460, "w": 866, "h": 420}
 QUICK_CTA_NOTE = {"x": 64, "y": 920, "w": 866, "h": 220}
 # Story mode: an animated character fills the frame. The headline sits above their head, their phone
 # lower left as a close-up, and the ask below their face.
-STORY_HEADLINE = {"x": 64, "y": 270, "w": 866, "h": 230}
+STORY_HEADLINE = {"x": 64, "y": 270, "w": 866, "h": 330}
 STORY_SCREEN = {"x": 64, "y": 690, "w": 480, "h": 810}
-STORY_CTA = {"x": 64, "y": 1010, "w": 866, "h": 260}
-STORY_CTA_NOTE = {"x": 64, "y": 1300, "w": 866, "h": 190}
+STORY_ALERT = {"x": 64, "y": 620, "w": 866, "h": 170}
+STORY_CTA = {"x": 64, "y": 1000, "w": 866, "h": 300}
+STORY_CTA_NOTE = {"x": 64, "y": 1320, "w": 866, "h": 150}
+STORY_OPEN_SECONDS = 0.9  # The opening medium shot, before the cut to the phone close-up.
+STORY_INSERT_SHARE = 0.55  # The part of the fix beat spent on the phone close-up.
 POSES = tuple(name for name in POSE_FILES if not name.startswith("walk"))
 CAMERAS = ("steady", "push_in", "pull_out")
 SUBJECTS = ("character", "product", "scene")
@@ -375,7 +378,7 @@ def layout(spec: dict, timing: list, plates: dict) -> dict:
         elif fmt == "beat_explainer":
             elements = _explainer_scene(spec, beat, on_screen, key, index, plate, shot, previous_tiles)
         elif fmt == "quick_fix":
-            elements = (_story_scene(beat, on_screen, key) if spec.get("_story")
+            elements = (_story_scene(spec, beat, on_screen, key, slot, spec["_story"]) if spec.get("_story")
                         else _quick_fix_scene(beat, on_screen, key, plate, shot))
         elif fmt == "workflow_reel":
             elements = _workflow_scene(spec, beat, on_screen, key, index, plate, shot, slot, previous_tiles)
@@ -384,7 +387,7 @@ def layout(spec: dict, timing: list, plates: dict) -> dict:
         previous_tiles = on_screen.get("tiles") or None
         caption = "" if spec.get("_story") else _text(beat.get("lower_third"))
         headline = next((_text(e.get("label")) for e in elements if e.get("type") == "title"), "")
-        if caption == headline and 0 < len(_text(beat.get("voice"))) <= 70:
+        if caption and caption == headline and 0 < len(_text(beat.get("voice"))) <= 70:
             # The headline already shows these words, so the caption carries the full spoken sentence.
             caption = _text(beat.get("voice"))
         region = CHAPTER_CAPTION if fmt == "chapter_build" else LOWER
@@ -395,7 +398,7 @@ def layout(spec: dict, timing: list, plates: dict) -> dict:
         if index == 0:
             # The first frame is what a scroller judges and what the cover shows, so beat 1 starts fully drawn.
             for element in elements:
-                if element.get("type") != "character":
+                if element.get("type") not in ("character", "alert", "kinetic"):
                     element["enter_at"], element["enter_duration"], element["enter_motion"] = 0.0, 0.01, "none"
         scenes.append({
             "start_seconds": slot["start"], "duration_seconds": slot["duration"],
@@ -552,25 +555,79 @@ def _quick_fix_scene(beat, on_screen, key, plate, shot) -> list:
     return elements
 
 
-def _story_scene(beat, on_screen, key) -> list:
-    """The animated story: the character fills the frame, the headline on a panel, the real screen as a close-up."""
-    headline = _text(on_screen.get("headline"))
-    if beat.get("role") == "cta":
-        elements = [_element(f"{key}-cta", "title", dict(STORY_CTA), label=headline, stat=None, panel=True,
-                             motion="snap", at=0.0, length=0.3)]
+def _stress(on_screen: dict, story: dict, role: str) -> list:
+    """The word or two that take the scene color: the story director's pick, or the longest word."""
+    picked = (story.get("stress") or {}).get(role) if isinstance(story.get("stress"), dict) else None
+    if picked:
+        return str(picked).split()
+    words = [word.strip(".,!?") for word in _text(on_screen.get("headline")).split()]
+    return [max(words, key=len)] if words else []
+
+
+def _story_scene(spec, beat, on_screen, key, slot, story_shots) -> list:
+    """The animated story: words pop in over the picture, the real screen sits on the character's phone,
+    and an alert shakes when the move is a mistake."""
+    story = spec.get("story") or {}
+    role = beat.get("role")
+    accents = story_shots.get("accents") or []
+    words = dict(accents=accents, keywords=_stress(on_screen, story, role))
+    if role == "cta":
+        elements = [_element(f"{key}-cta", "kinetic", dict(STORY_CTA), label=_text(on_screen.get("headline")),
+                             center=True, valign=1.0, size=112, at=0.0, **words)]
         if _text(on_screen.get("card")):
-            elements.append(_element(f"{key}-note", "card", dict(STORY_CTA_NOTE), label=_text(on_screen.get("card")),
-                                     motion="slide_up", at=0.15, length=0.3))
+            elements.append(_element(f"{key}-note", "kinetic", dict(STORY_CTA_NOTE), label=_text(on_screen.get("card")),
+                                     center=True, size=50, min_size=36, at=0.45, accents=accents, keywords=[]))
         return elements
-    elements: list = []
-    if isinstance(on_screen.get("screen"), dict):
+    elements = [_element(f"{key}-title", "kinetic", dict(STORY_HEADLINE), label=_text(on_screen.get("headline")),
+                         size=116, at=0.0, **words)]
+    keyed = role in (story_shots.get("keyed") or {})
+    if not keyed and isinstance(on_screen.get("screen"), dict):
+        # No close-up to key into: the phone floats over the picture instead.
         for element in _screen_elements(key, STORY_SCREEN, on_screen["screen"]):
             if element["type"] == "screen":
-                element["device"] = "phone"  # Messages and mail look like the phone people hold.
+                element["device"] = "phone"
             elements.append(element)
-    elements.append(_element(f"{key}-title", "title", dict(STORY_HEADLINE), label=headline, stat=None, panel=True,
-                             motion="slide_up", at=0.05, length=0.25))
+    if role == "hook" and keyed and _text(story.get("alert")):
+        # The thumb is over the link: stop it.
+        at = min(slot["duration"] - 0.5, STORY_OPEN_SECONDS + 0.55)
+        elements.append(_element(f"{key}-alert", "alert", dict(STORY_ALERT), label=_text(story.get("alert")), at=at))
     return elements
+
+
+def story_timeline(timing: list, beats: list, made: dict) -> dict:
+    """Which picture plays when: the opening shot, a cut to the phone close-up, the fix, then the look to camera."""
+    frames, keyed, colors = made.get("frames") or {}, made.get("keyed") or {}, made.get("accents") or {}
+    video = made.get("kind") == "video"
+    shots: list = []
+
+    def add(start: float, duration: float, role: str, path: str | None) -> None:
+        if duration > 0.01:
+            # A medium shot plays the Veo clip when there is one. Close-ups are always stills.
+            moving = video and role in ("hook", "fix", "cta") and path == frames.get(role)
+            shots.append({"start": round(start, 3), "duration": round(duration, 3), "role": role,
+                          **({} if moving else {"path": path})})
+
+    for beat, slot in zip(beats, timing):
+        role, start, length = beat["role"], slot["start"], slot["duration"]
+        if role == "hook" and keyed.get("hook"):
+            opening = min(STORY_OPEN_SECONDS, length * 0.45)
+            add(start, opening, "hook", frames["hook"])
+            add(start + opening, length - opening, "insert", keyed["hook"])
+        elif role == "fix" and keyed.get("fix"):
+            close = length * STORY_INSERT_SHARE
+            add(start, close, "insert", keyed["fix"])
+            add(start + close, length - close, "fix", frames["fix"])
+        else:
+            add(start, length, role, frames[role])
+    accents = []
+    for shot in shots:
+        color = colors.get(shot["role"]) or colors.get("hook") or "#FFE14D"
+        if not accents or accents[-1]["color"] != color:
+            accents.append({"start": shot["start"], "color": color})
+    backdrop = {"shots": shots, "accents": accents}
+    if video:
+        backdrop["video"] = made["video"]
+    return backdrop
 
 
 def _workflow_scene(spec, beat, on_screen, key, index, plate, shot, slot, previous_tiles=None) -> list:
@@ -682,10 +739,10 @@ def _source_element(key: str, region: dict, source: dict) -> dict:
                     crop=source.get("crop"), tag=credit, motion="scale_in", at=0.0, length=0.35)
 
 
-def _make_story(story: dict, folder: Path) -> dict:
+def _make_story(story: dict, folder: Path, screens: dict) -> dict:
     import story as story_module  # noqa: PLC0415
 
-    return story_module.make_backdrop(story, folder)
+    return story_module.make_backdrop(story, folder, screens)
 
 
 def build_reel(spec: dict, folder: Path, *, speak=None, plates: dict | None = None, make_plates=None,
@@ -735,16 +792,12 @@ def build_reel(spec: dict, folder: Path, *, speak=None, plates: dict | None = No
 
     backdrop = None
     if spec.get("format") == "quick_fix" and isinstance(spec.get("story"), dict) and not preview:
-        made_story = (make_story or _make_story)(spec["story"], folder / "story")
+        screens = {beat["role"]: (beat.get("on_screen") or {}).get("screen") for beat in beats if beat["role"] != "cta"}
+        made_story = (make_story or _make_story)(spec["story"], folder / "story", screens)
         if made_story.get("ok"):
             notes.extend(made_story.get("notes") or [])
-            if made_story.get("kind") == "video":
-                backdrop = {"video": made_story["video"]}
-            else:
-                frames = made_story["frames"]
-                backdrop = {"stills": [{"path": frames[beat["role"]], "start": slot["start"], "duration": slot["duration"]}
-                                       for beat, slot in zip(beats, timing)]}
-            spec = {**spec, "_story": True}
+            backdrop = story_timeline(timing, beats, made_story)
+            spec = {**spec, "_story": {"keyed": made_story.get("keyed") or {}, "accents": backdrop["accents"]}}
             plates = plates if plates is not None else {}
         else:
             notes.append(f"{made_story.get('error') or 'The story could not be drawn.'} The Reel uses the screen layout.")

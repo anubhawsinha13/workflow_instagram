@@ -545,6 +545,10 @@ def render_explainer(payload: dict, make_host=None) -> dict:
     ]
     if audio.is_file():
         command += ["-i", str(audio), "-af", "apad", "-c:a", "aac", "-b:a", "160k"]
+    else:
+        # A Reel with no sound still carries a silent audio track. Instagram refuses to attach a catalog song to a
+        # video that has none (error 2207082), and the same file posts fine with the silent track.
+        command += ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-c:a", "aac", "-b:a", "64k"]
     command += [
         "-t", f"{total:.3f}", "-c:v", "libx264", "-preset", "medium", "-crf", "20",
         "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out),

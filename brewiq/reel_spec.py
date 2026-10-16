@@ -661,7 +661,11 @@ def build_reel(spec: dict, folder: Path, *, speak=None, plates: dict | None = No
     for beat in beats:
         spoken = None
         if not preview:
-            made = (speak or voice_module.speak)(_text(beat["voice"]), folder / f"voice-{beat['id']}.wav")
+            if speak is not None:
+                made = speak(_text(beat["voice"]), folder / f"voice-{beat['id']}.wav")
+            else:
+                pace = "quick" if spec.get("format") == "quick_fix" else "normal"
+                made = voice_module.speak(_text(beat["voice"]), folder / f"voice-{beat['id']}.wav", pace=pace)
             if made.get("ok"):
                 spoken = made
             else:

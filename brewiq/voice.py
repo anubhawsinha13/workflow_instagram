@@ -24,6 +24,12 @@ INSTRUCTIONS = (
     "to a friend. Brisk, energetic social-video pace with short pauses, slight smile, "
     "clear emphasis on the key words."
 )
+# The 8-second signature Reel needs a punchier read with almost no pauses.
+QUICK_INSTRUCTIONS = INSTRUCTIONS + " Fast, punchy delivery, almost no pauses between sentences."
+QUICK_TRIM_FILTER = (
+    "silenceremove=start_periods=1:start_threshold=-45dB:"
+    "stop_periods=-1:stop_duration=0.12:stop_threshold=-45dB:stop_silence=0.06,atempo=1.18"
+)
 WORDS_PER_SECOND = 2.7
 TRIM_FILTER = (
     "silenceremove=start_periods=1:start_threshold=-45dB:"
@@ -68,18 +74,18 @@ def duration(path: Path) -> float:
         return 0.0
 
 
-def _request(client, text: str, dest: Path) -> None:
+def _request(client, text: str, dest: Path, instructions: str = INSTRUCTIONS) -> None:
     speech = client.audio.speech.create(
         model=MODEL,
         voice=VOICE,
-        instructions=INSTRUCTIONS,
+        instructions=instructions,
         input=text,
         response_format="mp3",
     )
     dest.write_bytes(speech.read())
 
 
-def speak(text: str, dest: Path, client=None) -> dict:
+def speak(text: str, dest: Path, client=None, pace: str = "normal") -> dict:
     """Write one narration line to dest as a trimmed wav. Skips work that is already on disk."""
     if dest.is_file() and dest.stat().st_size > 0:
         return {"ok": True, "path": dest, "seconds": duration(dest), "cached": True, "error": ""}
@@ -95,11 +101,11 @@ def speak(text: str, dest: Path, client=None) -> dict:
         client = OpenAI(api_key=key, timeout=90)
     raw = dest.with_suffix(".mp3")
     try:
-        _request(client, text, raw)
+        _request(client, text, raw, QUICK_INSTRUCTIONS if pace == "quick" else INSTRUCTIONS)
     except Exception as exc:
         return {"ok": False, "error": _public(exc)}
     completed = subprocess.run(
-        [ffmpeg, "-y", "-loglevel", "error", "-i", str(raw), "-af", TRIM_FILTER, "-ar", "48000", "-ac", "1", str(dest)],
+        [ffmpeg, "-y", "-loglevel", "error", "-i", str(raw), "-af", QUICK_TRIM_FILTER if pace == "quick" else TRIM_FILTER, "-ar", "48000", "-ac", "1", str(dest)],
         capture_output=True,
         text=True,
         check=False,

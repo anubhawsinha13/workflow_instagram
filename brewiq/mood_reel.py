@@ -101,6 +101,9 @@ def shot_prompt(spec: dict, shot_id: str) -> str:
         return (f"Create an ORIGINAL vertical 9:16 cinematic illustrated scene for an Instagram Reel. {look}{avoid} "
                 f"Mood: {spec['mood']}. Setting: {spec['setting']}.{cast} {prompt}{SAFE_SPACE}{NO_TEXT} Art style: "
                 f"{story_module.STYLES[STYLE]['label']}.")
+    if shot_id == "detail":
+        # The third beat is a different, intimate picture: hands and objects, never faces.
+        prompt += " Extreme close-up of hands and objects only, with no faces visible."
     return f"{SAME}{prompt} Show only the characters named in this shot; no one else appears.{SAFE_SPACE}{NO_TEXT} Art style: {story_module.STYLES[STYLE]['label']}. {avoid}"
 
 

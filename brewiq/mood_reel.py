@@ -48,6 +48,11 @@ TIMELINE = (("wide", 3.2), ("medium", 3.0), ("detail", 2.2), ("wide", 1.6))
 FADE = 0.55
 PUSH = 0.06
 MAX_TEXT_WORDS = 9
+# A poem Reel shows an original poem a stanza at a time over the scenes, instead of one line.
+POEM_STANZAS = (2, 6)
+POEM_STANZA_WORDS = 16
+POEM_LEAD_IN = 0.8
+POEM_GAP = 0.25
 TEXT_BOX = {"x": 64, "y": 1190, "w": 866, "h": 250}
 TEXT_AT = 0.9
 TEXT_SIZE = 84
@@ -75,8 +80,15 @@ def problems(spec) -> list:
     for field in ("setting", "mood", "caption"):
         if not str(spec.get(field) or "").strip():
             found.append(f"The mood spec needs a {field}.")
+    poem = spec.get("poem")
+    if poem is not None:
+        stanzas = [str(item).strip() for item in poem] if isinstance(poem, list) else []
+        if not POEM_STANZAS[0] <= len(stanzas) <= POEM_STANZAS[1] or not all(stanzas):
+            found.append(f"The poem needs {POEM_STANZAS[0]} to {POEM_STANZAS[1]} non-empty stanzas.")
+        elif any(len(item.split()) > POEM_STANZA_WORDS for item in stanzas):
+            found.append(f"A stanza is longer than {POEM_STANZA_WORDS} words.")
     text = str(spec.get("text") or "").strip()
-    if not text and not spec.get("lyrics"):
+    if not text and not spec.get("lyrics") and poem is None:
         found.append("The mood spec needs one line of text.")
     elif len(text.split()) > MAX_TEXT_WORDS:
         found.append(f"The text line is longer than {MAX_TEXT_WORDS} words.")
@@ -189,6 +201,17 @@ def layout(spec: dict, total: float, accents: list) -> dict:
     In lyrics mode there is no text: the lower third stays clear for Instagram's Lyrics sticker.
     """
     canvas = {"width": W, "height": H, "fps": FPS, **COLORS}
+    if isinstance(spec.get("poem"), list) and spec["poem"]:
+        stanzas = [str(item).strip() for item in spec["poem"]]
+        span = (total - POEM_LEAD_IN - 0.4) / len(stanzas)
+        scenes = []
+        for index, stanza in enumerate(stanzas):
+            # One scene per stanza, so each fades out as the next one pops in.
+            element = _element(f"poem-{index + 1}", "kinetic", dict(TEXT_BOX), label=stanza, center=True, size=76,
+                               min_size=44, at=0.0, accents=accents, keywords=[])
+            scenes.append({"start_seconds": round(POEM_LEAD_IN + index * span, 3), "duration_seconds": round(span - POEM_GAP, 3),
+                           "camera": "steady", "elements": [element]})
+        return {"canvas": canvas, "scenes": scenes}
     if spec.get("lyrics"):
         return {"canvas": canvas, "scenes": [{"start_seconds": 0, "duration_seconds": total, "camera": "steady", "elements": []}]}
     words = str(spec.get("text") or "").split()
@@ -250,6 +273,7 @@ def build_mood_reel(spec: dict, folder: Path, *, generate=None, edit=None, anima
     return {
         "ok": True, "path": result.get("path") or "", "cover": result.get("cover") or "", "seconds": result.get("seconds"),
         "motion": "video" if "video" in backdrop else "stills", "lyrics": bool(spec.get("lyrics")),
+        "poem": [str(item) for item in spec.get("poem") or []],
         "caption": str(spec.get("caption") or "").strip(),
         "songs": [str(song) for song in spec.get("songs") or []], "notes": notes, "error": "",
     }

@@ -64,6 +64,25 @@ class MoodReelTests(unittest.TestCase):
         self.assertTrue(9.5 <= total <= 10.0, "ten seconds or less")
         self.assertEqual(shots[1]["start"], shots[0]["duration"])
 
+    def test_a_poem_shows_one_stanza_at_a_time_and_needs_no_single_line(self) -> None:
+        poem = ["Some days the road is only fog.\nWalk by the light you carry.", "Small steps still count as miles.",
+                "Every sunset you survived\nwas proof you'd see the dawn.", "So keep going, softly."]
+        with_poem = spec(poem=poem, text="")
+        self.assertEqual(mood_reel.problems(with_poem), [], "a poem replaces the single line")
+        self.assertTrue(any("poem" in p for p in mood_reel.problems(spec(poem=["only one"]))), "too few stanzas")
+        self.assertTrue(any("longer than" in p for p in mood_reel.problems(spec(poem=["word " * 20, "ok"]))))
+        renderer = mood_reel.layout(with_poem, 20.0, [{"start": 0.0, "color": "#F7B95B"}])
+        scenes = renderer["scenes"]
+        self.assertEqual(len(scenes), 4)
+        starts = [scene["start_seconds"] for scene in scenes]
+        self.assertEqual(starts, sorted(starts))
+        self.assertGreaterEqual(starts[0], 0.5, "a short lead-in before the first stanza")
+        for before, after in zip(scenes, scenes[1:]):
+            self.assertLessEqual(before["start_seconds"] + before["duration_seconds"], after["start_seconds"], "stanzas never overlap")
+        self.assertLessEqual(scenes[-1]["start_seconds"] + scenes[-1]["duration_seconds"], 20.0)
+        self.assertEqual(mood_reel.layout_problems(renderer), [])
+        self.assertEqual([s["elements"][0]["label"] for s in scenes], poem)
+
     def test_the_text_sits_inside_the_safe_zone(self) -> None:
         renderer = mood_reel.layout(spec(), 10.6, [{"start": 0.0, "color": "#F2B33D"}])
         self.assertEqual(mood_reel.layout_problems(renderer), [])

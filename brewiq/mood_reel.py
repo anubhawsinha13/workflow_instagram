@@ -50,7 +50,8 @@ TEXT_SIZE = 84
 NO_TEXT = " No text, no captions, no lettering, no logos, no watermark, no user interface."
 SAFE_SPACE = (
     " Compose the characters and the main action in the upper two thirds of the frame, framed from the waist up. "
-    "Keep the lower third calm and open (a path, ground, water or sky) with no faces or hands, for one short line of text."
+    "Let the lower third of the scene itself be calm and open (a table, a path, ground, water or sky) with no faces or "
+    "hands, for one short line of text. It is one continuous picture: no panels, strips, borders or collage."
 )
 SAME = (
     "Keep the exact same characters, faces, hair, clothes, place, lighting and painterly anime style as this image. "

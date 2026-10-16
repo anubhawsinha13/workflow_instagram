@@ -80,7 +80,7 @@ def frame_prompt(story: dict, role: str) -> str:
 def shot_sheet(story: dict, timing: dict | None = None) -> str:
     """The shot sheet as text, in the "Scene 1 | 0:00–0:02" form. Veo reads it, and the Slack draft shows it."""
     shots = shots_of(story)
-    lines = [f"{LOOK.strip()} Character: {story['character']}. Place: {story['setting']}."]
+    lines = [f"{LOOK.strip()} Character: {str(story['character']).rstrip('.')}. Place: {str(story['setting']).rstrip('.')}."]
     for number, role in enumerate(SHOTS, start=1):
         shot = shots[role]
         span = (timing or {}).get(role)

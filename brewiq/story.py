@@ -35,7 +35,8 @@ SAME = (
 )
 INSERT = (
     " Close-up insert over the character's shoulder: their hand holds the phone toward the camera, thumb hovering "
-    "just above the screen. The phone screen is lit solid flat pure chroma green (#00FF00) edge to edge, no "
+    "just above the screen. The phone sits in the lower half of the frame, right of center, its top edge just below "
+    "the middle of the picture, so the upper half stays open. The phone screen is lit solid flat pure chroma green (#00FF00) edge to edge, no "
     "reflections, no icons, no text. Their face is soft in the background. Vertical 9:16. No logos, no watermark."
 )
 
@@ -227,14 +228,17 @@ def _perspective(source: list, target: list) -> list:
     return _solve(matrix, values)
 
 
-def lay_screen(photo: Path, content: Image.Image, dest: Path) -> bool:
-    """Put `content` on the green phone screen in `photo`, behind the thumb. False when no screen is found."""
+def lay_screen(photo: Path, content: Image.Image, dest: Path) -> list | None:
+    """Put `content` on the green phone screen in `photo`, behind the thumb.
+
+    Returns the screen's box (left, top, right, bottom) so words can stay off it, or None when no screen is found.
+    """
     with Image.open(photo) as picture:
         base = picture.convert("RGBA")
     mask = green_mask(base)
     corners = screen_corners(mask)
     if corners is None:
-        return False
+        return None
     width, height = content.size
     coefficients = _perspective([(0, 0), (width, 0), (width, height), (0, height)], corners)
     warped = content.convert("RGBA").transform(base.size, Image.PERSPECTIVE, coefficients, Image.BICUBIC)
@@ -244,7 +248,8 @@ def lay_screen(photo: Path, content: Image.Image, dest: Path) -> bool:
     soft = mask.filter(ImageFilter.GaussianBlur(1.2))
     base.paste(warped, (0, 0), soft)
     base.convert("RGB").save(dest)
-    return True
+    xs, ys = [x for x, _ in corners], [y for _, y in corners]
+    return [min(xs), min(ys), max(xs), max(ys)]
 
 
 def key_screens(frames: dict, screens: dict, folder: Path) -> dict:
@@ -259,8 +264,10 @@ def key_screens(frames: dict, screens: dict, folder: Path) -> dict:
         if not isinstance(screen, dict):
             continue
         dest = folder / f"story-insert-{role}.png"
-        if dest.is_file() or lay_screen(Path(insert), phone_screen(screen, (370, 800)), dest):
+        box = lay_screen(Path(insert), phone_screen(screen, (370, 800)), dest)
+        if box:
             keyed[role] = str(dest)
+            keyed["_box"] = box
     return keyed
 
 

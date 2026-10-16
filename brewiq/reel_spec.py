@@ -588,10 +588,28 @@ def _story_scene(spec, beat, on_screen, key, slot, story_shots) -> list:
                 element["device"] = "phone"
             elements.append(element)
     if role == "hook" and keyed and _text(story.get("alert")):
-        # The thumb is over the link: stop it.
+        # The thumb is over the link: stop it. The alert sits just above the phone, or below it when the phone
+        # is held high, so it never covers the message.
         at = min(slot["duration"] - 0.5, STORY_OPEN_SECONDS + 0.55)
-        elements.append(_element(f"{key}-alert", "alert", dict(STORY_ALERT), label=_text(story.get("alert")), at=at))
+        elements.append(_element(f"{key}-alert", "alert", alert_box(story_shots.get("keyed", {}).get("_box")),
+                                 label=_text(story.get("alert")), at=at))
     return elements
+
+
+def alert_box(screen_box) -> dict:
+    """Where the alert goes on the phone close-up: in the gap above the phone, else below it, else the default."""
+    box = dict(STORY_ALERT)
+    if not screen_box:
+        return box
+    top, bottom = screen_box[1], screen_box[3]
+    headline_bottom = STORY_HEADLINE["y"] + STORY_HEADLINE["h"]
+    if top - box["h"] - 10 >= headline_bottom:
+        box["y"] = round(top - box["h"] - 10)
+    elif bottom + 10 + box["h"] <= SAFE["bottom"]:
+        box["y"] = round(bottom + 10)
+    else:
+        box["y"] = SAFE["bottom"] - box["h"]
+    return box
 
 
 def story_timeline(timing: list, beats: list, made: dict) -> dict:

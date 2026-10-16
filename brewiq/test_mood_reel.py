@@ -85,6 +85,19 @@ class MoodReelTests(unittest.TestCase):
         self.assertIn("Veo is out of credits.", result["notes"][0])
         self.assertEqual(len(result["songs"]), 2)
 
+    def test_a_solo_scene_uses_the_same_cast_sheet_as_the_couple(self) -> None:
+        sheets = []
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(mood_reel, "CAST_DIR", Path(directory) / "cast"):
+            mood_reel.cast_sheet(spec(characters="meera"), generate=lambda prompt: sheets.append(prompt) or fake_image())
+            again = mood_reel.cast_sheet(spec(characters="aarav"), generate=lambda prompt: sheets.append(prompt) or fake_image())
+            self.assertEqual(again.name, "couple.png")
+            self.assertEqual(len(sheets), 1, "the sheet is drawn once and reused")
+            self.assertIn("Meera", sheets[0])
+            self.assertIn("Aarav", sheets[0])
+            self.assertIsNone(mood_reel.cast_sheet(spec(characters="none")))
+        self.assertIn("Meera", mood_reel.shot_prompt(spec(characters="meera"), "wide"))
+        self.assertNotIn("Aarav", mood_reel.shot_prompt(spec(characters="meera"), "wide"))
+
     def test_a_working_video_model_replaces_the_stills(self) -> None:
         payloads = []
 

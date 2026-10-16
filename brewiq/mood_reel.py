@@ -96,7 +96,8 @@ def shot_prompt(spec: dict, shot_id: str) -> str:
     prompt = str({str(s.get("id")): s for s in spec["shots"]}[shot_id].get("prompt")).strip()
     if shot_id == "wide":
         people = _people(spec)
-        cast = f" Original characters: {people}." if people else " No people in this scene."
+        cast = (f" Original characters: {people}. Draw them exactly as they look in the reference image."
+                if people else " No people in this scene.")
         return (f"Create an ORIGINAL vertical 9:16 cinematic illustrated scene for an Instagram Reel. {look}{avoid} "
                 f"Mood: {spec['mood']}. Setting: {spec['setting']}.{cast} {prompt}{SAFE_SPACE}{NO_TEXT} Art style: "
                 f"{story_module.STYLES[STYLE]['label']}.")
@@ -116,11 +117,11 @@ def motion_prompt(spec: dict) -> str:
 
 def cast_sheet(spec: dict, generate=None) -> Path | None:
     """The saved reference sheet that keeps the recurring characters looking the same. Drawn once, then reused."""
-    people = _people(spec)
-    if not people:
+    if spec.get("characters") == "none":
         return None
-    key = "couple" if spec.get("characters") == "couple" else str(spec["characters"])
-    sheet = CAST_DIR / "a48" / f"{key}.png"
+    # One sheet for the whole cast, so a solo scene still draws the same faces as the couple scenes.
+    people = f"{CAST['meera']}; and {CAST['aarav']}"
+    sheet = CAST_DIR / "a48" / "couple.png"
     if sheet.is_file():
         return sheet
     if generate is None:

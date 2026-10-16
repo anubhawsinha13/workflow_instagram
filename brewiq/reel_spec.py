@@ -615,10 +615,11 @@ def alert_box(screen_box) -> dict:
         return box
     top, bottom = screen_box[1], screen_box[3]
     headline_bottom = STORY_HEADLINE["y"] + STORY_HEADLINE["h"]
-    if top - box["h"] - 10 >= headline_bottom:
-        box["y"] = round(top - box["h"] - 10)
-    elif bottom + 10 + box["h"] <= SAFE["bottom"]:
-        box["y"] = round(bottom + 10)
+    # The screen box is just the glass. The bezel and fingers extend past it, so the alert keeps a wider gap.
+    if top - box["h"] - 30 >= headline_bottom:
+        box["y"] = round(top - box["h"] - 30)
+    elif bottom + 60 + box["h"] <= SAFE["bottom"]:
+        box["y"] = round(bottom + 60)
     else:
         box["y"] = SAFE["bottom"] - box["h"]
     return box

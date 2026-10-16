@@ -73,15 +73,16 @@ class MoodReelTests(unittest.TestCase):
         self.assertTrue(any("longer than" in p for p in mood_reel.problems(spec(poem=["word " * 20, "ok"]))))
         renderer = mood_reel.layout(with_poem, 20.0, [{"start": 0.0, "color": "#F7B95B"}])
         scenes = renderer["scenes"]
-        self.assertEqual(len(scenes), 4)
-        starts = [scene["start_seconds"] for scene in scenes]
-        self.assertEqual(starts, sorted(starts))
-        self.assertGreaterEqual(starts[0], 0.5, "a short lead-in before the first stanza")
+        # The renderer takes the video's length from the scenes, so they must add up to the whole Reel with no gaps.
+        self.assertAlmostEqual(sum(scene["duration_seconds"] for scene in scenes), 20.0, places=2)
         for before, after in zip(scenes, scenes[1:]):
-            self.assertLessEqual(before["start_seconds"] + before["duration_seconds"], after["start_seconds"], "stanzas never overlap")
-        self.assertLessEqual(scenes[-1]["start_seconds"] + scenes[-1]["duration_seconds"], 20.0)
+            self.assertAlmostEqual(before["start_seconds"] + before["duration_seconds"], after["start_seconds"], places=2)
+        self.assertEqual(scenes[0]["elements"], [], "a short lead-in before the first stanza")
+        self.assertEqual(scenes[-1]["elements"], [], "and an empty tail")
+        stanza_scenes = [scene for scene in scenes if scene["elements"]]
+        self.assertEqual(len(stanza_scenes), 4)
         self.assertEqual(mood_reel.layout_problems(renderer), [])
-        self.assertEqual([s["elements"][0]["label"] for s in scenes], poem)
+        self.assertEqual([s["elements"][0]["label"] for s in stanza_scenes], poem)
 
     def test_the_long_cut_is_optional_needs_two_more_shots_and_leaves_the_default_alone(self) -> None:
         self.assertEqual(mood_reel.problems(spec()), [], "the default spec still needs only three shots")

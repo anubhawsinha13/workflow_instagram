@@ -57,7 +57,7 @@ MAX_TEXT_WORDS = 9
 POEM_STANZAS = (2, 6)
 POEM_STANZA_WORDS = 16
 POEM_LEAD_IN = 0.8
-POEM_GAP = 0.25
+POEM_TAIL = 0.6
 TEXT_BOX = {"x": 64, "y": 1190, "w": 866, "h": 250}
 TEXT_AT = 0.9
 TEXT_SIZE = 84
@@ -217,14 +217,17 @@ def layout(spec: dict, total: float, accents: list) -> dict:
     canvas = {"width": W, "height": H, "fps": FPS, **COLORS}
     if isinstance(spec.get("poem"), list) and spec["poem"]:
         stanzas = [str(item).strip() for item in spec["poem"]]
-        span = (total - POEM_LEAD_IN - 0.4) / len(stanzas)
-        scenes = []
+        span = round((total - POEM_LEAD_IN - POEM_TAIL) / len(stanzas), 3)
+        # The renderer sets the video's length from the scenes, so they must cover it end to end with no gaps:
+        # an empty lead-in, one scene per stanza (each fades as the next pops in), and an empty tail.
+        scenes = [{"start_seconds": 0, "duration_seconds": POEM_LEAD_IN, "camera": "steady", "elements": []}]
         for index, stanza in enumerate(stanzas):
-            # One scene per stanza, so each fades out as the next one pops in.
             element = _element(f"poem-{index + 1}", "kinetic", dict(TEXT_BOX), label=stanza, center=True, size=76,
                                min_size=44, at=0.0, accents=accents, keywords=[])
-            scenes.append({"start_seconds": round(POEM_LEAD_IN + index * span, 3), "duration_seconds": round(span - POEM_GAP, 3),
+            scenes.append({"start_seconds": round(POEM_LEAD_IN + index * span, 3), "duration_seconds": span,
                            "camera": "steady", "elements": [element]})
+        end = round(POEM_LEAD_IN + len(stanzas) * span, 3)
+        scenes.append({"start_seconds": end, "duration_seconds": round(total - end, 3), "camera": "steady", "elements": []})
         return {"canvas": canvas, "scenes": scenes}
     if spec.get("lyrics"):
         return {"canvas": canvas, "scenes": [{"start_seconds": 0, "duration_seconds": total, "camera": "steady", "elements": []}]}

@@ -2068,12 +2068,157 @@ def _clip_line(draw: ImageDraw.ImageDraw, text: str, font, width: float) -> str:
     return text.rstrip() + "…"
 
 
+PHONE_FONT = "/System/Library/Fonts/SFNS.ttf"
+PHONE_APPS = {"chat", "sms", "text", "messages", "message", "mail", "email", "inbox"}
+
+
+def _phone_font(size: int, weight: str = "Regular"):
+    """The phone's own system type, so the screen reads like a real phone. Falls back to the brand font."""
+    try:
+        font = ImageFont.truetype(PHONE_FONT, size)
+        font.set_variation_by_name(weight)
+        return font
+    except (OSError, ValueError):
+        return _font(size, "Bold" if weight in ("Semibold", "Bold") else "Medium")
+
+
+def _wrap(draw: ImageDraw.ImageDraw, text: str, font, width: float, max_lines: int) -> list:
+    words, lines, line = text.split(), [], ""
+    for word in words:
+        trial = f"{line} {word}".strip()
+        if draw.textlength(trial, font=font) <= width or not line:
+            line = trial
+        else:
+            lines.append(line)
+            line = word
+    if line:
+        lines.append(line)
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        lines[-1] = _clip_line(draw, lines[-1] + " …", font, width)
+    return lines
+
+
+def _draw_phone(sprite: Image.Image, element: dict, colors: dict, pad: int, w: int, h: int) -> None:
+    """A phone in the style people know: black bezel, dynamic island, the sender at the top, gray bubbles.
+
+    Drawn from the research, in the look of the phone's own Messages and Mail apps. No company logos.
+    """
+    screen = element.get("screen") if isinstance(element.get("screen"), dict) else {}
+    draw = ImageDraw.Draw(sprite)
+    outer = (pad, pad, pad + w, pad + h)
+    _shadow(sprite, outer, 70)
+    draw.rounded_rectangle(outer, 70, fill=(22, 22, 24, 255))
+    bezel = 16
+    glass = (pad + bezel, pad + bezel, pad + w - bezel, pad + h - bezel)
+    draw.rounded_rectangle(glass, 56, fill=(255, 255, 255, 255))
+    left, top, right, bottom = glass
+    cx = (left + right) / 2
+    gray, label = (142, 142, 147, 255), (0, 0, 0, 255)
+    # Status bar and dynamic island.
+    draw.text((left + 44, top + 22), "9:41", font=_phone_font(26, "Semibold"), fill=label)
+    draw.rounded_rectangle((cx - 66, top + 16, cx + 66, top + 54), 19, fill=(0, 0, 0, 255))
+    for index in range(4):
+        bar_h = 8 + index * 4
+        x = right - 108 + index * 9
+        draw.rounded_rectangle((x, top + 46 - bar_h, x + 6, top + 46), 2, fill=label)
+    draw.rounded_rectangle((right - 62, top + 28, right - 28, top + 46), 5, outline=label, width=2)
+    draw.rectangle((right - 58, top + 32, right - 36, top + 42), fill=label)
+
+    app = str(screen.get("app") or "chat").lower()
+    rows = [row for row in (screen.get("lines") or []) if isinstance(row, dict) and str(row.get("text") or "").strip()]
+    mail = app in ("mail", "email", "inbox")
+    # Back chevron.
+    draw.line((left + 34, top + 92, left + 22, top + 104, left + 34, top + 116), fill=(0, 122, 255, 255), width=4, joint="curve")
+    if mail:
+        draw.text((left + 46, top + 86), "Inbox", font=_phone_font(26), fill=(0, 122, 255, 255))
+        y = top + 136
+        draw.text((left + 28, y), _clip_line(draw, str(screen.get("title") or "Inbox"), _phone_font(42, "Bold"), right - left - 56), font=_phone_font(42, "Bold"), fill=label)
+        y += 66
+        for row in rows[:4]:
+            name_font, body_font = _phone_font(30, "Semibold"), _phone_font(27)
+            text = str(row.get("text")).strip()
+            body = _wrap(draw, text, body_font, right - left - 64, 2)
+            if row.get("mark"):
+                for index, line in enumerate(body):
+                    box = draw.textbbox((left + 32, y + 40 + index * 34), line, font=body_font)
+                    draw.rounded_rectangle((box[0] - 4, box[1] - 2, box[2] + 4, box[3] + 4), 4,
+                                           fill=_rgb(colors.get("highlight") or "#FFE14D") + (255,))
+            draw.ellipse((left + 12, y + 10, left + 22, y + 20), fill=(0, 122, 255, 255))
+            draw.text((left + 32, y), _clip_line(draw, str(row.get("who") or "Sender"), name_font, right - left - 64),
+                      font=name_font, fill=label)
+            for index, line in enumerate(body):
+                draw.text((left + 32, y + 40 + index * 34), line, font=body_font, fill=(60, 60, 67, 255))
+            y += 48 + 34 * len(body) + 18
+            draw.line((left + 32, y - 8, right, y - 8), fill=(229, 229, 234, 255), width=2)
+            if y > bottom - 140:
+                break
+    else:
+        sender = str((rows[0].get("who") if rows else "") or screen.get("title") or "Message").strip()
+        # The contact at the top: a gray circle with initials, the name, then the thread's date line.
+        avatar = 64
+        draw.ellipse((cx - avatar / 2, top + 70, cx + avatar / 2, top + 70 + avatar), fill=(172, 174, 186, 255))
+        initials = "".join(part[:1] for part in sender.replace("-", " ").split()[:2]).upper() or "?"
+        font = _phone_font(28, "Semibold")
+        box = draw.textbbox((0, 0), initials, font=font)
+        draw.text((cx - (box[0] + box[2]) / 2, top + 70 + avatar / 2 - (box[1] + box[3]) / 2), initials, font=font,
+                  fill=(255, 255, 255, 255))
+        name_font = _phone_font(22)
+        name = _clip_line(draw, sender, name_font, right - left - 80) + " ›"
+        draw.text((cx - draw.textlength(name, font=name_font) / 2, top + 142), name, font=name_font, fill=label)
+        draw.line((left, top + 186, right, top + 186), fill=(229, 229, 234, 255), width=2)
+        meta_font = _phone_font(19, "Semibold")
+        for index, meta in enumerate(("Text Message", "Today 9:29 AM")):
+            meta_w = draw.textlength(meta, font=meta_font)
+            draw.text((cx - meta_w / 2, top + 206 + index * 26), meta, font=meta_font, fill=gray)
+        y = top + 272
+        bubble_font = _phone_font(33)
+        # A text thread from a sender shows the sender's messages, in full, the way the phone does.
+        theirs = [row for row in rows if str(row.get("who") or "").strip() == sender] or rows[:1]
+        for row in theirs[:2]:
+            lines = _wrap(draw, str(row.get("text")).strip(), bubble_font, (right - left) * 0.74, 5)
+            line_h = 42
+            text_w = max(draw.textlength(line, font=bubble_font) for line in lines)
+            bubble = (left + 22, y, left + 22 + text_w + 40, y + line_h * len(lines) + 26)
+            draw.rounded_rectangle(bubble, 26, fill=(233, 233, 235, 255))
+            if row.get("mark"):
+                # The trap line gets the brand marker so the eye lands on it.
+                for index, line in enumerate(lines):
+                    box = draw.textbbox((bubble[0] + 20, y + 12 + index * line_h), line, font=bubble_font)
+                    draw.rounded_rectangle((box[0] - 3, box[1] + (box[3] - box[1]) * 0.45, box[2] + 3, box[3] + 4), 4,
+                                           fill=_rgb(colors.get("highlight") or "#FFE14D") + (255,))
+            for index, line in enumerate(lines):
+                draw.text((bubble[0] + 20, y + 12 + index * line_h), line, font=bubble_font, fill=label)
+            y = bubble[3] + 14
+
+    action = str(screen.get("action") or "").strip()
+    if action:
+        button_font = _phone_font(26, "Semibold")
+        label_w = draw.textlength(action, font=button_font)
+        button = (cx - label_w / 2 - 34, bottom - 150, cx + label_w / 2 + 34, bottom - 92)
+        draw.rounded_rectangle(button, 29, fill=(0, 122, 255, 255))
+        box = draw.textbbox((0, 0), action, font=button_font)
+        draw.text((cx - label_w / 2, (button[1] + button[3]) / 2 - (box[1] + box[3]) / 2), action, font=button_font,
+                  fill=(255, 255, 255, 255))
+    if not mail:
+        # The input bar along the bottom.
+        bar = (left + 76, bottom - 74, right - 24, bottom - 30)
+        draw.ellipse((left + 22, bottom - 72, left + 62, bottom - 32), fill=(229, 229, 234, 255))
+        draw.text((left + 34, bottom - 74), "+", font=_phone_font(32), fill=gray)
+        draw.rounded_rectangle(bar, 22, outline=(209, 209, 214, 255), width=2)
+        draw.text((bar[0] + 18, bar[1] + 9), "Text Message", font=_phone_font(22), fill=(180, 180, 186, 255))
+    draw.rounded_rectangle((cx - 70, bottom - 14, cx + 70, bottom - 8), 3, fill=label)
+
+
 def _draw_screen(sprite: Image.Image, element: dict, colors: dict, pad: int, w: int, h: int) -> None:
     """A sample app screen drawn from the research: a header, message rows, and an optional action button.
 
     Original drawing only. No company logo or real product screenshot.
     """
     screen = element.get("screen") if isinstance(element.get("screen"), dict) else {}
+    if element.get("device") == "phone" and str(screen.get("app") or "chat").lower() in PHONE_APPS:
+        _draw_phone(sprite, element, colors, pad, w, h)
+        return
     draw = ImageDraw.Draw(sprite)
     ink = _rgb(colors["text"]) + (255,)
     inner = (pad, pad, pad + w, pad + h)

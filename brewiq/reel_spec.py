@@ -44,10 +44,10 @@ QUICK_HERO = {"x": 64, "y": 256, "w": 866, "h": 620}
 QUICK_HEADLINE = {"x": 64, "y": 912, "w": 866, "h": 300}
 QUICK_CTA = {"x": 64, "y": 460, "w": 866, "h": 420}
 QUICK_CTA_NOTE = {"x": 64, "y": 920, "w": 866, "h": 220}
-# Story mode: an animated character fills the frame. The headline sits above their head, the real screen
-# lower left like a close-up of their phone, and the ask below their face.
+# Story mode: an animated character fills the frame. The headline sits above their head, their phone
+# lower left as a close-up, and the ask below their face.
 STORY_HEADLINE = {"x": 64, "y": 270, "w": 866, "h": 230}
-STORY_SCREEN = {"x": 64, "y": 880, "w": 640, "h": 620}
+STORY_SCREEN = {"x": 64, "y": 690, "w": 480, "h": 810}
 STORY_CTA = {"x": 64, "y": 1010, "w": 866, "h": 260}
 STORY_CTA_NOTE = {"x": 64, "y": 1300, "w": 866, "h": 190}
 POSES = tuple(name for name in POSE_FILES if not name.startswith("walk"))
@@ -564,7 +564,10 @@ def _story_scene(beat, on_screen, key) -> list:
         return elements
     elements: list = []
     if isinstance(on_screen.get("screen"), dict):
-        elements.extend(_screen_elements(key, STORY_SCREEN, on_screen["screen"]))
+        for element in _screen_elements(key, STORY_SCREEN, on_screen["screen"]):
+            if element["type"] == "screen":
+                element["device"] = "phone"  # Messages and mail look like the phone people hold.
+            elements.append(element)
     elements.append(_element(f"{key}-title", "title", dict(STORY_HEADLINE), label=headline, stat=None, panel=True,
                              motion="slide_up", at=0.05, length=0.25))
     return elements

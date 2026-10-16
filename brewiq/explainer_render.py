@@ -299,19 +299,40 @@ def _draw_live(frame: Image.Image, element: dict, t: float, duration: float, las
         cursor_y += line_h
 
 
+LOGO_FILE = ROOT / "brand" / "logo.png"
+LOGO_HEIGHT = 168
+_LOGO: list = []
+
+
+def _logo() -> Image.Image | None:
+    """The BrewIQ logo, cut out, at corner size, with a soft shadow so it reads on bright and dark scenes."""
+    if not _LOGO:
+        try:
+            with Image.open(LOGO_FILE) as picture:
+                logo = picture.convert("RGBA")
+        except OSError:
+            _LOGO.append(None)
+            return None
+        logo = logo.resize((round(logo.width * LOGO_HEIGHT / logo.height), LOGO_HEIGHT), Image.LANCZOS)
+        pad = 16
+        layer = Image.new("RGBA", (logo.width + pad * 2, logo.height + pad * 2), (0, 0, 0, 0))
+        shadow = Image.new("RGBA", layer.size, (0, 0, 0, 0))
+        shadow.paste((0, 0, 0, 150), (pad, pad + 2), logo.getchannel("A"))
+        layer.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(6)))
+        layer.alpha_composite(logo, (pad, pad))
+        _LOGO.append(layer)
+    return _LOGO[0]
+
+
 def _corner_mark(frame: Image.Image, accent: tuple) -> None:
-    """BrewIQ in the top-right corner, in white with a cup in the scene's color, so it sits in the picture."""
+    """The BrewIQ logo tucked into the top-right corner. Falls back to the wordmark when the logo file is missing."""
+    logo = _logo()
+    if logo is not None:
+        frame.alpha_composite(logo, (frame.width - logo.width - 14, 30))
+        return
     font = _serif(42, True)
-    probe = ImageDraw.Draw(frame)
-    text_w = probe.textlength(WORDMARK, font=font)
-    right, top = 1036, 104
-    cup = (right - text_w - 54, top + 8, right - text_w - 20, top + 38)
-    layer = Image.new("RGBA", frame.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(layer)
-    draw.rounded_rectangle(cup, 6, fill=accent + (235,), outline=(255, 255, 255, 230), width=3)
-    draw.arc((cup[2] - 6, cup[1] + 4, cup[2] + 10, cup[1] + 20), -90, 90, fill=(255, 255, 255, 230), width=3)
-    frame.alpha_composite(layer)
-    _glow_text(frame, (right - text_w, top - 4), WORDMARK, font, WHITE, 0.92)
+    text_w = ImageDraw.Draw(frame).textlength(WORDMARK, font=font)
+    _glow_text(frame, (frame.width - text_w - 30, 60), WORDMARK, font, WHITE, 0.92)
 
 
 class _Backdrop:

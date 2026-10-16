@@ -300,38 +300,48 @@ def _draw_live(frame: Image.Image, element: dict, t: float, duration: float, las
         cursor_y += line_h
 
 
-LOGO_FILE = ROOT / "brand" / "logo.png"
-LOGO_HEIGHT = 168
-_LOGO: list = []
+LOGO_FILES = {"brewiq": ROOT / "brand" / "logo.png", "a48": ROOT / "brand" / "a48-logo.png"}
+LOGO_HEIGHTS = {"brewiq": 168, "a48": 124}
+_LOGOS: dict = {}
 
 
-def _logo() -> Image.Image | None:
-    """The BrewIQ logo, cut out, at corner size, with a soft shadow so it reads on bright and dark scenes."""
-    if not _LOGO:
+def _logo(name: str = "brewiq") -> Image.Image | None:
+    """An account's logo, cut out, at corner size, with a soft shadow so it reads on bright and dark scenes."""
+    if name not in _LOGOS:
         try:
-            with Image.open(LOGO_FILE) as picture:
+            with Image.open(LOGO_FILES[name]) as picture:
                 logo = picture.convert("RGBA")
-        except OSError:
-            _LOGO.append(None)
+        except (OSError, KeyError):
+            _LOGOS[name] = None
             return None
-        logo = logo.resize((round(logo.width * LOGO_HEIGHT / logo.height), LOGO_HEIGHT), Image.LANCZOS)
+        height = LOGO_HEIGHTS.get(name, 168)
+        logo = logo.resize((round(logo.width * height / logo.height), height), Image.LANCZOS)
         pad = 16
         layer = Image.new("RGBA", (logo.width + pad * 2, logo.height + pad * 2), (0, 0, 0, 0))
         shadow = Image.new("RGBA", layer.size, (0, 0, 0, 0))
-        shadow.paste((0, 0, 0, 150), (pad, pad + 2), logo.getchannel("A"))
+        shadow.paste((0, 0, 0, 170), (pad, pad + 2), logo.getchannel("A"))
         layer.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(6)))
         layer.alpha_composite(logo, (pad, pad))
-        _LOGO.append(layer)
-    return _LOGO[0]
+        _LOGOS[name] = layer
+    return _LOGOS[name]
 
 
-def _corner_mark(frame: Image.Image, accent: tuple, mark: str | None = None) -> None:
-    """The account's mark tucked into the top-right corner: the BrewIQ logo, or another account's name in type.
+def _corner_mark(frame: Image.Image, accent: tuple, mark: str | None = None, fallback: str | None = None) -> None:
+    """The account's mark tucked into the top-right corner.
 
-    mark "none" draws nothing. Falls back to the BrewIQ wordmark when the logo file is missing.
+    mark "logo:<name>" draws that account's logo (falling back to `fallback` in type when the file is missing),
+    "none" draws nothing, any other text is drawn in type, and no mark means the BrewIQ logo.
     """
     if mark == "none":
         return
+    if mark and mark.startswith("logo:"):
+        logo = _logo(mark.split(":", 1)[1])
+        if logo is not None:
+            frame.alpha_composite(logo, (frame.width - logo.width - 14, 30))
+            return
+        mark = fallback
+        if not mark:
+            return
     if mark:
         font = _serif(34, True)
         text_w = ImageDraw.Draw(frame).textlength(mark, font=font)
@@ -509,7 +519,8 @@ def render_explainer(payload: dict, make_host=None) -> dict:
                     if sprite is not None and _is_chrome(element):
                         _place(frame, element, sprite, local, duration, colors)
         if backdrop is not None:
-            _corner_mark(frame, _accent_at(backdrop_spec.get("accents") or [], t), backdrop_spec.get("mark"))
+            _corner_mark(frame, _accent_at(backdrop_spec.get("accents") or [], t), backdrop_spec.get("mark"),
+                         backdrop_spec.get("mark_fallback"))
         else:
             frame.alpha_composite(wordmark)
         return frame

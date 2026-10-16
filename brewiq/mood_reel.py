@@ -22,7 +22,10 @@ from explainer_render import render_explainer  # noqa: E402
 from reel_spec import COLORS, FPS, H, SAFE, W, _element  # noqa: E402
 
 STYLE = "anime_painterly"
-ACCOUNT_MARK = "A48 STUDIO"
+ACCOUNT_MARK = "logo:a48"
+ACCOUNT_NAME = "A48 STUDIO"
+# The golden-hour tone from the brand palette. The highlighted word is always this color, so every Reel reads as A48.
+BRAND_ACCENT = "#F7B95B"
 CAST_DIR = ROOT / "cast"
 
 PILLARS = {
@@ -211,10 +214,10 @@ def build_mood_reel(spec: dict, folder: Path, *, generate=None, edit=None, anima
         return {"ok": False, "error": drawn["error"]}
     frames = drawn["frames"]
     shots, total = timeline(frames)
-    accent = story_module.scene_accent(frames["wide"])
-    accents = [{"start": 0.0, "color": accent}]
+    accents = [{"start": 0.0, "color": BRAND_ACCENT}]
     notes = []
-    backdrop = {"shots": shots, "accents": accents, "fade": FADE, "push": PUSH, "mark": ACCOUNT_MARK}
+    backdrop = {"shots": shots, "accents": accents, "fade": FADE, "push": PUSH, "mark": ACCOUNT_MARK,
+                "mark_fallback": ACCOUNT_NAME}
     clip = folder / "mood.mp4"
     if animate is not None or not clip.is_file():
         if animate is None:
@@ -227,7 +230,7 @@ def build_mood_reel(spec: dict, folder: Path, *, generate=None, edit=None, anima
                 notes.append(f"{made.get('error') or 'The video model did not return a clip.'} "
                              "The scene plays as moving stills instead.")
     if clip.is_file() and clip.stat().st_size > 0:
-        backdrop = {"video": str(clip), "accents": accents, "mark": ACCOUNT_MARK}
+        backdrop = {"video": str(clip), "accents": accents, "mark": ACCOUNT_MARK, "mark_fallback": ACCOUNT_NAME}
     renderer = layout(spec, total, accents)
     issues = layout_problems(renderer)
     if issues:

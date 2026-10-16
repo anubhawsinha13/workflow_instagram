@@ -82,7 +82,9 @@ class MoodReelTests(unittest.TestCase):
             self.assertTrue((Path(directory) / "cast" / "a48" / "couple.png").is_file(), "the cast sheet is saved for the next episode")
         payload = payloads[0]
         self.assertNotIn("voiceover", payload, "the song is added in Instagram, so the file is silent")
-        self.assertEqual(payload["backdrop"]["mark"], "A48 STUDIO")
+        self.assertEqual(payload["backdrop"]["mark"], "logo:a48")
+        self.assertEqual(payload["backdrop"]["mark_fallback"], "A48 STUDIO")
+        self.assertEqual(payload["backdrop"]["accents"][0]["color"], mood_reel.BRAND_ACCENT, "the key word is always the brand gold")
         self.assertEqual(len(payload["backdrop"]["shots"]), 4)
         self.assertEqual(result["motion"], "stills")
         self.assertIn("Veo is out of credits.", result["notes"][0])
@@ -114,6 +116,21 @@ class MoodReelTests(unittest.TestCase):
         self.assertEqual(result["motion"], "video")
         self.assertIn("video", payloads[0]["backdrop"])
         self.assertNotIn("shots", payloads[0]["backdrop"])
+
+    def test_the_corner_mark_is_the_a48_logo_with_a_text_fallback(self) -> None:
+        import explainer_render
+
+        def corner(mark: str, fallback: str | None = None) -> int:
+            frame = Image.new("RGBA", (1080, 1920), (40, 30, 60, 255))
+            explainer_render._corner_mark(frame, (247, 185, 91), mark, fallback)
+            box = frame.crop((700, 0, 1080, 260))
+            return sum(1 for pixel in box.getdata() if pixel[:3] != (40, 30, 60))
+
+        self.assertTrue(explainer_render.LOGO_FILES["a48"].is_file(), "the A48 logo is saved with the brand files")
+        self.assertGreater(corner("logo:a48"), 2000, "the logo is drawn in the top-right corner")
+        self.assertGreater(corner("logo:missing", "A48 STUDIO"), 200, "a missing logo falls back to the name in type")
+        self.assertEqual(corner("logo:missing"), 0, "no logo and no fallback draws nothing")
+        self.assertEqual(corner("none"), 0)
 
     def test_an_invalid_spec_is_refused_before_anything_is_drawn(self) -> None:
         drawn = []

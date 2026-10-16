@@ -173,6 +173,74 @@ def _stage_explainer(scenes: list) -> list:
     return staged
 
 
+class _Backdrop:
+    """The moving picture behind a story reel: frames of a clip, or stills with a slow push-in.
+
+    A clip is read in order, one frame per output frame, and holds its last frame if it runs short.
+    """
+
+    PUSH = 0.07
+
+    def __init__(self, spec: dict, width: int, height: int, fps: int, ffmpeg: str) -> None:
+        self.size, self.fps, self.ffmpeg = (width, height), fps, ffmpeg
+        self.video = str(spec.get("video") or "")
+        self.stills = []
+        for item in spec.get("stills") or []:
+            with Image.open(item["path"]) as picture:
+                image = ImageOps.fit(picture.convert("RGB"), (width, height), Image.LANCZOS)
+            self.stills.append((float(item.get("start") or 0), float(item.get("duration") or 1), image))
+        self.process = None
+        self.index = -1
+        self.last: Image.Image | None = None
+
+    def _open(self) -> None:
+        width, height = self.size
+        self.process = subprocess.Popen(
+            [self.ffmpeg, "-loglevel", "error", "-i", self.video, "-an", "-vf",
+             f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},fps={self.fps}",
+             "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        )
+        self.index = -1
+
+    def frame(self, t: float) -> Image.Image:
+        if self.video:
+            return self._video_frame(max(0, round(t * self.fps)))
+        start, duration, image = self.stills[0]
+        for item in self.stills:
+            if item[0] <= t:
+                start, duration, image = item
+        progress = min(1.0, max(0.0, (t - start) / max(0.01, duration)))
+        scale = 1 + self.PUSH * progress
+        width, height = self.size
+        crop_w, crop_h = width / scale, height / scale
+        left, top = (width - crop_w) / 2, (height - crop_h) * 0.4
+        return image.resize(self.size, Image.BILINEAR, box=(left, top, left + crop_w, top + crop_h)).convert("RGBA")
+
+    def _video_frame(self, wanted: int) -> Image.Image:
+        if self.process is None or wanted < self.index:
+            self.close()
+            self._open()
+        size = self.size[0] * self.size[1] * 3
+        while self.index < wanted:
+            raw = self.process.stdout.read(size) if self.process and self.process.stdout else b""
+            if len(raw) < size:
+                break  # The clip ended: hold its last frame.
+            self.last = Image.frombytes("RGB", self.size, raw)
+            self.index += 1
+        if self.last is None:
+            return Image.new("RGBA", self.size, (0, 0, 0, 255))
+        return self.last.convert("RGBA")
+
+    def close(self) -> None:
+        if self.process is not None:
+            if self.process.stdout:
+                self.process.stdout.close()
+            self.process.kill()
+            self.process.wait()
+            self.process = None
+
+
 def render_explainer(payload: dict, make_host=None) -> dict:
     data = payload.get("renderer") if isinstance(payload.get("renderer"), dict) else {}
     canvas = data.get("canvas") if isinstance(data.get("canvas"), dict) else {}
@@ -204,7 +272,9 @@ def render_explainer(payload: dict, make_host=None) -> dict:
     ):
         scenes = _stage_explainer(scenes)
     background = _background(width, height, colors)
-    wordmark = _wordmark_layer(width, height, colors)
+    backdrop_spec = payload.get("backdrop") if isinstance(payload.get("backdrop"), dict) else None
+    backdrop = _Backdrop(backdrop_spec, width, height, fps, ffmpeg) if backdrop_spec else None
+    wordmark = _wordmark_layer(width, height, colors, pill=backdrop is not None)
     total = sum(float(scene.get("duration_seconds") or 0) for scene in scenes)
     prepared = []
     for scene in scenes:
@@ -229,7 +299,7 @@ def render_explainer(payload: dict, make_host=None) -> dict:
     frames = max(1, round(total * fps))
 
     def compose(t: float, last: bool = False) -> Image.Image:
-        frame = background.copy()
+        frame = backdrop.frame(t) if backdrop is not None else background.copy()
         for start, duration, sprites, camera, focus in prepared:
             if start <= t < start + duration or (last and start <= t):
                 local = t - start
@@ -257,6 +327,8 @@ def render_explainer(payload: dict, make_host=None) -> dict:
             dest = folder / f"preview-{index + 1:02d}.png"
             compose(min(max(0.0, float(moment)), max(0.0, total - 0.001))).convert("RGB").save(dest)
             paths.append(str(dest))
+        if backdrop is not None:
+            backdrop.close()
         return {"ok": True, "previews": paths, "seconds": round(total, 2), "error": ""}
 
     audio = Path(str(payload.get("voiceover") or ""))
@@ -280,13 +352,16 @@ def render_explainer(payload: dict, make_host=None) -> dict:
         pass
     stderr = process.stderr.read().decode("utf-8", "ignore") if process.stderr else ""
     process.wait()
+    if backdrop is not None:
+        backdrop.close()
     if process.returncode != 0 or not out.is_file() or out.stat().st_size == 0:
         detail = stderr.strip().splitlines()
         return {"ok": False, "error": (detail[-1] if detail else "ffmpeg could not render the explainer.")[:240]}
     cover = out.with_name("cover.jpg")
     hook_element = _first_hook(prepared[0][2] if prepared else [])
     try:
-        cover_frame = _opening_still(
+        # A story reel's cover is its first frame: the picture with the hook on it.
+        cover_frame = compose(0.0) if backdrop is not None else _opening_still(
             width, height, colors, radius,
             prepared[0][2] if prepared else [],
             None,  # The video frames draw no backdrop behind the host, so the cover matches them.
@@ -295,6 +370,8 @@ def render_explainer(payload: dict, make_host=None) -> dict:
         cover_frame.convert("RGB").save(cover, quality=90)
     except OSError:
         cover = None
+    if backdrop is not None:
+        backdrop.close()
     return {
         "ok": True,
         "path": str(out),
@@ -478,8 +555,11 @@ def _background(width: int, height: int, colors: dict) -> Image.Image:
     return image
 
 
-def _wordmark_layer(width: int, height: int, colors: dict) -> Image.Image:
-    """BrewIQ wordmark with a small cup, top right, below Instagram's top controls."""
+def _wordmark_layer(width: int, height: int, colors: dict, pill: bool = False) -> Image.Image:
+    """BrewIQ wordmark with a small cup, top right, below Instagram's top controls.
+
+    Over a picture it sits on a white pill so it stays readable.
+    """
     layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(layer)
     font = _serif(40)
@@ -488,6 +568,8 @@ def _wordmark_layer(width: int, height: int, colors: dict) -> Image.Image:
     cup_w, cup_h, gap = 34, 30, 12
     right, top = 930, 196
     left = right - text_w - gap - cup_w - 10
+    if pill:
+        draw.rounded_rectangle((left - 20, top - 6, right + 20, top + 52), 29, fill=_rgb(colors["card"]) + (235,))
     # Cup: a yellow body with a dark outline and handle.
     body = (left, top + 8, left + cup_w, top + 8 + cup_h)
     draw.rounded_rectangle(body, 7, fill=_rgb(colors["highlight"]) + (255,), outline=ink, width=4)
@@ -1383,6 +1465,13 @@ def _draw_title(sprite: Image.Image, element: dict, colors: dict, pad: int, w: i
     )
     y = pad
     marker = _rgb(colors.get("highlight") or "#FFE14D") + (255,)
+    if element.get("panel") and lines:
+        # Over a picture, the headline sits on a white panel so the dark type stays readable.
+        widest = max(draw.textlength(line, font=font) for line in lines)
+        draw.rounded_rectangle(
+            (pad - 26, pad - 20, pad + min(w, widest) + 30, pad + line_height * len(lines) + 14), 24,
+            fill=_rgb(colors["card"]) + (255,), outline=ink + (255,), width=4,
+        )
     for index, line in enumerate(lines):
         if index == len(lines) - 1 and line.strip():
             # The marker swipe sits on the lower half of the last line, like a highlighter pen.

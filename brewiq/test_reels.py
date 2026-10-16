@@ -696,6 +696,8 @@ class QuickFixTests(unittest.TestCase):
     def test_quick_fix_timing_is_tight_and_capped(self) -> None:
         timing = reel_spec.beat_timing(self._spec()["beats"], [1.6, 2.4, 1.9], "quick_fix")
         self.assertLessEqual(sum(item["duration"] for item in timing), reel_spec.QUICK_FIX_MAX_SECONDS)
+        short = reel_spec.beat_timing(self._spec()["beats"], [1.2, 1.5, 1.4], "quick_fix")
+        self.assertAlmostEqual(sum(item["duration"] for item in short), reel_spec.QUICK_FIX_MIN_SECONDS, places=2)
         with tempfile.TemporaryDirectory() as directory:
             slow = lambda text, dest: {"ok": True, "path": str(dest), "seconds": 4.0}
             result = reel_spec.build_reel(self._spec(), Path(directory), speak=slow, plates={}, render=lambda payload: {"ok": True})
@@ -710,6 +712,33 @@ class QuickFixTests(unittest.TestCase):
         first = renderer["scenes"][0]["elements"]
         self.assertTrue(all(e["enter_at"] == 0.0 for e in first if e["type"] != "character"), "beat 1 is fully drawn at frame 0")
         self.assertFalse(any(e["type"] == "character" for scene in renderer["scenes"] for e in scene["elements"]), "faceless")
+
+    def test_story_reel_puts_the_character_behind_the_words(self) -> None:
+        spec = self._spec()
+        spec["story"] = {"character": "a nurse in green scrubs", "setting": "a parked car",
+                         "moments": {"hook": "She frowns at a text.", "fix": "She checks.", "cta": "She smiles."}}
+        spec["beats"][0]["on_screen"]["screen"] = {"app": "chat", "title": "Texts",
+                                                   "lines": [{"who": "TOLL", "text": "Pay now", "mark": True}]}
+        self.assertEqual(reel_spec.validate_spec(spec), [])
+        payloads = []
+        with tempfile.TemporaryDirectory() as directory:
+            frames = {role: str(Path(directory) / f"{role}.png") for role in ("hook", "fix", "cta")}
+            made = lambda story, folder: {"ok": True, "kind": "stills", "frames": frames, "notes": ["Veo was out."]}
+            quick = lambda text, dest: {"ok": True, "path": str(dest), "seconds": 1.8}
+            result = reel_spec.build_reel(spec, Path(directory), speak=quick, make_story=made,
+                                          render=lambda payload: payloads.append(payload) or {"ok": True},
+                                          make_plates=lambda *a, **k: self.fail("a story reel draws no plates"))
+            self.assertTrue(result["ok"], result.get("error"))
+        payload = payloads[0]
+        self.assertEqual([item["path"] for item in payload["backdrop"]["stills"]], list(frames.values()))
+        scenes = payload["renderer"]["scenes"]
+        self.assertEqual(reel_spec.layout_problems(payload["renderer"]), [])
+        self.assertFalse(any(e["type"] == "lower_third" for scene in scenes for e in scene["elements"]), "the picture stays clear")
+        self.assertTrue(all(e.get("panel") for scene in scenes for e in scene["elements"] if e["type"] == "title"))
+        self.assertIn("Veo was out.", result["notes"])
+        broken = self._spec()
+        broken["story"] = {"character": "x", "moments": {}}
+        self.assertTrue(any("setting" in problem for problem in reel_spec.validate_spec(broken)))
 
 if __name__ == "__main__":
     unittest.main()

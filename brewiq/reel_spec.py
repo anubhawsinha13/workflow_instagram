@@ -37,12 +37,19 @@ ALLOWED_MODES = {
 # The signature Reel: one everyday moment, one fix, one ask, in about 8 seconds.
 QUICK_FIX_ROLES = ("hook", "fix", "cta")
 QUICK_FIX_MAX_SECONDS = 8.5
+QUICK_FIX_MIN_SECONDS = 7.0
 QUICK_FIX_MIN_BEAT = 1.8
 QUICK_FIX_PAD = 0.2
 QUICK_HERO = {"x": 64, "y": 256, "w": 866, "h": 620}
 QUICK_HEADLINE = {"x": 64, "y": 912, "w": 866, "h": 300}
 QUICK_CTA = {"x": 64, "y": 460, "w": 866, "h": 420}
 QUICK_CTA_NOTE = {"x": 64, "y": 920, "w": 866, "h": 220}
+# Story mode: an animated character fills the frame. The headline sits above their head, the real screen
+# lower left like a close-up of their phone, and the ask below their face.
+STORY_HEADLINE = {"x": 64, "y": 270, "w": 866, "h": 230}
+STORY_SCREEN = {"x": 64, "y": 880, "w": 640, "h": 620}
+STORY_CTA = {"x": 64, "y": 1010, "w": 866, "h": 260}
+STORY_CTA_NOTE = {"x": 64, "y": 1300, "w": 866, "h": 190}
 POSES = tuple(name for name in POSE_FILES if not name.startswith("walk"))
 CAMERAS = ("steady", "push_in", "pull_out")
 SUBJECTS = ("character", "product", "scene")
@@ -208,6 +215,10 @@ def validate_spec(spec) -> list:
         roles = tuple(beat.get("role") for beat in beats if isinstance(beat, dict))
         if roles != QUICK_FIX_ROLES:
             problems.append("quick_fix needs exactly 3 beats with roles hook, fix, cta, in that order.")
+        if spec.get("story") is not None:
+            import story as story_module  # noqa: PLC0415
+
+            problems.extend(story_module.problems(spec.get("story")))
     if fmt == "beat_explainer":
         if len(_chips(beats)) > 6:
             problems.append("beat_explainer supports at most 6 labelled beats.")
@@ -311,6 +322,9 @@ def beat_timing(beats: list, voice_seconds: list, fmt: str = "") -> list:
         length = round(max(float(spoken) + pad, floor), 3)
         timing.append({"id": beat["id"], "start": round(cursor, 3), "duration": length, "voice_seconds": round(float(spoken), 3)})
         cursor += length
+    if fmt == "quick_fix" and timing and cursor < QUICK_FIX_MIN_SECONDS:
+        # A short read holds on the call to action so the Reel still runs 7 seconds.
+        timing[-1]["duration"] = round(timing[-1]["duration"] + QUICK_FIX_MIN_SECONDS - cursor, 3)
     return timing
 
 
@@ -361,20 +375,23 @@ def layout(spec: dict, timing: list, plates: dict) -> dict:
         elif fmt == "beat_explainer":
             elements = _explainer_scene(spec, beat, on_screen, key, index, plate, shot, previous_tiles)
         elif fmt == "quick_fix":
-            elements = _quick_fix_scene(beat, on_screen, key, plate, shot)
+            elements = (_story_scene(beat, on_screen, key) if spec.get("_story")
+                        else _quick_fix_scene(beat, on_screen, key, plate, shot))
         elif fmt == "workflow_reel":
             elements = _workflow_scene(spec, beat, on_screen, key, index, plate, shot, slot, previous_tiles)
         elif fmt == "product_shot":
             elements = _product_scene(spec, beat, on_screen, key, plate, shot)
         previous_tiles = on_screen.get("tiles") or None
-        caption = _text(beat.get("lower_third"))
+        caption = "" if spec.get("_story") else _text(beat.get("lower_third"))
         headline = next((_text(e.get("label")) for e in elements if e.get("type") == "title"), "")
         if caption == headline and 0 < len(_text(beat.get("voice"))) <= 70:
             # The headline already shows these words, so the caption carries the full spoken sentence.
             caption = _text(beat.get("voice"))
         region = CHAPTER_CAPTION if fmt == "chapter_build" else LOWER
-        elements.append(_element(f"{key}-lower", "lower_third", dict(region), label=caption,
-                                 motion="slide_up", at=0.1, length=0.3))
+        if caption:
+            # A story reel has no caption bar: the headline carries the words and the picture stays clear.
+            elements.append(_element(f"{key}-lower", "lower_third", dict(region), label=caption,
+                                     motion="slide_up", at=0.1, length=0.3))
         if index == 0:
             # The first frame is what a scroller judges and what the cover shows, so beat 1 starts fully drawn.
             for element in elements:
@@ -535,6 +552,24 @@ def _quick_fix_scene(beat, on_screen, key, plate, shot) -> list:
     return elements
 
 
+def _story_scene(beat, on_screen, key) -> list:
+    """The animated story: the character fills the frame, the headline on a panel, the real screen as a close-up."""
+    headline = _text(on_screen.get("headline"))
+    if beat.get("role") == "cta":
+        elements = [_element(f"{key}-cta", "title", dict(STORY_CTA), label=headline, stat=None, panel=True,
+                             motion="snap", at=0.0, length=0.3)]
+        if _text(on_screen.get("card")):
+            elements.append(_element(f"{key}-note", "card", dict(STORY_CTA_NOTE), label=_text(on_screen.get("card")),
+                                     motion="slide_up", at=0.15, length=0.3))
+        return elements
+    elements: list = []
+    if isinstance(on_screen.get("screen"), dict):
+        elements.extend(_screen_elements(key, STORY_SCREEN, on_screen["screen"]))
+    elements.append(_element(f"{key}-title", "title", dict(STORY_HEADLINE), label=headline, stat=None, panel=True,
+                             motion="slide_up", at=0.05, length=0.25))
+    return elements
+
+
 def _workflow_scene(spec, beat, on_screen, key, index, plate, shot, slot, previous_tiles=None) -> list:
     elements: list = []
     if on_screen.get("swatch"):
@@ -644,8 +679,14 @@ def _source_element(key: str, region: dict, source: dict) -> dict:
                     crop=source.get("crop"), tag=credit, motion="scale_in", at=0.0, length=0.35)
 
 
+def _make_story(story: dict, folder: Path) -> dict:
+    import story as story_module  # noqa: PLC0415
+
+    return story_module.make_backdrop(story, folder)
+
+
 def build_reel(spec: dict, folder: Path, *, speak=None, plates: dict | None = None, make_plates=None,
-               preview: bool = False, require_voice: bool = True, render=None) -> dict:
+               preview: bool = False, require_voice: bool = True, render=None, make_story=None) -> dict:
     """Validate, narrate, make stills, lay out, and render one reel into folder. Never publishes."""
     problems = validate_spec(spec)
     if problems:
@@ -689,6 +730,22 @@ def build_reel(spec: dict, folder: Path, *, speak=None, plates: dict | None = No
     if total > MAX_TOTAL:
         return {"ok": False, "error": f"The reel runs {total:.0f} seconds. The limit is {MAX_TOTAL:.0f}."}
 
+    backdrop = None
+    if spec.get("format") == "quick_fix" and isinstance(spec.get("story"), dict) and not preview:
+        made_story = (make_story or _make_story)(spec["story"], folder / "story")
+        if made_story.get("ok"):
+            notes.extend(made_story.get("notes") or [])
+            if made_story.get("kind") == "video":
+                backdrop = {"video": made_story["video"]}
+            else:
+                frames = made_story["frames"]
+                backdrop = {"stills": [{"path": frames[beat["role"]], "start": slot["start"], "duration": slot["duration"]}
+                                       for beat, slot in zip(beats, timing)]}
+            spec = {**spec, "_story": True}
+            plates = plates if plates is not None else {}
+        else:
+            notes.append(f"{made_story.get('error') or 'The story could not be drawn.'} The Reel uses the screen layout.")
+
     if plates is None:
         if make_plates is None:
             import plates as plates_module
@@ -702,7 +759,9 @@ def build_reel(spec: dict, folder: Path, *, speak=None, plates: dict | None = No
         plates = made_plates["plates"]
         notes.extend(made_plates.get("notes") or [])
 
-    notes.extend(attach_source_pictures(spec, folder, edit=not preview))
+    if not spec.get("_story"):
+        # A story reel shows its own character, so official screenshots stay out of it.
+        notes.extend(attach_source_pictures(spec, folder, edit=not preview))
     renderer = layout(spec, timing, plates)
     issues = layout_problems(renderer)
     if issues:
@@ -711,6 +770,8 @@ def build_reel(spec: dict, folder: Path, *, speak=None, plates: dict | None = No
     (folder / "reel-spec.json").write_text(json.dumps(spec, indent=2), encoding="utf-8")
 
     payload = {"renderer": renderer, "output": str(folder / "reel.mp4")}
+    if backdrop:
+        payload["backdrop"] = backdrop
     if preview:
         starts = [item["start"] + item["duration"] * 0.7 for item in timing]
         payload["preview"] = {"folder": str(folder), "times": starts}

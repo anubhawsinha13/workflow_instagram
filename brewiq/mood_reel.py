@@ -75,7 +75,7 @@ def problems(spec) -> list:
         if not str(spec.get(field) or "").strip():
             found.append(f"The mood spec needs a {field}.")
     text = str(spec.get("text") or "").strip()
-    if not text:
+    if not text and not spec.get("lyrics"):
         found.append("The mood spec needs one line of text.")
     elif len(text.split()) > MAX_TEXT_WORDS:
         found.append(f"The text line is longer than {MAX_TEXT_WORDS} words.")
@@ -183,12 +183,18 @@ def timeline(frames: dict) -> tuple:
 
 
 def layout(spec: dict, total: float, accents: list) -> dict:
-    """One scene for the whole Reel: a single line of text in the safe zone, fading in under the opening."""
+    """One scene for the whole Reel: a single line of text in the safe zone, fading in under the opening.
+
+    In lyrics mode there is no text: the lower third stays clear for Instagram's Lyrics sticker.
+    """
+    canvas = {"width": W, "height": H, "fps": FPS, **COLORS}
+    if spec.get("lyrics"):
+        return {"canvas": canvas, "scenes": [{"start_seconds": 0, "duration_seconds": total, "camera": "steady", "elements": []}]}
     words = str(spec.get("text") or "").split()
     stress = str(spec.get("stress") or "").strip().lower()
     element = _element("mood-text", "kinetic", dict(TEXT_BOX), label=" ".join(words), center=True, size=TEXT_SIZE,
                        min_size=48, at=TEXT_AT, accents=accents, keywords=[stress] if stress else [])
-    return {"canvas": {"width": W, "height": H, "fps": FPS, **COLORS},
+    return {"canvas": canvas,
             "scenes": [{"start_seconds": 0, "duration_seconds": total, "camera": "steady", "elements": [element]}]}
 
 
@@ -242,7 +248,8 @@ def build_mood_reel(spec: dict, folder: Path, *, generate=None, edit=None, anima
         return {"ok": False, "error": result.get("error") or "The Reel could not be rendered.", "notes": notes}
     return {
         "ok": True, "path": result.get("path") or "", "cover": result.get("cover") or "", "seconds": result.get("seconds"),
-        "motion": "video" if "video" in backdrop else "stills", "caption": str(spec.get("caption") or "").strip(),
+        "motion": "video" if "video" in backdrop else "stills", "lyrics": bool(spec.get("lyrics")),
+        "caption": str(spec.get("caption") or "").strip(),
         "songs": [str(song) for song in spec.get("songs") or []], "notes": notes, "error": "",
     }
 

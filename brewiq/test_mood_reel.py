@@ -132,6 +132,23 @@ class MoodReelTests(unittest.TestCase):
         self.assertEqual(corner("logo:missing"), 0, "no logo and no fallback draws nothing")
         self.assertEqual(corner("none"), 0)
 
+    def test_lyrics_mode_has_no_text_and_keeps_the_lower_third_clear(self) -> None:
+        payloads = []
+        with_lyrics = spec(lyrics=True, text="", stress="")
+        self.assertEqual(mood_reel.problems(with_lyrics), [], "no text is needed when the Lyrics sticker will carry the words")
+        self.assertTrue(any("one line" in problem for problem in mood_reel.problems(spec(text=""))), "normal mode still needs its line")
+        renderer = mood_reel.layout(with_lyrics, 10.6, [])
+        self.assertEqual(renderer["scenes"][0]["elements"], [])
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(mood_reel, "CAST_DIR", Path(directory) / "cast"):
+            result = mood_reel.build_mood_reel(
+                with_lyrics, Path(directory) / "out", generate=fake_image, edit=fake_image,
+                animate=lambda start, prompt, dest: {"ok": False, "error": "no credits"},
+                render=lambda payload: payloads.append(payload) or {"ok": True, "path": "r.mp4", "seconds": 10.6})
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertTrue(result["lyrics"])
+        self.assertEqual(payloads[0]["renderer"]["scenes"][0]["elements"], [])
+        self.assertEqual(payloads[0]["backdrop"]["mark"], "logo:a48", "the account mark stays")
+
     def test_an_invalid_spec_is_refused_before_anything_is_drawn(self) -> None:
         drawn = []
         with tempfile.TemporaryDirectory() as directory:

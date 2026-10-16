@@ -61,7 +61,7 @@ class MoodReelTests(unittest.TestCase):
         shots, total = mood_reel.timeline(frames)
         self.assertEqual([shot["role"] for shot in shots], ["wide", "medium", "detail", "wide"])
         self.assertEqual(shots[0]["path"], shots[-1]["path"])
-        self.assertTrue(9.5 <= total <= 11.0)
+        self.assertTrue(9.5 <= total <= 10.0, "ten seconds or less")
         self.assertEqual(shots[1]["start"], shots[0]["duration"])
 
     def test_the_text_sits_inside_the_safe_zone(self) -> None:

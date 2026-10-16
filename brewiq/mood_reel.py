@@ -43,7 +43,8 @@ CAST = {
 }
 SHOT_IDS = ("wide", "medium", "detail")
 # Seconds on screen: the wide opening, the closer moment, the small detail, then back to the opening so it loops.
-TIMELINE = (("wide", 3.4), ("medium", 3.2), ("detail", 2.4), ("wide", 1.6))
+# The whole Reel is 10 seconds or less, so a trending song's 7 to 10 second hook fits it.
+TIMELINE = (("wide", 3.2), ("medium", 3.0), ("detail", 2.2), ("wide", 1.6))
 FADE = 0.55
 PUSH = 0.06
 MAX_TEXT_WORDS = 9

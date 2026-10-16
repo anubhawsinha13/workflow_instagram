@@ -61,6 +61,8 @@ def problems(story) -> list:
     for field in ("character", "setting"):
         if not str(story.get(field) or "").strip():
             found.append(f"The story needs a {field}.")
+    if str(story.get("voice") or "").strip().lower() not in ("", "female", "male"):
+        found.append("The story voice must be female or male.")
     shots = shots_of(story)
     for role in ("hook", "fix", "cta"):
         if not str((shots.get(role) or {}).get("prompt") or "").strip():

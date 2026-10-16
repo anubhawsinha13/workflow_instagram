@@ -24,8 +24,16 @@ INSTRUCTIONS = (
     "to a friend. Brisk, energetic social-video pace with short pauses, slight smile, "
     "clear emphasis on the key words."
 )
+# A story Reel speaks in the on-screen character's voice: a woman's voice for a woman, a man's for a man.
+VOICES = {
+    "female": ("coral", "Adult female voice, warm and conversational, like a woman in her thirties explaining "
+                        "something to a friend. Brisk, energetic social-video pace with short pauses, slight smile, "
+                        "clear emphasis on the key words."),
+    "male": (VOICE, INSTRUCTIONS),
+}
+QUICK = " Fast, punchy delivery, almost no pauses between sentences."
 # The 8-second signature Reel needs a punchier read with almost no pauses.
-QUICK_INSTRUCTIONS = INSTRUCTIONS + " Fast, punchy delivery, almost no pauses between sentences."
+QUICK_INSTRUCTIONS = INSTRUCTIONS + QUICK
 QUICK_TRIM_FILTER = (
     "silenceremove=start_periods=1:start_threshold=-45dB:"
     "stop_periods=-1:stop_duration=0.12:stop_threshold=-45dB:stop_silence=0.06,atempo=1.18"
@@ -74,10 +82,10 @@ def duration(path: Path) -> float:
         return 0.0
 
 
-def _request(client, text: str, dest: Path, instructions: str = INSTRUCTIONS) -> None:
+def _request(client, text: str, dest: Path, instructions: str = INSTRUCTIONS, voice: str = VOICE) -> None:
     speech = client.audio.speech.create(
         model=MODEL,
-        voice=VOICE,
+        voice=voice,
         instructions=instructions,
         input=text,
         response_format="mp3",
@@ -85,8 +93,11 @@ def _request(client, text: str, dest: Path, instructions: str = INSTRUCTIONS) ->
     dest.write_bytes(speech.read())
 
 
-def speak(text: str, dest: Path, client=None, pace: str = "normal") -> dict:
-    """Write one narration line to dest as a trimmed wav. Skips work that is already on disk."""
+def speak(text: str, dest: Path, client=None, pace: str = "normal", gender: str = "") -> dict:
+    """Write one narration line to dest as a trimmed wav. Skips work that is already on disk.
+
+    gender "female" or "male" picks the voice that matches the character on screen; anything else keeps the default.
+    """
     if dest.is_file() and dest.stat().st_size > 0:
         return {"ok": True, "path": dest, "seconds": duration(dest), "cached": True, "error": ""}
     ffmpeg = ffmpeg_bin()
@@ -101,7 +112,8 @@ def speak(text: str, dest: Path, client=None, pace: str = "normal") -> dict:
         client = OpenAI(api_key=key, timeout=90)
     raw = dest.with_suffix(".mp3")
     try:
-        _request(client, text, raw, QUICK_INSTRUCTIONS if pace == "quick" else INSTRUCTIONS)
+        voice, instructions = VOICES.get(gender, (VOICE, INSTRUCTIONS))
+        _request(client, text, raw, instructions + (QUICK if pace == "quick" else ""), voice)
     except Exception as exc:
         return {"ok": False, "error": _public(exc)}
     completed = subprocess.run(

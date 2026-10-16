@@ -784,7 +784,10 @@ def build_reel(spec: dict, folder: Path, *, speak=None, plates: dict | None = No
                 made = speak(_text(beat["voice"]), folder / f"voice-{beat['id']}.wav")
             else:
                 pace = "quick" if spec.get("format") == "quick_fix" else "normal"
-                made = voice_module.speak(_text(beat["voice"]), folder / f"voice-{beat['id']}.wav", pace=pace)
+                gender = _text((spec.get("story") or {}).get("voice")).lower() if isinstance(spec.get("story"), dict) else ""
+                # The file name carries the voice, so a cached line in another voice is never reused.
+                name = f"voice-{beat['id']}-{gender}.wav" if gender else f"voice-{beat['id']}.wav"
+                made = voice_module.speak(_text(beat["voice"]), folder / name, pace=pace, gender=gender)
             if made.get("ok"):
                 spoken = made
             else:

@@ -345,6 +345,24 @@ class NarrationTests(unittest.TestCase):
         self.assertTrue(second["cached"])
         self.assertEqual(calls, [voice.MODEL])
 
+    def test_speak_uses_the_characters_voice(self):
+        voices = []
+
+        class Client:
+            class audio:
+                class speech:
+                    @staticmethod
+                    def create(**kwargs):
+                        voices.append((kwargs["voice"], kwargs["instructions"]))
+                        raise RuntimeError("stop after the request")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            for gender in ("female", "male", ""):
+                voice.speak("Hello.", Path(tmp) / f"{gender or 'none'}.wav", client=Client, pace="quick", gender=gender)
+        self.assertEqual([name for name, _ in voices], ["coral", voice.VOICE, voice.VOICE])
+        self.assertIn("female", voices[0][1])
+        self.assertTrue(all("Fast, punchy" in text for _, text in voices))
+
     def test_speak_reports_a_missing_key_without_inventing_audio(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(voice, "_secret", return_value=""):
             result = voice.speak("Hello.", Path(tmp) / "line.wav")

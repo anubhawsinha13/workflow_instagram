@@ -48,7 +48,10 @@ TEXT_BOX = {"x": 64, "y": 1190, "w": 866, "h": 250}
 TEXT_AT = 0.9
 TEXT_SIZE = 84
 NO_TEXT = " No text, no captions, no lettering, no logos, no watermark, no user interface."
-SAFE_SPACE = " Reserve open, uncluttered space in the lower middle of the frame for one short line of text."
+SAFE_SPACE = (
+    " Compose the characters and the main action in the upper two thirds of the frame, framed from the waist up. "
+    "Keep the lower third calm and open (a path, ground, water or sky) with no faces or hands, for one short line of text."
+)
 SAME = (
     "Keep the exact same characters, faces, hair, clothes, place, lighting and painterly anime style as this image. "
     "This shot: "
@@ -97,7 +100,7 @@ def shot_prompt(spec: dict, shot_id: str) -> str:
         return (f"Create an ORIGINAL vertical 9:16 cinematic illustrated scene for an Instagram Reel. {look}{avoid} "
                 f"Mood: {spec['mood']}. Setting: {spec['setting']}.{cast} {prompt}{SAFE_SPACE}{NO_TEXT} Art style: "
                 f"{story_module.STYLES[STYLE]['label']}.")
-    return f"{SAME}{prompt}{SAFE_SPACE}{NO_TEXT} Art style: {story_module.STYLES[STYLE]['label']}. {avoid}"
+    return f"{SAME}{prompt} Show only the characters named in this shot; no one else appears.{SAFE_SPACE}{NO_TEXT} Art style: {story_module.STYLES[STYLE]['label']}. {avoid}"
 
 
 def motion_prompt(spec: dict) -> str:

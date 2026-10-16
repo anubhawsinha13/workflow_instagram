@@ -46,10 +46,11 @@ class MoodReelTests(unittest.TestCase):
         self.assertIn("painterly", wide)
         self.assertIn("Meera", wide)
         self.assertIn("Aarav", wide)
-        self.assertIn("lower middle", wide)
+        self.assertIn("lower third calm", wide)
         self.assertIn("No text", wide)
         self.assertIn("No people", mood_reel.shot_prompt(spec(characters="none"), "wide"))
         self.assertTrue(mood_reel.shot_prompt(spec(), "medium").startswith(mood_reel.SAME))
+        self.assertIn("only the characters named", mood_reel.shot_prompt(spec(), "detail"))
         self.assertEqual(story.STYLES["anime_painterly"]["keyable"], False)
 
     def test_the_timeline_loops_back_to_the_opening_and_fits_ten_seconds(self) -> None:

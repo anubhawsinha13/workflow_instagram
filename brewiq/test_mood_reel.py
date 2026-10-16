@@ -64,6 +64,23 @@ class MoodReelTests(unittest.TestCase):
         self.assertTrue(9.5 <= total <= 10.0, "ten seconds or less")
         self.assertEqual(shots[1]["start"], shots[0]["duration"])
 
+    def test_the_long_cut_is_optional_needs_two_more_shots_and_leaves_the_default_alone(self) -> None:
+        self.assertEqual(mood_reel.problems(spec()), [], "the default spec still needs only three shots")
+        long_spec = spec(seconds=20)
+        gaps = " ".join(mood_reel.problems(long_spec))
+        self.assertIn("close", gaps)
+        self.assertIn("glance", gaps)
+        extra = [{"id": "close", "prompt": "He looks up."}, {"id": "glance", "prompt": "She glances down."}]
+        self.assertEqual(mood_reel.problems({**long_spec, "shots": long_spec["shots"] + extra}), [])
+        frames = {name: f"{name}.png" for name in ("wide", "medium", "detail", "close", "glance")}
+        shots, total = mood_reel.timeline(frames, long=True)
+        self.assertEqual([s["role"] for s in shots], ["wide", "medium", "close", "detail", "glance", "wide"])
+        self.assertAlmostEqual(total, 20.0, places=2)
+        self.assertEqual(shots[0]["path"], shots[-1]["path"], "it still returns to the opening")
+        self.assertAlmostEqual(mood_reel.timeline({k: v for k, v in frames.items() if k in ("wide", "medium", "detail")})[1], 10.0, places=2)
+        self.assertFalse(mood_reel.is_long(spec()))
+        self.assertFalse(mood_reel.is_long(spec(seconds="junk")))
+
     def test_the_text_sits_inside_the_safe_zone(self) -> None:
         renderer = mood_reel.layout(spec(), 10.6, [{"start": 0.0, "color": "#F2B33D"}])
         self.assertEqual(mood_reel.layout_problems(renderer), [])

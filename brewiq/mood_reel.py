@@ -45,6 +45,11 @@ SHOT_IDS = ("wide", "medium", "detail")
 # Seconds on screen: the wide opening, the closer moment, the small detail, then back to the opening so it loops.
 # The whole Reel is 10 seconds or less, so a trending song's 7 to 10 second hook fits it.
 TIMELINE = (("wide", 3.2), ("medium", 3.0), ("detail", 2.2), ("wide", 1.6))
+# An optional longer cut (spec "seconds" above 12): two more shots, "close" and "glance", for about 20 seconds. The default
+# stays 10 seconds; a longer Reel is a choice for one episode.
+LONG_SHOT_IDS = ("close", "glance")
+LONG_TIMELINE = (("wide", 4.0), ("medium", 3.4), ("close", 3.4), ("detail", 3.0), ("glance", 3.4), ("wide", 2.8))
+LONG_THRESHOLD = 12.0
 FADE = 0.55
 PUSH = 0.06
 MAX_TEXT_WORDS = 9
@@ -81,10 +86,18 @@ def problems(spec) -> list:
     elif len(text.split()) > MAX_TEXT_WORDS:
         found.append(f"The text line is longer than {MAX_TEXT_WORDS} words.")
     shots = {str(shot.get("id")): shot for shot in spec.get("shots") or [] if isinstance(shot, dict)}
-    for shot_id in SHOT_IDS:
+    for shot_id in SHOT_IDS + (LONG_SHOT_IDS if is_long(spec) else ()):
         if not str((shots.get(shot_id) or {}).get("prompt") or "").strip():
             found.append(f"The mood spec needs a {shot_id} shot.")
     return found
+
+
+def is_long(spec: dict) -> bool:
+    """True for the optional 20-second cut, which needs the two extra shots."""
+    try:
+        return float(spec.get("seconds") or 0) > LONG_THRESHOLD
+    except (TypeError, ValueError):
+        return False
 
 
 def _people(spec: dict) -> str:
@@ -156,7 +169,8 @@ def make_frames(spec: dict, folder: Path, *, generate=None, edit=None, sheet=Non
         generate = generate or openai_image
         edit = edit or openai_edit_image
     folder.mkdir(parents=True, exist_ok=True)
-    paths = {shot_id: folder / f"mood-{shot_id}.png" for shot_id in SHOT_IDS}
+    ids = SHOT_IDS + (LONG_SHOT_IDS if is_long(spec) else ())
+    paths = {shot_id: folder / f"mood-{shot_id}.png" for shot_id in ids}
     if not paths["wide"].is_file():
         reference = sheet if sheet is not None else cast_sheet(spec, generate)
         prompt = shot_prompt(spec, "wide")
@@ -164,7 +178,7 @@ def make_frames(spec: dict, folder: Path, *, generate=None, edit=None, sheet=Non
         if not made.get("ok") or made.get("image") is None:
             return {"ok": False, "error": made.get("error") or "The opening scene could not be drawn."}
         story_module._vertical(made["image"]).save(paths["wide"])
-    for shot_id in SHOT_IDS[1:]:
+    for shot_id in ids[1:]:
         if paths[shot_id].is_file():
             continue
         made = edit(paths["wide"], shot_prompt(spec, shot_id), require_reference=True)
@@ -174,10 +188,10 @@ def make_frames(spec: dict, folder: Path, *, generate=None, edit=None, sheet=Non
     return {"ok": True, "frames": {key: str(path) for key, path in paths.items()}, "error": ""}
 
 
-def timeline(frames: dict) -> tuple:
+def timeline(frames: dict, long: bool = False) -> tuple:
     """The shots with their start times, and the total length."""
     shots, cursor = [], 0.0
-    for shot_id, seconds in TIMELINE:
+    for shot_id, seconds in (LONG_TIMELINE if long else TIMELINE):
         shots.append({"start": round(cursor, 3), "duration": seconds, "role": shot_id, "path": frames[shot_id]})
         cursor += seconds
     return shots, round(cursor, 3)
@@ -220,7 +234,7 @@ def build_mood_reel(spec: dict, folder: Path, *, generate=None, edit=None, anima
     if not drawn.get("ok"):
         return {"ok": False, "error": drawn["error"]}
     frames = drawn["frames"]
-    shots, total = timeline(frames)
+    shots, total = timeline(frames, is_long(spec))
     accents = [{"start": 0.0, "color": BRAND_ACCENT}]
     notes = []
     backdrop = {"shots": shots, "accents": accents, "fade": FADE, "push": PUSH, "mark": ACCOUNT_MARK,

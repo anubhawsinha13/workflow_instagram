@@ -22,3 +22,4 @@ artifacts/*
 
 # Written by the bot when a post goes out; runtime state, not source.
 brewiq/research_runs/published.json
+brewiq/research_runs/styles.json

@@ -574,22 +574,34 @@ def _story_scene(spec, beat, on_screen, key, slot, story_shots) -> list:
     if role == "cta":
         elements = [_element(f"{key}-cta", "kinetic", dict(STORY_CTA), label=_text(on_screen.get("headline")),
                              center=True, valign=1.0, size=112, at=0.0, **words)]
-        if _text(on_screen.get("card")):
-            elements.append(_element(f"{key}-note", "kinetic", dict(STORY_CTA_NOTE), label=_text(on_screen.get("card")),
+        note = _text(on_screen.get("card"))
+        # The note adds the "where". Words the headline already said are trimmed off its start, so
+        # "Comment WEEK now" over "Comment WEEK for the full system" reads "For the full system".
+        said = {word.strip(".,!?").lower() for word in _text(on_screen.get("headline")).split()}
+        rest = note.split()
+        while rest and rest[0].strip(".,!?").lower() in said:
+            rest.pop(0)
+        note = " ".join(rest)
+        note = note[:1].upper() + note[1:]
+        if len(rest) >= 2:
+            elements.append(_element(f"{key}-note", "kinetic", dict(STORY_CTA_NOTE), label=note,
                                      center=True, size=50, min_size=36, at=0.45, accents=accents, keywords=[]))
         return elements
     elements = [_element(f"{key}-title", "kinetic", dict(STORY_HEADLINE), label=_text(on_screen.get("headline")),
                          size=116, at=0.0, **words)]
     keyed = role in (story_shots.get("keyed") or {})
+    alerting = role == "hook" and (keyed or story_shots.get("cutaway")) and _text(story.get("alert"))
     if not keyed and isinstance(on_screen.get("screen"), dict):
-        # No close-up to key into: the phone floats over the picture instead.
-        for element in _screen_elements(key, STORY_SCREEN, on_screen["screen"]):
+        # No close-up to key into: the phone floats over the picture instead. With an alert, it sits lower so the
+        # alert has the gap above it.
+        region = dict(STORY_SCREEN, y=STORY_ALERT["y"] + STORY_ALERT["h"] + 20, h=SAFE["bottom"] - (STORY_ALERT["y"] + STORY_ALERT["h"] + 20)) if alerting else STORY_SCREEN
+        for element in _screen_elements(key, region, on_screen["screen"]):
             if element["type"] == "screen":
                 element["device"] = "phone"
             elements.append(element)
-    if role == "hook" and keyed and _text(story.get("alert")):
-        # The thumb is over the link: stop it. The alert sits just above the phone, or below it when the phone
-        # is held high, so it never covers the message.
+    if alerting:
+        # The wrong move is about to happen: stop it. On a phone close-up the alert sits just above the phone, or
+        # below it when the phone is held high, so it never covers the message.
         at = min(slot["duration"] - 0.5, STORY_OPEN_SECONDS + 0.55)
         elements.append(_element(f"{key}-alert", "alert", alert_box(story_shots.get("keyed", {}).get("_box")),
                                  label=_text(story.get("alert")), at=at))
@@ -616,6 +628,7 @@ def story_timeline(timing: list, beats: list, made: dict) -> dict:
     """Which picture plays when: the opening shot, a cut to the phone close-up, the fix, then the look to camera."""
     frames, keyed, colors = made.get("frames") or {}, made.get("keyed") or {}, made.get("accents") or {}
     video = made.get("kind") == "video"
+    cutaway = bool(frames.get("insert")) and not keyed.get("hook")
     shots: list = []
 
     def add(start: float, duration: float, role: str, path: str | None) -> None:
@@ -627,10 +640,11 @@ def story_timeline(timing: list, beats: list, made: dict) -> dict:
 
     for beat, slot in zip(beats, timing):
         role, start, length = beat["role"], slot["start"], slot["duration"]
-        if role == "hook" and keyed.get("hook"):
+        if role == "hook" and (keyed.get("hook") or cutaway):
+            # The close-up is the phone with the real screen when there is one, otherwise a detail shot of the action.
             opening = min(STORY_OPEN_SECONDS, length * 0.45)
             add(start, opening, "hook", frames["hook"])
-            add(start + opening, length - opening, "insert", keyed["hook"])
+            add(start + opening, length - opening, "insert", keyed.get("hook") or frames["insert"])
         elif role == "fix" and keyed.get("fix"):
             close = length * STORY_INSERT_SHARE
             add(start, close, "insert", keyed["fix"])
@@ -818,7 +832,9 @@ def build_reel(spec: dict, folder: Path, *, speak=None, plates: dict | None = No
         if made_story.get("ok"):
             notes.extend(made_story.get("notes") or [])
             backdrop = story_timeline(timing, beats, made_story)
-            spec = {**spec, "_story": {"keyed": made_story.get("keyed") or {}, "accents": backdrop["accents"]}}
+            keyed_shots = made_story.get("keyed") or {}
+            cutaway = bool((made_story.get("frames") or {}).get("insert")) and not keyed_shots.get("hook")
+            spec = {**spec, "_story": {"keyed": keyed_shots, "accents": backdrop["accents"], "cutaway": cutaway}}
             plates = plates if plates is not None else {}
         else:
             notes.append(f"{made_story.get('error') or 'The story could not be drawn.'} The Reel uses the screen layout.")

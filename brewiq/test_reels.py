@@ -766,5 +766,77 @@ class QuickFixTests(unittest.TestCase):
         broken["story"] = {"character": "x", "moments": {}}
         self.assertTrue(any("setting" in problem for problem in reel_spec.validate_spec(broken)))
 
+class StoryStyleTests(unittest.TestCase):
+    STORY = {"character": "a barista in an apron", "setting": "a small cafe", "device": "none",
+             "shots": [{"id": "hook", "prompt": "She counts coins."}, {"id": "insert", "prompt": "Her hands tally a receipt."},
+                       {"id": "fix", "prompt": "She sets a budget."}, {"id": "cta", "prompt": "She grins."}]}
+
+    def test_every_style_has_a_look_and_a_screen_rule(self) -> None:
+        import story
+
+        self.assertEqual(set(story.STYLES), {"pixar_3d", "claymation", "comic_book", "watercolor", "paper_cutout",
+                                             "pixel_8bit", "noir_sketch"})
+        for name, style in story.STYLES.items():
+            self.assertTrue(style["look"].strip() and isinstance(style["keyable"], bool), name)
+
+    def test_the_prompt_uses_the_chosen_style_and_an_unknown_style_is_rejected(self) -> None:
+        import story
+
+        comic = {**self.STORY, "style": "comic_book"}
+        self.assertIn("halftone", story.frame_prompt(comic, "hook"))
+        self.assertIn("halftone", story.shot_sheet(comic))
+        self.assertNotIn("Pixar", story.frame_prompt(comic, "hook"))
+        self.assertIn("Pixar", story.frame_prompt(self.STORY, "hook"), "no style means the 3D film look")
+        self.assertTrue(any("style" in problem for problem in story.problems({**self.STORY, "style": "vaporwave"})))
+
+    def test_only_a_phone_in_a_realistic_style_gets_the_green_screen(self) -> None:
+        import story
+
+        phone3d = {**self.STORY, "device": "phone", "style": "pixar_3d"}
+        phone_comic = {**self.STORY, "device": "phone", "style": "comic_book"}
+        self.assertTrue(story.has_screen_closeup(phone3d))
+        self.assertFalse(story.has_screen_closeup(phone_comic))
+        self.assertFalse(story.has_screen_closeup({**self.STORY, "style": "pixar_3d"}), "no device, no screen")
+        self.assertIn("chroma green", story.frame_prompt(phone3d, "insert"))
+        self.assertNotIn("chroma green", story.frame_prompt(self.STORY, "insert"))
+        self.assertIn("detail", story.frame_prompt(self.STORY, "insert"))
+
+    def test_the_closing_note_does_not_repeat_the_headline(self) -> None:
+        def notes(headline: str, card: str) -> list:
+            beat = {"id": "cta", "role": "cta"}
+            elements = reel_spec._story_scene({"story": {}}, beat, {"headline": headline, "card": card}, "b3",
+                                              {"duration": 2.0}, {"keyed": {}, "accents": []})
+            return [e["label"] for e in elements if e["id"].endswith("-note")]
+
+        self.assertEqual(notes("Comment WEEK now", "Comment WEEK for the full system"), ["For the full system"])
+        self.assertEqual(notes("Send to shoppers", "The full steps are in the caption"), ["The full steps are in the caption"])
+        self.assertEqual(notes("Comment WEEK now", "Comment WEEK"), [], "nothing new to say")
+
+    def test_a_floating_phone_leaves_room_for_the_alert(self) -> None:
+        spec = {"format": "quick_fix", "story": {**self.STORY, "device": "phone", "style": "comic_book", "alert": "DON'T TAP"},
+                "beats": [{"id": role, "role": role, "voice": f"{role} line.", "lower_third": "x", "shot": {"mode": "graphics"},
+                           "on_screen": {"headline": f"{role} words",
+                                         **({"screen": {"app": "chat", "title": "Texts",
+                                                        "lines": [{"who": "BANK", "text": "Alert: verify now", "mark": True}]}}
+                                            if role != "cta" else {})}} for role in ("hook", "fix", "cta")]}
+        timing = reel_spec.beat_timing(spec["beats"], [1.8, 2.4, 1.9], "quick_fix")
+        story_shots = {"keyed": {}, "accents": [], "cutaway": True}
+        spec["_story"] = story_shots
+        renderer = reel_spec.layout(spec, timing, {})
+        self.assertEqual(reel_spec.layout_problems(renderer), [])
+        hook = {e["type"]: e for e in renderer["scenes"][0]["elements"]}
+        self.assertIn("alert", hook)
+        self.assertLessEqual(hook["alert"]["box"]["y"] + hook["alert"]["box"]["h"], hook["screen"]["box"]["y"])
+
+    def test_a_topic_without_a_screen_cuts_to_a_detail_shot(self) -> None:
+        beats = [{"id": role, "role": role} for role in ("hook", "fix", "cta")]
+        timing = reel_spec.beat_timing([{"id": b["id"]} for b in beats], [1.8, 2.4, 1.9], "quick_fix")
+        made = {"frames": {"hook": "h.png", "insert": "i.png", "fix": "f.png", "cta": "c.png"}, "keyed": {},
+                "accents": {"hook": "#F2B33D"}, "kind": "stills"}
+        shots = reel_spec.story_timeline(timing, beats, made)["shots"]
+        self.assertEqual([(shot["role"], shot["path"]) for shot in shots],
+                         [("hook", "h.png"), ("insert", "i.png"), ("fix", "f.png"), ("cta", "c.png")])
+
+
 if __name__ == "__main__":
     unittest.main()

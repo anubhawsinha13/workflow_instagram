@@ -201,9 +201,10 @@ def _glow_text(frame: Image.Image, xy: tuple, text: str, font, fill: tuple, alph
     width, height = box[2] + 24, box[3] + 24
     layer = Image.new("RGBA", (width + 24, height + 24), (0, 0, 0, 0))
     draw = ImageDraw.Draw(layer)
-    draw.text((12, 12), text, font=font, fill=(0, 0, 0, 170))
-    layer = layer.filter(ImageFilter.GaussianBlur(7))
-    ImageDraw.Draw(layer).text((12, 8), text, font=font, fill=fill + (255,), stroke_width=2, stroke_fill=(0, 0, 0, 90))
+    draw.text((12, 14), text, font=font, fill=(0, 0, 0, 200), stroke_width=4, stroke_fill=(0, 0, 0, 200))
+    layer = layer.filter(ImageFilter.GaussianBlur(8))
+    # A dark outline keeps the scene-colored words readable even when the picture around them is the same color.
+    ImageDraw.Draw(layer).text((12, 8), text, font=font, fill=fill + (255,), stroke_width=4, stroke_fill=(20, 14, 10, 235))
     if scale != 1:
         size = (max(1, round(layer.width * scale)), max(1, round(layer.height * scale)))
         offset = ((layer.width - size[0]) / 2, (layer.height - size[1]) / 2)

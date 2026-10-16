@@ -10,6 +10,7 @@ still plays with a slow push-in. Nothing is published here.
 from __future__ import annotations
 
 import concurrent.futures
+import re
 from pathlib import Path
 
 from PIL import Image
@@ -17,10 +18,90 @@ from PIL import Image
 SHOTS = ("hook", "insert", "fix", "cta")
 SIZE = (1080, 1920)
 
-LOOK = (
-    "Feature-film quality stylized 3D animation, Pixar-inspired, premium cinematic look, warm practical light, "
-    "soft bokeh, shallow depth of field, expressive face, real materials and textures. "
+# The art styles a Reel can be drawn in. `keyable` styles are realistic enough that the real phone screen can be
+# keyed onto the character's phone; the others show the screen as a clean overlay instead.
+STYLES = {
+    "pixar_3d": {
+        "label": "3D animated film",
+        "keyable": True,
+        "avoid": "",
+        "look": "Feature-film quality stylized 3D animation, Pixar-inspired, premium cinematic look, warm practical "
+                "light, soft bokeh, shallow depth of field, expressive face, real materials and textures. ",
+    },
+    "claymation": {
+        "label": "Claymation",
+        "keyable": True,
+        "avoid": "Real sculpted clay with fingerprint marks and matte plasticine surfaces, not a smooth CGI render, not a photograph.",
+        "look": "Handmade claymation stop-motion look, plasticine characters with visible fingerprints and soft "
+                "sculpted edges, miniature set, warm studio light, shallow depth of field, charming and tactile. ",
+    },
+    "comic_book": {
+        "label": "Comic book",
+        "keyable": False,
+        "avoid": "A flat inked 2D comic illustration, not a 3D render, not a photograph, no smooth CGI shading.",
+        "look": "Dynamic comic book illustration, bold black ink outlines, halftone dot shading, saturated "
+                "flat colors, dramatic angles, graphic novel panel feel. ",
+    },
+    "watercolor": {
+        "label": "Watercolor storybook",
+        "keyable": False,
+        "avoid": "Painted flat 2D on textured paper, not a 3D render, not a photograph, no smooth CGI shading.",
+        "look": "Soft watercolor storybook illustration, loose ink linework, gentle paper texture, warm "
+                "translucent washes, cozy and hand-painted. ",
+    },
+    "paper_cutout": {
+        "label": "Paper cut-out",
+        "keyable": False,
+        "avoid": "Everything is built from cut paper layers with visible paper edges, not a 3D render, not a photograph, no smooth skin gradients.",
+        "look": "Layered paper cut-out craft style, flat shapes with soft drop shadows between layers, textured "
+                "card stock, bright cheerful palette, handmade diorama feel. ",
+    },
+    "pixel_8bit": {
+        "label": "Pixel art",
+        "keyable": False,
+        "avoid": "A strict visible pixel grid with flat colors, no smooth gradients, not a 3D render, not a photograph.",
+        "look": "Retro 8-bit pixel art, chunky pixels, limited bright color palette, classic game animation "
+                "style, crisp pixel-perfect shapes. ",
+    },
+    "noir_sketch": {
+        "label": "Noir sketch",
+        "keyable": False,
+        "avoid": "Black and white only with hatched ink lines, no color at all, not a 3D render, not a photograph.",
+        "look": "Moody noir black and white ink sketch, high contrast shading, dramatic shadows, film grain, "
+                "stylish cinematic framing. ",
+    },
+}
+DEFAULT_STYLE = "pixar_3d"
+LOOK = STYLES[DEFAULT_STYLE]["look"]
+
+
+# Camera and lens words pull a drawing toward a photo or a 3D render. They help the 3D and clay looks only.
+_PHOTO_WORDS = re.compile(
+    r"[,;]?\s*\b(?:\d{2,3}\s?mm(?:[- ]equivalent)?(?: look| lens)?|shallow depth of field|depth of field|bokeh|rim light(?:ing)?)\b",
+    re.IGNORECASE,
 )
+
+
+def _shot_text(story: dict, text: str) -> str:
+    if style_of(story).get("keyable"):
+        return text
+    return re.sub(r"\s{2,}", " ", _PHOTO_WORDS.sub("", text)).strip()
+
+
+def style_tail(story: dict) -> str:
+    """The style said again at the end of a prompt, where the image model weighs it most."""
+    style = style_of(story)
+    return f" Art style: {style['label']}. {style['avoid']}".rstrip()
+
+
+def style_of(story: dict) -> dict:
+    """The art style a story is drawn in. An unknown or missing style falls back to the 3D film look."""
+    return STYLES.get(str(story.get("style") or DEFAULT_STYLE).strip().lower(), STYLES[DEFAULT_STYLE])
+
+
+def has_screen_closeup(story: dict) -> bool:
+    """True when the insert shot is the phone with a green screen to key the real screen into."""
+    return str(story.get("device") or "").strip().lower() == "phone" and style_of(story)["keyable"]
 FRAMING = (
     " Vertical 9:16. The character's head sits in the middle of the frame with open wall or ceiling above it, "
     "and the hands are in the lower half."
@@ -30,8 +111,12 @@ CLEAN = (
     "No text, no captions, no logos, no brand names, no watermark."
 )
 SAME = (
-    "Keep the exact same character, face, hair, clothes, place, lighting, and 3D animated style as this image. "
+    "Keep the exact same character, face, hair, clothes, place, lighting, and art style as this image. "
     "This shot: "
+)
+DETAIL = (
+    " Close-up detail insert of the key action: the hands and the object they use, with the character's face soft "
+    "in the background. Vertical 9:16. No text, no captions, no logos, no watermark."
 )
 INSERT = (
     " Close-up insert over the character's shoulder: their hand holds the phone toward the camera, thumb hovering "
@@ -63,6 +148,8 @@ def problems(story) -> list:
             found.append(f"The story needs a {field}.")
     if str(story.get("voice") or "").strip().lower() not in ("", "female", "male"):
         found.append("The story voice must be female or male.")
+    if str(story.get("style") or "").strip().lower() not in ("", *STYLES):
+        found.append(f"The story style must be one of {', '.join(STYLES)}.")
     shots = shots_of(story)
     for role in ("hook", "fix", "cta"):
         if not str((shots.get(role) or {}).get("prompt") or "").strip():
@@ -71,18 +158,21 @@ def problems(story) -> list:
 
 
 def frame_prompt(story: dict, role: str) -> str:
-    shot = str(shots_of(story)[role].get("prompt") or "").strip()
+    shot = _shot_text(story, str(shots_of(story)[role].get("prompt") or "").strip())
+    style = style_of(story)
+    look = style["look"] + (style["avoid"] + " " if style["avoid"] else "")
+    tail = style_tail(story)
     if role == "hook":
-        return f"{LOOK}An original adult character: {story['character']}. Place: {story['setting']}. {shot}{FRAMING}{CLEAN}"
+        return f"{look}An original adult character: {story['character']}. Place: {story['setting']}. {shot}{FRAMING}{CLEAN}{tail}"
     if role == "insert":
-        return f"{SAME}{shot}{INSERT}"
-    return f"{SAME}{shot}{FRAMING}{CLEAN}"
+        return f"{SAME}{shot}{INSERT if has_screen_closeup(story) else DETAIL}{tail}"
+    return f"{SAME}{shot}{FRAMING}{CLEAN}{tail}"
 
 
 def shot_sheet(story: dict, timing: dict | None = None) -> str:
     """The shot sheet as text, in the "Scene 1 | 0:00–0:02" form. Veo reads it, and the Slack draft shows it."""
     shots = shots_of(story)
-    lines = [f"{LOOK.strip()} Character: {str(story['character']).rstrip('.')}. Place: {str(story['setting']).rstrip('.')}."]
+    lines = [f"{style_of(story)['look'].strip()} Character: {str(story['character']).rstrip('.')}. Place: {str(story['setting']).rstrip('.')}."]
     for number, role in enumerate(SHOTS, start=1):
         shot = shots[role]
         span = (timing or {}).get(role)
@@ -99,7 +189,7 @@ def motion_prompt(story: dict) -> str:
     """One continuous shot that walks through the moments, for Veo."""
     shots = shots_of(story)
     return (
-        f"{LOOK}The original adult character in the image: {story['character']}. Place: {story['setting']}. "
+        f"{style_of(story)['look']}The original adult character in the image: {story['character']}. Place: {story['setting']}. "
         "One continuous vertical shot with a gentle handheld push-in. No dialogue, no speech, no text, no subtitles. "
         f"First: {shots['hook']['prompt']} Then: {shots['fix']['prompt']} Finally: {shots['cta']['prompt']}{CLEAN}"
     )
@@ -254,10 +344,10 @@ def lay_screen(photo: Path, content: Image.Image, dest: Path) -> list | None:
     return [min(xs), min(ys), max(xs), max(ys)]
 
 
-def key_screens(frames: dict, screens: dict, folder: Path) -> dict:
+def key_screens(story: dict, frames: dict, screens: dict, folder: Path) -> dict:
     """Lay each beat's sample screen onto the phone in the insert shot. Beats whose screen can't be keyed are left out."""
     insert = frames.get("insert")
-    if not insert:
+    if not insert or not has_screen_closeup(story):
         return {}
     from explainer_render import phone_screen  # noqa: PLC0415
 
@@ -285,8 +375,8 @@ def make_backdrop(story: dict, folder: Path, screens: dict | None = None, *, gen
         return drawn
     frames = drawn["frames"]
     notes = []
-    keyed = key_screens(frames, screens or {}, folder)
-    if screens and not keyed:
+    keyed = key_screens(story, frames, screens or {}, folder)
+    if screens and has_screen_closeup(story) and not keyed:
         notes.append("The phone close-up could not be keyed, so the phone is laid over the picture.")
     # The insert's green screen would win the color pick, so the close-up takes the opening shot's color.
     accents = {role: scene_accent(path) for role, path in frames.items() if role != "insert"}

@@ -2019,6 +2019,12 @@ def _draw_screen(sprite: Image.Image, element: dict, colors: dict, pad: int, w: 
         draw.text((pad + 28 + (avatar - (box[2] - box[0])) / 2 - box[0], cy + (avatar - (box[3] - box[1])) / 2 - box[1]),
                   initial, font=initial_font, fill=(255, 255, 255, 255))
         text_left = pad + 28 + avatar + 22
+        if row.get("mark"):
+            # The trap line gets the yellow marker, the same way headlines do.
+            line = _clip_line(draw, str(row.get("text")).strip(), text_font, w - (text_left - pad) - 28)
+            box = draw.textbbox((text_left, cy + 30), line, font=text_font)
+            draw.rounded_rectangle((box[0] - 8, box[1] - 4, box[2] + 8, box[3] + 6), 6,
+                                   fill=_rgb(colors.get("highlight") or "#FFE14D") + (255,))
         draw.text((text_left, cy - 6), _clip_line(draw, who, name_font, w - 160), font=name_font, fill=ink)
         draw.text((text_left, cy + 30), _clip_line(draw, str(row.get("text")).strip(), text_font, w - (text_left - pad) - 28),
                   font=text_font, fill=_rgb(colors["text"]) + (215,))

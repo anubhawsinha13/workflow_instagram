@@ -678,5 +678,38 @@ class RetiredModelTests(unittest.TestCase):
             self.assertIsNone(image._openai_image("key", "prompt"))
 
 
+
+class QuickFixTests(unittest.TestCase):
+    def _spec(self):
+        beat = lambda role, words: {"id": role, "role": role, "voice": words, "lower_third": words,
+                                    "on_screen": {"headline": words}, "shot": {"mode": "graphics"}}
+        return {"format": "quick_fix", "beats": [beat("hook", "That toll text? Don't tap."),
+                                                 beat("fix", "Check your toll account yourself."),
+                                                 beat("cta", "Send this to someone who drives.")]}
+
+    def test_quick_fix_needs_hook_fix_cta_in_order(self) -> None:
+        self.assertEqual(reel_spec.validate_spec(self._spec()), [])
+        spec = self._spec()
+        spec["beats"][1]["role"] = "cta"
+        self.assertTrue(any("hook, fix, cta" in problem for problem in reel_spec.validate_spec(spec)))
+
+    def test_quick_fix_timing_is_tight_and_capped(self) -> None:
+        timing = reel_spec.beat_timing(self._spec()["beats"], [1.6, 2.4, 1.9], "quick_fix")
+        self.assertLessEqual(sum(item["duration"] for item in timing), reel_spec.QUICK_FIX_MAX_SECONDS)
+        with tempfile.TemporaryDirectory() as directory:
+            slow = lambda text, dest: {"ok": True, "path": str(dest), "seconds": 4.0}
+            result = reel_spec.build_reel(self._spec(), Path(directory), speak=slow, plates={}, render=lambda payload: {"ok": True})
+        self.assertFalse(result["ok"])
+        self.assertIn("7 to 8 seconds", result["error"])
+
+    def test_quick_fix_lays_out_inside_the_safe_zones(self) -> None:
+        spec = self._spec()
+        timing = reel_spec.beat_timing(spec["beats"], [1.6, 2.4, 1.9], "quick_fix")
+        renderer = reel_spec.layout(spec, timing, {})
+        self.assertEqual(reel_spec.layout_problems(renderer), [])
+        first = renderer["scenes"][0]["elements"]
+        self.assertTrue(all(e["enter_at"] == 0.0 for e in first if e["type"] != "character"), "beat 1 is fully drawn at frame 0")
+        self.assertFalse(any(e["type"] == "character" for scene in renderer["scenes"] for e in scene["elements"]), "faceless")
+
 if __name__ == "__main__":
     unittest.main()

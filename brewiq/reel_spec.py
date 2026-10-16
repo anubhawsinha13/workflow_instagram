@@ -25,14 +25,24 @@ from explainer_render import (  # noqa: E402
     render_explainer,
 )  # noqa: E402
 
-FORMATS = ("beat_explainer", "chapter_build", "workflow_reel", "product_shot")
+FORMATS = ("beat_explainer", "chapter_build", "workflow_reel", "product_shot", "quick_fix")
 SHOT_MODES = ("graphics", "pose", "still")
 ALLOWED_MODES = {
     "chapter_build": ("graphics", "pose", "still"),
     "beat_explainer": ("graphics", "still"),
     "workflow_reel": ("graphics", "still"),
     "product_shot": ("still",),
+    "quick_fix": ("graphics", "still"),
 }
+# The signature Reel: one everyday moment, one fix, one ask, in about 8 seconds.
+QUICK_FIX_ROLES = ("hook", "fix", "cta")
+QUICK_FIX_MAX_SECONDS = 8.5
+QUICK_FIX_MIN_BEAT = 1.8
+QUICK_FIX_PAD = 0.2
+QUICK_HERO = {"x": 64, "y": 256, "w": 866, "h": 620}
+QUICK_HEADLINE = {"x": 64, "y": 912, "w": 866, "h": 300}
+QUICK_CTA = {"x": 64, "y": 460, "w": 866, "h": 420}
+QUICK_CTA_NOTE = {"x": 64, "y": 920, "w": 866, "h": 220}
 POSES = tuple(name for name in POSE_FILES if not name.startswith("walk"))
 CAMERAS = ("steady", "push_in", "pull_out")
 SUBJECTS = ("character", "product", "scene")
@@ -182,6 +192,8 @@ def validate_spec(spec) -> list:
                 problems.append(f"{label}: chapter is required and must be 10 characters or fewer.")
         if fmt == "beat_explainer" and beat.get("role") not in ROLE_LABELS:
             problems.append(f"{label}: role must be one of {', '.join(ROLE_LABELS)}.")
+        if fmt == "quick_fix" and not _text(on_screen.get("headline")):
+            problems.append(f"{label}: quick_fix beats need on_screen.headline, the words on screen.")
         if fmt == "workflow_reel" and not _text(on_screen.get("prompt_text")):
             problems.append(f"{label}: workflow_reel beats need prompt_text for the on-screen prompt card.")
 
@@ -192,6 +204,10 @@ def validate_spec(spec) -> list:
         first = (beats[0].get("on_screen") or {}) if isinstance(beats[0], dict) else {}
         if not (_text(spec.get("title")) or _text(first.get("headline"))):
             problems.append("chapter_build needs a title for the opening beat.")
+    if fmt == "quick_fix":
+        roles = tuple(beat.get("role") for beat in beats if isinstance(beat, dict))
+        if roles != QUICK_FIX_ROLES:
+            problems.append("quick_fix needs exactly 3 beats with roles hook, fix, cta, in that order.")
     if fmt == "beat_explainer":
         if len(_chips(beats)) > 6:
             problems.append("beat_explainer supports at most 6 labelled beats.")
@@ -286,12 +302,13 @@ def _chips(beats: list) -> list:
     return chips
 
 
-def beat_timing(beats: list, voice_seconds: list) -> list:
+def beat_timing(beats: list, voice_seconds: list, fmt: str = "") -> list:
     """Start and length for each beat. A beat lasts as long as its narration plus a short pad."""
     timing = []
     cursor = 0.0
+    pad, floor = (QUICK_FIX_PAD, QUICK_FIX_MIN_BEAT) if fmt == "quick_fix" else (BEAT_PAD, MIN_BEAT)
     for beat, spoken in zip(beats, voice_seconds):
-        length = round(max(float(spoken) + BEAT_PAD, MIN_BEAT), 3)
+        length = round(max(float(spoken) + pad, floor), 3)
         timing.append({"id": beat["id"], "start": round(cursor, 3), "duration": length, "voice_seconds": round(float(spoken), 3)})
         cursor += length
     return timing
@@ -343,6 +360,8 @@ def layout(spec: dict, timing: list, plates: dict) -> dict:
             previous_pose = beat.get("pose") or "neutral"
         elif fmt == "beat_explainer":
             elements = _explainer_scene(spec, beat, on_screen, key, index, plate, shot, previous_tiles)
+        elif fmt == "quick_fix":
+            elements = _quick_fix_scene(beat, on_screen, key, plate, shot)
         elif fmt == "workflow_reel":
             elements = _workflow_scene(spec, beat, on_screen, key, index, plate, shot, slot, previous_tiles)
         elif fmt == "product_shot":
@@ -491,6 +510,31 @@ def _explainer_scene(spec, beat, on_screen, key, index, plate, shot, previous_ti
     return elements
 
 
+def _quick_fix_scene(beat, on_screen, key, plate, shot) -> list:
+    """The signature Reel. Hook and fix: the real screen on top, the line under it. Call to action: a big ask."""
+    if beat.get("role") == "cta":
+        elements = [_element(f"{key}-cta", "title", dict(QUICK_CTA), label=_text(on_screen.get("headline")), stat=None,
+                             motion="snap", at=0.0, length=0.3)]
+        if _text(on_screen.get("card")):
+            elements.append(_element(f"{key}-note", "card", dict(QUICK_CTA_NOTE), label=_text(on_screen.get("card")),
+                                     motion="slide_up", at=0.15, length=0.3))
+        return elements
+    elements: list = []
+    if shot.get("mode") == "still" and plate:
+        elements.append(_element(f"{key}-hero", "image", dict(QUICK_HERO), path=plate, zoom=0.08, sweep=True,
+                                 tag="Illustration", motion="scale_in", at=0.0, length=0.3))
+    elif isinstance(beat.get("_source"), dict):
+        elements.append(_source_element(key, dict(QUICK_HERO), beat["_source"]))
+    elif isinstance(on_screen.get("screen"), dict):
+        elements.extend(_screen_elements(key, QUICK_HERO, on_screen["screen"]))
+    elif _text(on_screen.get("card")):
+        elements.append(_element(f"{key}-hero", "card", dict(QUICK_HERO), label=_text(on_screen.get("card")),
+                                 motion="scale_in", at=0.0, length=0.3))
+    elements.append(_element(f"{key}-title", "title", dict(QUICK_HEADLINE), label=_text(on_screen.get("headline")),
+                             stat=None, motion="slide_up", at=0.05, length=0.25))
+    return elements
+
+
 def _workflow_scene(spec, beat, on_screen, key, index, plate, shot, slot, previous_tiles=None) -> list:
     elements: list = []
     if on_screen.get("swatch"):
@@ -582,8 +626,8 @@ def attach_source_pictures(spec: dict, folder: Path, *, edit: bool = True, colle
     picks = source_images.assign(spec["beats"], images)
     used = 0
     for beat, pick in zip(spec["beats"], picks):
-        if pick is None:
-            continue
+        if pick is None or beat.get("role") == "cta":
+            continue  # The call to action is a big ask on a clean page, not a screenshot.
         on_screen = beat.get("on_screen") if isinstance(beat.get("on_screen"), dict) else {}
         if edit:
             # Still screenshots always get invented names and initials instead of real people.
@@ -634,8 +678,10 @@ def build_reel(spec: dict, folder: Path, *, speak=None, plates: dict | None = No
         return {"ok": False, "error": "Narration was not created, so the reel was not rendered. " + " ".join(notes),
                 "notes": notes}
 
-    timing = beat_timing(beats, seconds)
+    timing = beat_timing(beats, seconds, spec.get("format") or "")
     total = sum(item["duration"] for item in timing)
+    if spec.get("format") == "quick_fix" and total > QUICK_FIX_MAX_SECONDS:
+        return {"ok": False, "error": f"The Reel runs {total:.1f} seconds. The signature Reel is 7 to 8 seconds; shorten the spoken lines."}
     if total > MAX_TOTAL:
         return {"ok": False, "error": f"The reel runs {total:.0f} seconds. The limit is {MAX_TOTAL:.0f}."}
 

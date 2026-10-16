@@ -325,8 +325,18 @@ def _logo() -> Image.Image | None:
     return _LOGO[0]
 
 
-def _corner_mark(frame: Image.Image, accent: tuple) -> None:
-    """The BrewIQ logo tucked into the top-right corner. Falls back to the wordmark when the logo file is missing."""
+def _corner_mark(frame: Image.Image, accent: tuple, mark: str | None = None) -> None:
+    """The account's mark tucked into the top-right corner: the BrewIQ logo, or another account's name in type.
+
+    mark "none" draws nothing. Falls back to the BrewIQ wordmark when the logo file is missing.
+    """
+    if mark == "none":
+        return
+    if mark:
+        font = _serif(34, True)
+        text_w = ImageDraw.Draw(frame).textlength(mark, font=font)
+        _glow_text(frame, (frame.width - text_w - 34, 64), mark, font, WHITE, 0.9)
+        return
     logo = _logo()
     if logo is not None:
         frame.alpha_composite(logo, (frame.width - logo.width - 14, 30))
@@ -346,6 +356,8 @@ class _Backdrop:
 
     def __init__(self, spec: dict, width: int, height: int, fps: int, ffmpeg: str) -> None:
         self.size, self.fps, self.ffmpeg = (width, height), fps, ffmpeg
+        self.fade = float(spec.get("fade") or 0)  # Seconds a shot dissolves into the one before it.
+        self.push = float(spec.get("push") if spec.get("push") is not None else self.PUSH)
         self.video = str(spec.get("video") or "")
         self.stills = []
         for item in spec.get("stills") or spec.get("shots") or []:
@@ -372,14 +384,24 @@ class _Backdrop:
     def frame(self, t: float) -> Image.Image:
         if self.video and not self.stills:
             return self._video_frame(max(0, round(t * self.fps)))
-        start, duration, image = self.stills[0]
-        for item in self.stills:
+        index = 0
+        for position, item in enumerate(self.stills):
             if item[0] <= t:
-                start, duration, image = item
+                index = position
+        start, duration, image = self.stills[index]
         if image is None:
             return self._video_frame(max(0, round(t * self.fps)))
+        current = self._still(self.stills[index], t)
+        if self.fade and index > 0 and t - start < self.fade and self.stills[index - 1][2] is not None:
+            # Dissolve from the previous shot, which keeps drifting while it fades out.
+            blend = _ease_io((t - start) / self.fade)
+            return Image.blend(self._still(self.stills[index - 1], t), current, blend)
+        return current
+
+    def _still(self, shot: tuple, t: float) -> Image.Image:
+        start, duration, image = shot
         progress = min(1.0, max(0.0, (t - start) / max(0.01, duration)))
-        scale = 1 + self.PUSH * progress
+        scale = 1 + self.push * progress
         width, height = self.size
         crop_w, crop_h = width / scale, height / scale
         left, top = (width - crop_w) / 2, (height - crop_h) * 0.4
@@ -487,7 +509,7 @@ def render_explainer(payload: dict, make_host=None) -> dict:
                     if sprite is not None and _is_chrome(element):
                         _place(frame, element, sprite, local, duration, colors)
         if backdrop is not None:
-            _corner_mark(frame, _accent_at(backdrop_spec.get("accents") or [], t))
+            _corner_mark(frame, _accent_at(backdrop_spec.get("accents") or [], t), backdrop_spec.get("mark"))
         else:
             frame.alpha_composite(wordmark)
         return frame

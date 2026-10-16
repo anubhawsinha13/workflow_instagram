@@ -63,6 +63,15 @@ STYLES = {
         "look": "Retro 8-bit pixel art, chunky pixels, limited bright color palette, classic game animation "
                 "style, crisp pixel-perfect shapes. ",
     },
+    "anime_painterly": {
+        "label": "Painterly anime",
+        "keyable": False,
+        "avoid": "A hand-painted 2D animation still with soft painted shading, not a 3D render, not a photograph, "
+                 "no plastic skin.",
+        "look": "Tender, painterly animation-inspired illustration, cinematic anime film look, expressive but subtle "
+                "poses, natural proportions, warm atmospheric light, lush environmental details, rich depth, refined "
+                "composition. ",
+    },
     "noir_sketch": {
         "label": "Noir sketch",
         "keyable": False,

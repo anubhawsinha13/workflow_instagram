@@ -775,7 +775,7 @@ class StoryStyleTests(unittest.TestCase):
         import story
 
         self.assertEqual(set(story.STYLES), {"pixar_3d", "claymation", "comic_book", "watercolor", "paper_cutout",
-                                             "pixel_8bit", "noir_sketch"})
+                                             "pixel_8bit", "noir_sketch", "anime_painterly"})
         for name, style in story.STYLES.items():
             self.assertTrue(style["look"].strip() and isinstance(style["keyable"], bool), name)
 

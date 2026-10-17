@@ -212,6 +212,58 @@ def target_seconds(spec: dict):
     return round(min(max(wanted, MIN_SECONDS), MAX_SECONDS), 3) if wanted > 0 else None
 
 
+def _default(name: str):
+    from art import openai_edit_image, openai_image  # noqa: PLC0415
+
+    return {"openai_image": openai_image, "openai_edit_image": openai_edit_image}[name]
+
+
+def redraw(spec: dict, folder: Path, frames: dict, shot_id: str, fix: str, *, generate, edit, sheet) -> bool:
+    """Draw one still again with the picture editor's fix added to its prompt. The old file is replaced only on success."""
+    wide = Path(frames["wide"])
+    note = f" Fix: {fix}" if fix else ""
+    if shot_id == "wide":
+        reference = sheet if sheet is not None else cast_sheet(spec, generate)
+        prompt = shot_prompt(spec, "wide") + note
+        made = edit(reference, prompt, require_reference=True) if reference else generate(prompt)
+    else:
+        made = edit(wide, shot_prompt(spec, shot_id) + note, require_reference=True)
+    if not made.get("ok") or made.get("image") is None:
+        return False
+    story_module._vertical(made["image"]).save(frames[shot_id])
+    return True
+
+
+def edit_pictures(spec: dict, folder: Path, frames: dict, *, generate, edit, sheet, review=None) -> dict:
+    """Self-critique: the picture editor reviews the stills and any that fail are redrawn once. Never blocks the Reel.
+
+    If the opening scene is redrawn, the shots that were edited from it are redrawn too so they still match it.
+    """
+    report = {"score": 0, "story": "", "fixed": [], "left": [], "error": ""}
+    try:
+        if review is None:
+            import mood_critic  # noqa: PLC0415
+
+            review = mood_critic.review_frames
+        first = review(spec, frames)
+    except Exception as exc:  # The reel is still made when the editor is unavailable.
+        report["error"] = " ".join(str(exc).split())[:200]
+        return report
+    report["score"], report["story"] = first["score"], first["story"]
+    failed = {shot_id: v for shot_id, v in first["shots"].items() if not v["pass"]}
+    if "wide" in failed:
+        # Others are edits of the opening scene: redraw them against the new one, keeping any fix they already have.
+        for shot_id in frames:
+            failed.setdefault(shot_id, {"issue": "Redrawn to match the new opening scene.", "fix": ""})
+    for shot_id in [key for key in frames if key in failed]:
+        verdict = failed[shot_id]
+        if redraw(spec, folder, frames, shot_id, verdict["fix"], generate=generate, edit=edit, sheet=sheet):
+            report["fixed"].append({"shot": shot_id, "issue": verdict["issue"], "fix": verdict["fix"]})
+        else:
+            report["left"].append({"shot": shot_id, "issue": verdict["issue"]})
+    return report
+
+
 def timeline(frames: dict, long: bool = False, seconds=None) -> tuple:
     """The shots with their start times, and the total length.
 
@@ -270,7 +322,8 @@ def layout_problems(renderer: dict) -> list:
     return found
 
 
-def build_mood_reel(spec: dict, folder: Path, *, generate=None, edit=None, animate=None, render=None, sheet=None) -> dict:
+def build_mood_reel(spec: dict, folder: Path, *, generate=None, edit=None, animate=None, render=None, sheet=None,
+                    critic=None) -> dict:
     """Make the silent Reel, ready to be paired with a song in Instagram. Never publishes."""
     missing = problems(spec)
     if missing:
@@ -281,6 +334,11 @@ def build_mood_reel(spec: dict, folder: Path, *, generate=None, edit=None, anima
     if not drawn.get("ok"):
         return {"ok": False, "error": drawn["error"]}
     frames = drawn["frames"]
+    # The picture editor looks at the stills before the Reel is made. It is skipped when the drawing functions are injected
+    # (tests) unless a critic is given too, and `critic=False` turns it off.
+    skip = critic is False or (critic is None and (generate is not None or edit is not None))
+    edited = {} if skip else edit_pictures(spec, folder, frames, generate=generate or _default("openai_image"),
+                                           edit=edit or _default("openai_edit_image"), sheet=sheet, review=critic)
     shots, total = timeline(frames, is_long(spec), target_seconds(spec))
     accents = [{"start": 0.0, "color": BRAND_ACCENT}]
     notes = []
@@ -312,7 +370,7 @@ def build_mood_reel(spec: dict, folder: Path, *, generate=None, edit=None, anima
         "ok": True, "path": result.get("path") or "", "cover": result.get("cover") or "", "seconds": result.get("seconds"),
         "motion": "video" if "video" in backdrop else "stills", "lyrics": bool(spec.get("lyrics")),
         "poem": [str(item) for item in spec.get("poem") or []],
-        "caption": str(spec.get("caption") or "").strip(),
+        "pictures": edited, "caption": str(spec.get("caption") or "").strip(),
         "songs": [str(song) for song in spec.get("songs") or []], "notes": notes, "error": "",
     }
 

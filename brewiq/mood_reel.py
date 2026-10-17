@@ -54,6 +54,12 @@ LONG_THRESHOLD = 12.0
 MIN_SECONDS = 7.0
 MAX_SECONDS = 30.0
 FADE = 0.55
+# How each shot after the first comes in, and how the camera drifts in each shot. The director may choose its own cuts.
+CUTS = ("dissolve", "cut", "push", "zoom", "dip")
+DEFAULT_CUTS = ("zoom", "dissolve", "dip")
+DEFAULT_LONG_CUTS = ("zoom", "dissolve", "cut", "dissolve", "dip")
+MOVES = ("in", "right", "in", "out")
+LONG_MOVES = ("in", "right", "in", "left", "in", "out")
 PUSH = 0.06
 MAX_TEXT_WORDS = 9
 # A poem Reel shows an original poem a stanza at a time over the scenes, instead of one line.
@@ -264,20 +270,27 @@ def edit_pictures(spec: dict, folder: Path, frames: dict, *, generate, edit, she
     return report
 
 
-def timeline(frames: dict, long: bool = False, seconds=None) -> tuple:
+def timeline(frames: dict, long: bool = False, seconds=None, cuts=None) -> tuple:
     """The shots with their start times, and the total length.
 
     With `seconds`, every shot is scaled so the Reel lasts exactly that long (the song's length): the same shots and order,
     held longer or shorter. The last shot takes the rounding so the total is exact.
     """
     base = LONG_TIMELINE if long else TIMELINE
+    wanted = [str(item) for item in cuts] if isinstance(cuts, (list, tuple)) else []
+    defaults = DEFAULT_LONG_CUTS if long else DEFAULT_CUTS
+    moves = LONG_MOVES if long else MOVES
     scale = seconds / sum(duration for _, duration in base) if seconds else 1.0
     shots, cursor = [], 0.0
     for index, (shot_id, duration) in enumerate(base):
         length = round(duration * scale, 3)
         if index == len(base) - 1 and seconds:
             length = round(seconds - cursor, 3)
-        shots.append({"start": round(cursor, 3), "duration": length, "role": shot_id, "path": frames[shot_id]})
+        shot = {"start": round(cursor, 3), "duration": length, "role": shot_id, "path": frames[shot_id], "move": moves[index]}
+        if index > 0:
+            pick = wanted[index - 1] if index - 1 < len(wanted) else ""
+            shot["transition"] = pick if pick in CUTS else defaults[index - 1]
+        shots.append(shot)
         cursor += length
     return shots, round(cursor, 3)
 
@@ -339,7 +352,7 @@ def build_mood_reel(spec: dict, folder: Path, *, generate=None, edit=None, anima
     skip = critic is False or (critic is None and (generate is not None or edit is not None))
     edited = {} if skip else edit_pictures(spec, folder, frames, generate=generate or _default("openai_image"),
                                            edit=edit or _default("openai_edit_image"), sheet=sheet, review=critic)
-    shots, total = timeline(frames, is_long(spec), target_seconds(spec))
+    shots, total = timeline(frames, is_long(spec), target_seconds(spec), spec.get("transitions"))
     accents = [{"start": 0.0, "color": BRAND_ACCENT}]
     notes = []
     backdrop = {"shots": shots, "accents": accents, "fade": FADE, "push": PUSH, "mark": ACCOUNT_MARK,

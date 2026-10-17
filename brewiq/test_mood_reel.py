@@ -115,6 +115,17 @@ class MoodReelTests(unittest.TestCase):
         self.assertIsNone(mood_reel.target_seconds({}))
         self.assertIsNone(mood_reel.target_seconds({"seconds": "junk"}))
 
+    def test_shots_come_in_with_different_transitions_and_camera_moves(self) -> None:
+        frames = {name: f"{name}.png" for name in ("wide", "medium", "detail", "close", "glance")}
+        shots, _ = mood_reel.timeline(frames)
+        self.assertNotIn("transition", shots[0], "the first shot has nothing to come in from")
+        self.assertEqual([s["transition"] for s in shots[1:]], ["zoom", "dissolve", "dip"])
+        self.assertEqual([s["move"] for s in shots], ["in", "right", "in", "out"])
+        long_shots, _ = mood_reel.timeline(frames, long=True)
+        self.assertEqual([s["transition"] for s in long_shots[1:]], ["zoom", "dissolve", "cut", "dissolve", "dip"])
+        chosen, _ = mood_reel.timeline(frames, cuts=["push", "nonsense"])
+        self.assertEqual([s["transition"] for s in chosen[1:]], ["push", "dissolve", "dip"], "a bad choice falls back to the default")
+
     def test_the_text_sits_inside_the_safe_zone(self) -> None:
         renderer = mood_reel.layout(spec(), 10.6, [{"start": 0.0, "color": "#F2B33D"}])
         self.assertEqual(mood_reel.layout_problems(renderer), [])

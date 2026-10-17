@@ -363,9 +363,13 @@ class _Backdrop:
     """
 
     PUSH = 0.07
+    TRANSITIONS = ("dissolve", "cut", "push", "zoom", "dip")
+    MOVES = ("in", "out", "left", "right")
+    DIP_COLOR = (255, 244, 225, 255)
 
     def __init__(self, spec: dict, width: int, height: int, fps: int, ffmpeg: str) -> None:
         self.size, self.fps, self.ffmpeg = (width, height), fps, ffmpeg
+        self.styles: list = []
         self.fade = float(spec.get("fade") or 0)  # Seconds a shot dissolves into the one before it.
         self.push = float(spec.get("push") if spec.get("push") is not None else self.PUSH)
         self.video = str(spec.get("video") or "")
@@ -377,6 +381,11 @@ class _Backdrop:
                     image = ImageOps.fit(picture.convert("RGB"), (width, height), Image.LANCZOS)
             # A shot without a picture plays the clip at that moment.
             self.stills.append((float(item.get("start") or 0), float(item.get("duration") or 1), image))
+            # How this shot comes in ("dissolve", "cut", "push", "zoom" or "dip") and how the camera drifts during it.
+            transition = str(item.get("transition") or "dissolve")
+            move = str(item.get("move") or "in")
+            self.styles.append({"transition": transition if transition in self.TRANSITIONS else "dissolve",
+                                "move": move if move in self.MOVES else "in"})
         self.process = None
         self.index = -1
         self.last: Image.Image | None = None
@@ -401,20 +410,49 @@ class _Backdrop:
         start, duration, image = self.stills[index]
         if image is None:
             return self._video_frame(max(0, round(t * self.fps)))
-        current = self._still(self.stills[index], t)
-        if self.fade and index > 0 and t - start < self.fade and self.stills[index - 1][2] is not None:
-            # Dissolve from the previous shot, which keeps drifting while it fades out.
+        current = self._still(self.stills[index], t, self.styles[index]["move"])
+        style = self.styles[index]["transition"]
+        if self.fade and style != "cut" and index > 0 and t - start < self.fade and self.stills[index - 1][2] is not None:
+            # The previous shot keeps drifting while the new one comes in.
             blend = _ease_io((t - start) / self.fade)
-            return Image.blend(self._still(self.stills[index - 1], t), current, blend)
+            previous = self._still(self.stills[index - 1], t, self.styles[index - 1]["move"])
+            return self._transition(style, previous, current, blend)
         return current
 
-    def _still(self, shot: tuple, t: float) -> Image.Image:
+    def _transition(self, style: str, previous: Image.Image, current: Image.Image, blend: float) -> Image.Image:
+        width, height = self.size
+        if style == "push":
+            # The new shot slides in from the right and pushes the old one out to the left.
+            canvas = Image.new("RGBA", self.size, (0, 0, 0, 255))
+            shift = round(width * blend)
+            canvas.paste(previous, (-shift, 0))
+            canvas.paste(current, (width - shift, 0))
+            return canvas
+        if style == "zoom":
+            # Move through the old shot into the new one: the old one swells and fades, the new one settles.
+            return Image.blend(self._zoom(previous, 1 + 0.22 * blend), self._zoom(current, 1 + 0.10 * (1 - blend)), blend)
+        if style == "dip":
+            # A soft flash of warm light between the shots.
+            light = Image.new("RGBA", self.size, self.DIP_COLOR)
+            return Image.blend(previous, light, blend * 2) if blend < 0.5 else Image.blend(light, current, (blend - 0.5) * 2)
+        return Image.blend(previous, current, blend)
+
+    def _zoom(self, image: Image.Image, factor: float) -> Image.Image:
+        width, height = self.size
+        crop_w, crop_h = width / factor, height / factor
+        left, top = (width - crop_w) / 2, (height - crop_h) / 2
+        return image.resize(self.size, Image.BILINEAR, box=(left, top, left + crop_w, top + crop_h))
+
+    def _still(self, shot: tuple, t: float, move: str = "in") -> Image.Image:
         start, duration, image = shot
         progress = min(1.0, max(0.0, (t - start) / max(0.01, duration)))
-        scale = 1 + self.push * progress
         width, height = self.size
+        # "in" pushes closer, "out" pulls back from a closer start, "left" and "right" drift sideways at a fixed zoom.
+        scale = {"in": 1 + self.push * progress, "out": 1 + self.push * (1 - progress)}.get(move, 1 + self.push)
         crop_w, crop_h = width / scale, height / scale
-        left, top = (width - crop_w) / 2, (height - crop_h) * 0.4
+        slack = width - crop_w
+        left = {"left": slack * (1 - progress), "right": slack * progress}.get(move, slack / 2)
+        top = (height - crop_h) * 0.4
         return image.resize(self.size, Image.BILINEAR, box=(left, top, left + crop_w, top + crop_h)).convert("RGBA")
 
     def _video_frame(self, wanted: int) -> Image.Image:

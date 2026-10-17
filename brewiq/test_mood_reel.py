@@ -101,6 +101,20 @@ class MoodReelTests(unittest.TestCase):
         self.assertFalse(mood_reel.is_long(spec()))
         self.assertFalse(mood_reel.is_long(spec(seconds="junk")))
 
+    def test_the_reel_lasts_as_long_as_its_song(self) -> None:
+        frames = {name: f"{name}.png" for name in ("wide", "medium", "detail", "close", "glance")}
+        for wanted, long in ((7.0, False), (9.4, False), (12.0, False), (15.0, True), (20.0, True), (27.3, True)):
+            shots, total = mood_reel.timeline(frames, long=long, seconds=wanted)
+            self.assertAlmostEqual(total, wanted, places=3)
+            self.assertAlmostEqual(sum(s["duration"] for s in shots), wanted, places=3)
+            self.assertAlmostEqual(shots[-1]["start"] + shots[-1]["duration"], wanted, places=3)
+            self.assertGreaterEqual(min(s["duration"] for s in shots), 1.0, "no shot is shorter than a fade needs")
+        self.assertEqual(mood_reel.target_seconds({"seconds": 166}), 30.0, "a full-length song is capped")
+        self.assertEqual(mood_reel.target_seconds({"seconds": 3}), 7.0, "a tiny clip is raised to the shortest Reel")
+        self.assertEqual(mood_reel.target_seconds({"seconds": 11.2}), 11.2)
+        self.assertIsNone(mood_reel.target_seconds({}))
+        self.assertIsNone(mood_reel.target_seconds({"seconds": "junk"}))
+
     def test_the_text_sits_inside_the_safe_zone(self) -> None:
         renderer = mood_reel.layout(spec(), 10.6, [{"start": 0.0, "color": "#F2B33D"}])
         self.assertEqual(mood_reel.layout_problems(renderer), [])

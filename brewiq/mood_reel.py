@@ -50,6 +50,9 @@ TIMELINE = (("wide", 3.2), ("medium", 3.0), ("detail", 2.2), ("wide", 1.6))
 LONG_SHOT_IDS = ("close", "glance")
 LONG_TIMELINE = (("wide", 4.0), ("medium", 3.4), ("close", 3.4), ("detail", 3.0), ("glance", 3.4), ("wide", 2.8))
 LONG_THRESHOLD = 12.0
+# The Reel lasts as long as its song, within these limits.
+MIN_SECONDS = 7.0
+MAX_SECONDS = 30.0
 FADE = 0.55
 PUSH = 0.06
 MAX_TEXT_WORDS = 9
@@ -200,12 +203,30 @@ def make_frames(spec: dict, folder: Path, *, generate=None, edit=None, sheet=Non
     return {"ok": True, "frames": {key: str(path) for key, path in paths.items()}, "error": ""}
 
 
-def timeline(frames: dict, long: bool = False) -> tuple:
-    """The shots with their start times, and the total length."""
+def target_seconds(spec: dict):
+    """The Reel length the spec asks for, kept between MIN_SECONDS and MAX_SECONDS, or None to use the default cut."""
+    try:
+        wanted = float(spec.get("seconds") or 0)
+    except (TypeError, ValueError):
+        return None
+    return round(min(max(wanted, MIN_SECONDS), MAX_SECONDS), 3) if wanted > 0 else None
+
+
+def timeline(frames: dict, long: bool = False, seconds=None) -> tuple:
+    """The shots with their start times, and the total length.
+
+    With `seconds`, every shot is scaled so the Reel lasts exactly that long (the song's length): the same shots and order,
+    held longer or shorter. The last shot takes the rounding so the total is exact.
+    """
+    base = LONG_TIMELINE if long else TIMELINE
+    scale = seconds / sum(duration for _, duration in base) if seconds else 1.0
     shots, cursor = [], 0.0
-    for shot_id, seconds in (LONG_TIMELINE if long else TIMELINE):
-        shots.append({"start": round(cursor, 3), "duration": seconds, "role": shot_id, "path": frames[shot_id]})
-        cursor += seconds
+    for index, (shot_id, duration) in enumerate(base):
+        length = round(duration * scale, 3)
+        if index == len(base) - 1 and seconds:
+            length = round(seconds - cursor, 3)
+        shots.append({"start": round(cursor, 3), "duration": length, "role": shot_id, "path": frames[shot_id]})
+        cursor += length
     return shots, round(cursor, 3)
 
 
@@ -260,7 +281,7 @@ def build_mood_reel(spec: dict, folder: Path, *, generate=None, edit=None, anima
     if not drawn.get("ok"):
         return {"ok": False, "error": drawn["error"]}
     frames = drawn["frames"]
-    shots, total = timeline(frames, is_long(spec))
+    shots, total = timeline(frames, is_long(spec), target_seconds(spec))
     accents = [{"start": 0.0, "color": BRAND_ACCENT}]
     notes = []
     backdrop = {"shots": shots, "accents": accents, "fade": FADE, "push": PUSH, "mark": ACCOUNT_MARK,
